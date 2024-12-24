@@ -6,6 +6,11 @@ require("./db").connect();
 require("dotenv").config();
 
 let port = process.env.PORT || 3001;
+
+const managerRoute = require('./routes/managerRoute')
+
+app.use(managerRoute)
+
 app.listen(port, () => {
   console.log("Server is listening at port:", port)
 });
