@@ -1,7 +1,11 @@
-require("dotenv").config({ path: "config/config.env" });
-const express = require("express");
+const express = require('express');
+const bodyParser = require('body-parser');
 const app = express();
-const port = process.env.PORT || 3001;
+app.use(bodyParser.json());
+require("./db").connect();
+require("dotenv").config();
+
+let port = process.env.PORT || 3001;
 
 const managerRoute = require('./routes/managerRoute')
 

@@ -5,9 +5,9 @@ const { addEmployee, getEmployee, updateEmployee, deleteEmployee } = require('..
 const managerRoute = Router()
 
 
-managerRoute.post('addemployee', auth, addEmployee)
-managerRoute.post('getemployee/:id', auth, getEmployee)
-managerRoute.post('updateemployee/:id', auth, updateEmployee)
-managerRoute.post('deleteemployee/:id', auth, deleteEmployee)
+managerRoute.post('/addemployee', addEmployee)
+managerRoute.post('/getemployee/:id', getEmployee)
+managerRoute.post('/updateemployee/:id', updateEmployee)
+managerRoute.post('/deleteemployee/:id', deleteEmployee)
 
 module.exports = managerRoute

@@ -1,13 +1,16 @@
+const User = require("../../models/user")
 
 
 exports.addEmployee = async (req, res) => {
     try {
-        if(req.user.role == 'Manager'){
+        // if(req.user.role == 'Manager'){
             let {
                 personalDetails,
                 addressDetails,
                 jobDetails,
-                immigrationDetails
+                immigrationDetails,
+                documentDetails,
+                contractDetails
             } = req.body
 
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
@@ -15,64 +18,41 @@ exports.addEmployee = async (req, res) => {
             // }            
 
             const newEmployee = {
-                personalDetails: {
-                    firstName: personalDetails.firstName,
-                    middleName: personalDetails.middleName,
-                    lastName: personalDetails.lastName,
-                    dateOfBirth: personalDetails.dateOfBirth,
-                    gender: personalDetails.gender,
-                    maritalStatus: personalDetails.maritalStatus,
-                    phone: personalDetails.phone,
-                    email: personalDetails.email,
-                },
-                addressDetails: {
-                    address: addressDetails.address,
-                    addressLine2: addressDetails.addressLine2,
-                    city: addressDetails.city,
-                    postCode: addressDetails.postCode,
-                },
-                jobDetails: {
-                    jobTitle: jobDetails.jobTitle,
-                    annualSalary: jobDetails.annualSalary,
-                    hourlyRate: jobDetails.hourlyRate,
-                    weeklyWorkingHours: jobDetails.weeklyWorkingHours,
-                    joiningDate: jobDetails.joiningDate,
-                },
-                immigrationDetails: {
-                    passportNumber: immigrationDetails.passportNumber,
-                    countryOfIssue: immigrationDetails.countryOfIssue,
-                    nationality: immigrationDetails.nationality,
-                    visaCategory: immigrationDetails.visaCategory,
-                    visaValidFrom: immigrationDetails.visaValidFrom,
-                    visaValidTo: immigrationDetails.visaValidTo,
-                }
+                personalDetails,
+                addressDetails,
+                jobDetails,
+                immigrationDetails,
+                role: "Employee",
+                documentDetails,
+                contractDetails,
+                // createdBy: req.user.role,
+                // creatorId: req.user._id,
             }
 
-            console.log('new employee', newEmployee)
-            const employee = User.create(newEmployee)
-            await employee.save()
+            // console.log('new employee', newEmployee)
+            const employee = await User.create(newEmployee)
 
             return res.status(200).send({ message: 'Employee created successfully.', employee })
-        } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
         return res.send(error.messsage)
     }
 }
 
-exports.getEmployee = (req, res) => {
+exports.getEmployee = async (req, res) => {
     try {
-        if(req.user.role == 'Manager'){
+        // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = User.findById(employeeId)
+            const employee = await User.findById(employeeId)
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
             }
 
             return res.status(200).send(employee)
-        } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
         return res.send(error.messsage)
@@ -106,10 +86,12 @@ exports.updateEmployee = (req, res) => {
                             middleName: personalDetails.middleName || employee.personalDetails.middleName,
                             lastName: personalDetails.lastName || employee.personalDetails.lastName,
                             dateOfBirth: personalDetails.dateOfBirth || employee.personalDetails.dateOfBirth,
-                            gender: personalDetails.gender || employee.personalDetails.firstName,
-                            maritalStatus: personalDetails.maritalStatus || employee.personalDetails.firstName,
-                            phone: personalDetails.phone || employee.personalDetails.firstName,
-                            email: personalDetails.email || employee.personalDetails.firstName,
+                            gender: personalDetails.gender || employee.personalDetails.gender,
+                            maritalStatus: personalDetails.maritalStatus || employee.personalDetails.maritalStatus,
+                            phone: personalDetails.phone || employee.personalDetails.phone,
+                            homeTelephone: personalDetails.homeTelephone || employee.personalDetails.homeTelephone,
+                            email: personalDetails.email || employee.personalDetails.email,
+                            niNumber: personalDetails.niNumber || employee.personalDetails.niNumber,
                         },
                         addressDetails: {
                             address: addressDetails.address || employee.addressDetails.address,
@@ -119,19 +101,33 @@ exports.updateEmployee = (req, res) => {
                         },
                         jobDetails: {
                             jobTitle: jobDetails.jobTitle || employee.jobDetails.jobTitle,
+                            jobDescription: jobDetails.jobDescription || employee.jobDetails.jobDescription,
                             annualSalary: jobDetails.annualSalary || employee.jobDetails.annualSalary,
                             hourlyRate: jobDetails.hourlyRate || employee.jobDetails.hourlyRate,
                             weeklyWorkingHours: jobDetails.weeklyWorkingHours || employee.jobDetails.weeklyWorkingHours,
                             joiningDate: jobDetails.joiningDate || employee.jobDetails.joiningDate,
+                            location: jobDetails.location || employee.jobDetails.location,
+                            assignManager: jobDetails.assignManager || employee.jobDetails.assignManager,
+                            role: jobDetails.role || employee.jobDetails.role,
                         },
                         immigrationDetails: {
-                            passportNumber: immigrationDetails.passportNumber || employee.passportDetails.passportNumber,
-                            countryOfIssue: immigrationDetails.countryOfIssue || employee.passportDetails.countryOfIssue,
-                            nationality: immigrationDetails.nationality || employee.passportDetails.nationality,
-                            visaCategory: immigrationDetails.visaCategory || employee.passportDetails.visaCategory,
-                            visaValidFrom: immigrationDetails.visaValidFrom || employee.passportDetails.visaValidFrom,
-                            visaValidTo: immigrationDetails.visaValidTo || employee.passportDetails.visaValidTo,
-                        }
+                            passportNumber: immigrationDetails.passportNumber || employee.immigrationDetails.passportNumber,
+                            countryOfIssue: immigrationDetails.countryOfIssue || employee.immigrationDetails.passportNumber,
+                            passportExpiry: immigrationDetails.passportExpiry || employee.immigrationDetails.passportNumber,
+                            nationality: immigrationDetails.nationality || employee.immigrationDetails.passportNumber,
+                            visaCategory: immigrationDetails.visaCategory || employee.immigrationDetails.passportNumber,
+                            visaValidFrom: immigrationDetails.visaValidFrom || employee.immigrationDetails.passportNumber,
+                            visaValidTo: immigrationDetails.visaValidTo || employee.immigrationDetails.passportNumber,
+                            brpNumber: immigrationDetails.brpNumber || employee.immigrationDetails.passportNumber,
+                            cosNumber: immigrationDetails.cosNumber || employee.immigrationDetails.passportNumber,
+                            restriction: immigrationDetails.restriction || employee.immigrationDetails.passportNumber,
+                            shareCode: immigrationDetails.shareCode || employee.immigrationDetails.passportNumber,
+                            rightToWorkCheckDate: immigrationDetails.rightToWorkCheckDate || employee.immigrationDetails.passportNumber,
+                            rightToWorkEndDate: immigrationDetails.rightToWorkEndDate || employee.immigrationDetails.passportNumber,
+                        },
+                        documentDetails,
+                        contractDetails,
+                        updatedAt: new Date()
                     }
                 }, { new: true }
             )
