@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
     firstName: String,
     middleName: String,
     lastName: String,
-    dateOfBirth: Date,
+    dateOfBirth: String,
     gender: { type: String, enum: ['Male', 'Female'] },
     maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
     phone: String,
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
     weeklyWorkingHours: String,
     weeklyWorkingHoursPattern: String,
     weeklySalary: Number,
-    joiningDate: Date,
+    joiningDate: String,
     socCode: String,
     sickLeavesAllow: String,
     leavesAllow: String,
@@ -58,8 +58,8 @@ const userSchema = new mongoose.Schema({
     passportExpiry: String,
     nationality: String,
     visaCategory: String,
-    visaValidFrom: Date,
-    visaValidTo: Date,
+    visaValidFrom: String,
+    visaValidTo: String,
     brpNumber: String,
     cosNumber: String,
     restriction: String,
@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema({
   createdBy: {
     type: String, enum: ['Superadmin', 'Administrator', 'Manager']
   },
-  initiatorUserId: {
+  creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
 }, { timestamps: true });
