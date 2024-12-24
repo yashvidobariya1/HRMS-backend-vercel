@@ -63,6 +63,18 @@ exports.getEmployee = async (req, res) => {
     }
 }
 
+exports.getAllEmployees = async (req, res) => {
+    try {
+        // if(req.user.role == 'Manager') {
+            const employees = await User.find({role: 'Employee'})
+            res.status(200).send(employees)
+        // } else return res.status(401).send('You can not authorize for this action.')
+    } catch (error) {
+        console.log('Error:', error)
+        return res.send(error.message)
+    }
+}
+
 exports.updateEmployee = async (req, res) => {
     try {
         // if(req.user.role == 'Manager'){
@@ -198,3 +210,8 @@ exports.deleteEmployee = async (req, res) => {
         return res.send(error.messsage)
     }
 }
+
+// 2l ghee
+// 1kg choka and makai pava
+// one package of bhugli
+// 1kg adad ni dal dholi
