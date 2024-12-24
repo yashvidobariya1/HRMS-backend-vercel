@@ -8,5 +8,9 @@ const managerRoute = require('./routes/managerRoute')
 app.use(managerRoute)
 
 app.listen(port, () => {
-  console.log("Server is listening at port:", port);
+  console.log("Server is listening at port:", port)
 });
+
+app.get("/", (req, res) => {
+  res.send('HRMS BACKEND')
+})
