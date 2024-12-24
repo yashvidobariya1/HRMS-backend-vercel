@@ -7,6 +7,8 @@ exports.addEmployee = async (req, res) => {
             let {
                 personalDetails,
                 addressDetails,
+                kinDetails,
+                financialDetails,
                 jobDetails,
                 immigrationDetails,
                 documentDetails,
@@ -20,6 +22,8 @@ exports.addEmployee = async (req, res) => {
             const newEmployee = {
                 personalDetails,
                 addressDetails,
+                kinDetails,
+                financialDetails,
                 jobDetails,
                 immigrationDetails,
                 role: "Employee",
@@ -59,12 +63,13 @@ exports.getEmployee = async (req, res) => {
     }
 }
 
-exports.updateEmployee = (req, res) => {
+exports.updateEmployee = async (req, res) => {
     try {
-        if(req.user.role == 'Manager'){
+        // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = User.findById(employeeId)
+            const employee = await User.findById({_id: employeeId})
+            console.log('employee/...', employee)
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
@@ -73,58 +78,90 @@ exports.updateEmployee = (req, res) => {
             let {
                 personalDetails,
                 addressDetails,
+                kinDetails,
+                financialDetails,
                 jobDetails,
-                immigrationDetails
+                immigrationDetails,
+                documentDetails,
+                contractDetails,
             } = req.body
 
-            let updatedEmployee = User.findOneAndUpdate(
+            const updatedPersonalDetails = {
+                firstName: personalDetails?.firstName || employee.personalDetails.firstName,
+                middleName: personalDetails?.middleName || employee.personalDetails.middleName,
+                lastName: personalDetails?.lastName || employee.personalDetails.lastName,
+                dateOfBirth: personalDetails?.dateOfBirth || employee.personalDetails.dateOfBirth,
+                gender: personalDetails?.gender || employee.personalDetails.gender,
+                maritalStatus: personalDetails?.maritalStatus || employee.personalDetails.maritalStatus,
+                phone: personalDetails?.phone || employee.personalDetails.phone,
+                homeTelephone: personalDetails?.homeTelephone || employee.personalDetails.homeTelephone,
+                email: personalDetails?.email || employee.personalDetails.email,
+                niNumber: personalDetails?.niNumber || employee.personalDetails.niNumber,
+            }
+
+            const updatedAddressDetails = {
+                address: addressDetails?.address || employee.addressDetails.address,
+                addressLine2: addressDetails?.addressLine2 || employee.addressDetails.addressLine2,
+                city: addressDetails?.city || employee.addressDetails.city,
+                postCode: addressDetails?.postCode || employee.addressDetails.postCode,
+            }
+
+            const updatedKinDetails = {
+                kinName: kinDetails?.kinName || employee.kinDetails.kinName,
+                relationshipToYou: kinDetails?.relationshipToYou || employee.kinDetails.relationshipToYou,
+                address: kinDetails?.address || employee.kinDetails.address,
+                postCode: kinDetails?.kinName || employee.kinDetails.kinName,
+                emergencyContactNumber: kinDetails?.emergencyContactNumber || employee.kinDetails.emergencyContactNumber,
+                email: kinDetails?.email || employee.kinDetails.email,
+            }
+
+            const updatedFinancialDetails = {
+                bankName: financialDetails?.bankName || employee.financialDetails.bankName,
+                holderName: financialDetails?.holderName || employee.financialDetails.holderName,
+                sortCode: financialDetails?.sortCode || employee.financialDetails.sortCode,
+                accountNumber: financialDetails?.accountNumber || employee.financialDetails.accountNumber,
+                payrollFrequency: financialDetails?.payrollFrequency || employee.financialDetails.payrollFrequency,
+                pension: financialDetails?.pension || employee.financialDetails.pension,
+            }
+
+            const updatedJobDetails = {
+                jobTitle: jobDetails?.jobTitle || employee.jobDetails.jobTitle,
+                jobDescription: jobDetails?.jobDescription || employee.jobDetails.jobDescription,
+                annualSalary: jobDetails?.annualSalary || employee.jobDetails.annualSalary,
+                hourlyRate: jobDetails?.hourlyRate || employee.jobDetails.hourlyRate,
+                weeklyWorkingHours: jobDetails?.weeklyWorkingHours || employee.jobDetails.weeklyWorkingHours,
+                joiningDate: jobDetails?.joiningDate || employee.jobDetails.joiningDate,
+                location: jobDetails?.location || employee.jobDetails.location,
+                assignManager: jobDetails?.assignManager || employee.jobDetails.assignManager,
+                role: jobDetails?.role || employee.jobDetails.role,
+            }
+
+            const updatedImmigrationDetails = {
+                passportNumber: immigrationDetails?.passportNumber || employee.immigrationDetails.passportNumber,
+                countryOfIssue: immigrationDetails?.countryOfIssue || employee.immigrationDetails.countryOfIssue,
+                passportExpiry: immigrationDetails?.passportExpiry || employee.immigrationDetails.passportExpiry,
+                nationality: immigrationDetails?.nationality || employee.immigrationDetails.nationality,
+                visaCategory: immigrationDetails?.visaCategory || employee.immigrationDetails.visaCategory,
+                visaValidFrom: immigrationDetails?.visaValidFrom || employee.immigrationDetails.visaValidFrom,
+                visaValidTo: immigrationDetails?.visaValidTo || employee.immigrationDetails.visaValidTo,
+                brpNumber: immigrationDetails?.brpNumber || employee.immigrationDetails.brpNumber,
+                cosNumber: immigrationDetails?.cosNumber || employee.immigrationDetails.cosNumber,
+                restriction: immigrationDetails?.restriction || employee.immigrationDetails.restriction,
+                shareCode: immigrationDetails?.shareCode || employee.immigrationDetails.shareCode,
+                rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate || employee.immigrationDetails.rightToWorkCheckDate,
+                rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate || employee.immigrationDetails.rightToWorkEndDate,
+            }
+
+            let updatedEmployee = await User.findOneAndUpdate(
                 { _id: employeeId },
                 {
                     $set: {
-                        personalDetails: {
-                            firstName: personalDetails.firstName || employee.personalDetails.firstName,
-                            middleName: personalDetails.middleName || employee.personalDetails.middleName,
-                            lastName: personalDetails.lastName || employee.personalDetails.lastName,
-                            dateOfBirth: personalDetails.dateOfBirth || employee.personalDetails.dateOfBirth,
-                            gender: personalDetails.gender || employee.personalDetails.gender,
-                            maritalStatus: personalDetails.maritalStatus || employee.personalDetails.maritalStatus,
-                            phone: personalDetails.phone || employee.personalDetails.phone,
-                            homeTelephone: personalDetails.homeTelephone || employee.personalDetails.homeTelephone,
-                            email: personalDetails.email || employee.personalDetails.email,
-                            niNumber: personalDetails.niNumber || employee.personalDetails.niNumber,
-                        },
-                        addressDetails: {
-                            address: addressDetails.address || employee.addressDetails.address,
-                            addressLine2: addressDetails.addressLine2 || employee.addressDetails.addressLine2,
-                            city: addressDetails.city || employee.addressDetails.city,
-                            postCode: addressDetails.postCode || employee.addressDetails.postCode,
-                        },
-                        jobDetails: {
-                            jobTitle: jobDetails.jobTitle || employee.jobDetails.jobTitle,
-                            jobDescription: jobDetails.jobDescription || employee.jobDetails.jobDescription,
-                            annualSalary: jobDetails.annualSalary || employee.jobDetails.annualSalary,
-                            hourlyRate: jobDetails.hourlyRate || employee.jobDetails.hourlyRate,
-                            weeklyWorkingHours: jobDetails.weeklyWorkingHours || employee.jobDetails.weeklyWorkingHours,
-                            joiningDate: jobDetails.joiningDate || employee.jobDetails.joiningDate,
-                            location: jobDetails.location || employee.jobDetails.location,
-                            assignManager: jobDetails.assignManager || employee.jobDetails.assignManager,
-                            role: jobDetails.role || employee.jobDetails.role,
-                        },
-                        immigrationDetails: {
-                            passportNumber: immigrationDetails.passportNumber || employee.immigrationDetails.passportNumber,
-                            countryOfIssue: immigrationDetails.countryOfIssue || employee.immigrationDetails.passportNumber,
-                            passportExpiry: immigrationDetails.passportExpiry || employee.immigrationDetails.passportNumber,
-                            nationality: immigrationDetails.nationality || employee.immigrationDetails.passportNumber,
-                            visaCategory: immigrationDetails.visaCategory || employee.immigrationDetails.passportNumber,
-                            visaValidFrom: immigrationDetails.visaValidFrom || employee.immigrationDetails.passportNumber,
-                            visaValidTo: immigrationDetails.visaValidTo || employee.immigrationDetails.passportNumber,
-                            brpNumber: immigrationDetails.brpNumber || employee.immigrationDetails.passportNumber,
-                            cosNumber: immigrationDetails.cosNumber || employee.immigrationDetails.passportNumber,
-                            restriction: immigrationDetails.restriction || employee.immigrationDetails.passportNumber,
-                            shareCode: immigrationDetails.shareCode || employee.immigrationDetails.passportNumber,
-                            rightToWorkCheckDate: immigrationDetails.rightToWorkCheckDate || employee.immigrationDetails.passportNumber,
-                            rightToWorkEndDate: immigrationDetails.rightToWorkEndDate || employee.immigrationDetails.passportNumber,
-                        },
+                        personalDetails: updatedPersonalDetails,
+                        addressDetails: updatedAddressDetails,
+                        kinDetails: updatedKinDetails,
+                        financialDetails: updatedFinancialDetails,
+                        jobDetails: updatedJobDetails,
+                        immigrationDetails: updatedImmigrationDetails,
                         documentDetails,
                         contractDetails,
                         updatedAt: new Date()
@@ -134,28 +171,28 @@ exports.updateEmployee = (req, res) => {
             
             return res.status(200).send({ message: 'Employee details updated successfully.', updatedEmployee })
 
-        } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
         return res.send(error.messsage)
     }
 }
 
-exports.deleteEmployee = (req, res) => {
+exports.deleteEmployee = async (req, res) => {
     try {
-        if(req.user.role == 'Manager'){
+        // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = User.findById(employeeId)
+            const employee = await User.findById(employeeId)
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
             }
 
-            let deletedEmployee = User.findOneAndDelete(employeeId)
+            let deletedEmployee = await User.findOneAndDelete(employeeId)
 
             return res.status(200).send({ message: 'Employee removed successfully.', deletedEmployee })
-        } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
         return res.send(error.messsage)
