@@ -164,7 +164,7 @@ exports.updateEmployee = async (req, res) => {
                 rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate || employee.immigrationDetails.rightToWorkEndDate,
             }
 
-            let updatedEmployee = await User.findOneAndUpdate(
+            let updatedEmployee = await User.findByIdAndUpdate(
                 { _id: employeeId },
                 {
                     $set: {
@@ -201,7 +201,7 @@ exports.deleteEmployee = async (req, res) => {
                 return res.status(404).send('Employee not found')
             }
 
-            let deletedEmployee = await User.findOneAndDelete(employeeId)
+            let deletedEmployee = await User.findByIdAndDelete(employeeId)
 
             return res.status(200).send({ message: 'Employee removed successfully.', deletedEmployee })
         // } else return res.status(401).send('You can not authorize for this action.')
