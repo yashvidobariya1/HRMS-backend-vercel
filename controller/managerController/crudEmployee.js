@@ -210,8 +210,3 @@ exports.deleteEmployee = async (req, res) => {
         return res.send(error.messsage)
     }
 }
-
-// 2l ghee
-// 1kg choka and makai pava
-// one package of bhugli
-// 1kg adad ni dal dholi
