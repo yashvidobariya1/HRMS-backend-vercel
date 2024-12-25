@@ -26,10 +26,10 @@ const { JWT_SECRET } = process.env
 // }
 
 const users = {
-    "superadmin_api_key": { role: "Superadmin" },
-    "administrator_api_key": { role: "Administrator" },
-    "manager_api_key": { role: "Manager" },
-    "employee_api_key": { role: "Employee" },
+    "Superadmin": { role: "Superadmin" },
+    "Administrator": { role: "Administrator" },
+    "Manager": { role: "Manager" },
+    "Employee": { role: "Employee" },
 };
 
 exports.auth = (allowedRoles) => {
