@@ -49,6 +49,7 @@ const userSchema = new mongoose.Schema({
     weeklySalary: Number,
     joiningDate: String,
     socCode: String,
+    modeOfTransfer: String,
     sickLeavesAllow: String,
     leavesAllow: String,
     location: String,
