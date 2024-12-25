@@ -39,7 +39,7 @@ const companySchema = new mongoose.Schema({
         },
     },
     contractDetails: {
-        starDate: String,
+        startDate: String,
         endDate: String,
         maxEmployeesAllowed: String,
     },

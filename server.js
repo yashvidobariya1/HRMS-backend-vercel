@@ -7,9 +7,13 @@ require("dotenv").config();
 
 let port = process.env.PORT || 3001;
 
-const managerRoute = require('./routes/managerRoute')
+const managerRoute = require('./routes/managerRoute');
+const superAdminRoute = require('./routes/superAdminRoute');
+const { auth } = require('./middleware/authenticate');
 
+// app.use(auth)
 app.use(managerRoute)
+app.use(superAdminRoute)
 
 app.listen(port, () => {
   console.log("Server is listening at port:", port)
