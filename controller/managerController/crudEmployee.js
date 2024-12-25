@@ -49,7 +49,7 @@ exports.getEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findById(employeeId)
+            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
@@ -80,8 +80,8 @@ exports.updateEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findById({_id: employeeId})
-            console.log('employee/...', employee)
+            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
+            // console.log('employee/...', employee)
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
@@ -195,7 +195,7 @@ exports.deleteEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findById(employeeId)
+            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
