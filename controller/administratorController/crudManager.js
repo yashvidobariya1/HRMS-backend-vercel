@@ -141,7 +141,13 @@ exports.updateManagerDetails = async (req, res) =>{
             annualSalary: jobDetails?.annualSalary || manager.jobDetails.annualSalary,
             hourlyRate: jobDetails?.hourlyRate || manager.jobDetails.hourlyRate,
             weeklyWorkingHours: jobDetails?.weeklyWorkingHours || manager.jobDetails.weeklyWorkingHours,
+            weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern || manager.jobDetails.weeklyWorkingHoursPattern,
+            weeklySalary: jobDetails?.weeklySalary || manager.jobDetails.weeklySalary,
             joiningDate: jobDetails?.joiningDate || manager.jobDetails.joiningDate,
+            socCode: jobDetails?.socCode || manager.jobDetails.socCode,
+            modeOfTransfer: jobDetails?.modeOfTransfer || manager.jobDetails.modeOfTransfer,
+            sickLeavesAllow: jobDetails?.sickLeavesAllow || manager.jobDetails.sickLeavesAllow,
+            leavesAllow: jobDetails?.leavesAllow || manager.jobDetails.leavesAllow,
             location: jobDetails?.location || manager.jobDetails.location,
             assignManager: jobDetails?.assignManager || manager.jobDetails.assignManager,
             role: jobDetails?.role || manager.jobDetails.role,
@@ -200,7 +206,7 @@ exports.deleteManager = async (req, res) =>{
             return res.status(404).send('Manager not found')
         }
 
-        let deletedManager = await User.findByIdAndDelete(managerId, {
+        let deletedManager = await User.findByIdAndUpdate(managerId, {
             $set: {
                 isDeleted: true,
                 canceledAt: new Date()
