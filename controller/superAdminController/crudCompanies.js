@@ -32,7 +32,10 @@ exports.getCompany = async (req, res) => {
         // if(req.user.role == 'Superadmin') {
             const companyId = req.params.id
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({
+                _id: companyId,
+                isDeleted: { $ne: true }
+              });
 
             if(!company) {
                 return res.status(404).send('Company not found')
@@ -50,7 +53,7 @@ exports.getAllCompany = async (req, res) => {
     try {
         // if(req.user.role == 'Superadmin') {
 
-            const company = await Company.find()
+            const company = await Company.find({ isDeleted: { $ne: true } })
 
             if(!company) {
                 return res.status(404).send('Company not found')
@@ -69,7 +72,10 @@ exports.updateCompanyDetails = async (req, res) => {
         // if(req.user.role == 'Superadmin') {
             const companyId = req.params.id
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({
+                _id: companyId,
+                isDeleted: { $ne: true }
+            });
 
             if(!company) {
                 return res.status(404).send('Company not found')
@@ -152,15 +158,23 @@ exports.deleteCompany = async (req, res) => {
         // if(req.user.role == 'Superadmin') {
             const companyId = req.params.id
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({
+                _id: companyId,
+                isDeleted: { $ne: true }
+            });
 
             if(!company) {
                 return res.status(404).send('Company not found')
             }
 
-            let deletedCompany = await Company.findByIdAndDelete(companyId)
+            let deletedCompany = await Company.findByIdAndUpdate(companyId,{
+                $set: {
+                    isDeleted: true,
+                    canceledAt: new Date()
+                }
+            })
 
-            return res.status(200).send({ message: 'Company removed successfully.', deletedCompany })
+            return res.status(200).send({ message: 'Company deleted successfully.', deletedCompany })
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)

@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
+  isDeleted: {
+    type: Boolean, default: false
+  },
   personalDetails: {
     firstName: String,
     middleName: String,
@@ -84,6 +87,7 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  canceledAt: Date,
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
