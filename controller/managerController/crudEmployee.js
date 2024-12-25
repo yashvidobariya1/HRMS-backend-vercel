@@ -1,9 +1,8 @@
 const User = require("../../models/user")
 
-
 exports.addEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             let {
                 personalDetails,
                 addressDetails,
@@ -17,7 +16,7 @@ exports.addEmployee = async (req, res) => {
 
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
-            // }            
+            // }
 
             const newEmployee = {
                 personalDetails,
@@ -26,7 +25,7 @@ exports.addEmployee = async (req, res) => {
                 financialDetails,
                 jobDetails,
                 immigrationDetails,
-                role: "Employee",
+                role: jobDetails?.role,
                 documentDetails,
                 contractDetails,
                 // createdBy: req.user.role,
@@ -46,19 +45,23 @@ exports.addEmployee = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
+
+            if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
+                return res.status(404).send({ message: 'Employee not found' })
+            }
 
             const employee = await User.findOne({
                 _id: employeeId,
                 isDeleted: { $ne: true },
             });
 
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
-            return res.status(200).send(employee)
+            return res.status(200).send({ message: 'Employee get successfully.', employee })
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
@@ -68,9 +71,9 @@ exports.getEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager') {
+        // if (req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
-            res.status(200).send(employees)
+            res.status(200).send({ message: 'Employee all get successfully.', employees })
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)
@@ -80,7 +83,7 @@ exports.getAllEmployees = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -88,8 +91,8 @@ exports.updateEmployee = async (req, res) => {
                 isDeleted: { $ne: true }
             });
 
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
             let {
@@ -147,7 +150,13 @@ exports.updateEmployee = async (req, res) => {
                 annualSalary: jobDetails?.annualSalary || employee.jobDetails.annualSalary,
                 hourlyRate: jobDetails?.hourlyRate || employee.jobDetails.hourlyRate,
                 weeklyWorkingHours: jobDetails?.weeklyWorkingHours || employee.jobDetails.weeklyWorkingHours,
+                weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern || employee.jobDetails.weeklyWorkingHoursPattern,
+                weeklySalary: jobDetails?.weeklySalary || employee.jobDetails.weeklySalary,
                 joiningDate: jobDetails?.joiningDate || employee.jobDetails.joiningDate,
+                socCode: jobDetails?.socCode || employee.jobDetails.socCode,
+                modeOfTransfer: jobDetails?.modeOfTransfer || employee.jobDetails.modeOfTransfer,
+                sickLeavesAllow: jobDetails?.sickLeavesAllow || employee.jobDetails.sickLeavesAllow,
+                leavesAllow: jobDetails?.leavesAllow || employee.jobDetails.leavesAllow,
                 location: jobDetails?.location || employee.jobDetails.location,
                 assignManager: jobDetails?.assignManager || employee.jobDetails.assignManager,
                 role: jobDetails?.role || employee.jobDetails.role,
@@ -185,7 +194,7 @@ exports.updateEmployee = async (req, res) => {
                     }
                 }, { new: true }
             )
-            
+
             return res.status(200).send({ message: 'Employee details updated successfully.', updatedEmployee })
 
         // } else return res.status(401).send('You can not authorize for this action.')
@@ -197,15 +206,15 @@ exports.updateEmployee = async (req, res) => {
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
                 _id: employeeId,
                 isDeleted: { $ne: true },
             });
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
             let deletedEmployee = await User.findByIdAndUpdate(employeeId, {
