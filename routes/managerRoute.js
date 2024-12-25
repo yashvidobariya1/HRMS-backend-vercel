@@ -5,10 +5,10 @@ const { addEmployee, getEmployee, updateEmployee, deleteEmployee, getAllEmployee
 const managerRoute = Router()
 
 
-managerRoute.post('/addemployee', addEmployee)
-managerRoute.post('/getemployee/:id', getEmployee)
-managerRoute.post('/getallemployee', getAllEmployees)
-managerRoute.post('/updateemployee/:id', updateEmployee)
-managerRoute.post('/deleteemployee/:id', deleteEmployee)
+managerRoute.post('/addemployee', auth(["Manager", "Administrator"]), addEmployee)
+managerRoute.post('/getemployee/:id', auth(["Manager", "Administrator"]), getEmployee)
+managerRoute.post('/getallemployee', auth(["Manager", "Administrator"]), getAllEmployees)
+managerRoute.post('/updateemployee/:id', auth(["Manager", "Administrator"]), updateEmployee)
+managerRoute.post('/deleteemployee/:id', auth(["Manager", "Administrator"]), deleteEmployee)
 
 module.exports = managerRoute

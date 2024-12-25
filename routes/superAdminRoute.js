@@ -5,10 +5,10 @@ const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompa
 const superAdminRoute = Router()
 
 
-superAdminRoute.post('/addcompany', addCompany)
-superAdminRoute.post('/getcompany/:id', getCompany)
-superAdminRoute.post('/getallcompany', getAllCompany)
-superAdminRoute.post('/updatecompany/:id', updateCompanyDetails)
-superAdminRoute.post('/deletecompany/:id', deleteCompany)
+superAdminRoute.post('/addcompany', auth(['Superadmin']), addCompany)
+superAdminRoute.post('/getcompany/:id', auth(['Superadmin']), getCompany)
+superAdminRoute.post('/getallcompany', auth(['Superadmin']), getAllCompany)
+superAdminRoute.post('/updatecompany/:id', auth(['Superadmin']), updateCompanyDetails)
+superAdminRoute.post('/deletecompany/:id', auth(['Superadmin']), deleteCompany)
 
 module.exports = superAdminRoute

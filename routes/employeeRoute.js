@@ -4,6 +4,6 @@ const { getDetails } = require('../controller/employeeController/employeeControl
 
 const employeeRoute = Router()
 
-employeeRoute.post('/getdetails', getDetails)
+employeeRoute.post('/getdetails', auth(["Employee", "Manager", "Administrator"]), getDetails)
 
 module.exports = employeeRoute

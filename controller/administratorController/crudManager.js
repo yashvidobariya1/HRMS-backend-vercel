@@ -44,7 +44,10 @@ exports.addManager = async (req, res) =>{
 exports.getManager = async (req, res) =>{
     try {
         const managerId = req.params.id
-        const manager = await User.findOne({_id: managerId, role: 'Manager'})
+        const manager = await User.findOne({
+            _id: managerId,
+            isDeleted: { $ne: true }
+        })
 
         if(!manager){
             return res.status(404).send({ message: 'Manager not found.' })
@@ -58,7 +61,10 @@ exports.getManager = async (req, res) =>{
 
 exports.getAllManager = async (req, res) =>{
     try {
-        const managers = await User.find({role: 'Manager'})
+        const managers = await User.find({
+            role: "Manager",
+            isDeleted: { $ne: true }
+        })
         return res.status(200).send(managers)
     } catch (error) {
         console.log('Error:', error)
@@ -70,7 +76,10 @@ exports.updateManagerDetails = async (req, res) =>{
     try {
         const managerId = req.params.id
 
-        const manager = await User.findById({_id: managerId, role: 'Manager'})
+        const manager = await User.findById({
+            _id: managerId,
+            isDeleted: { $ne: true }
+        })
         // console.log('manager/...', manager)
 
         if(!manager) {
@@ -182,13 +191,21 @@ exports.deleteManager = async (req, res) =>{
     try {
         const managerId = req.params.id
 
-        const manager = await User.findOne({_id: managerId, role: 'Manager'})
+        const manager = await User.findOne({
+            _id: managerId,
+            isDeleted: { $ne: true }
+        })
 
         if(!manager) {
             return res.status(404).send('Manager not found')
         }
 
-        let deletedManager = await User.findByIdAndDelete(managerId)
+        let deletedManager = await User.findByIdAndDelete(managerId, {
+            $set: {
+                isDeleted: true,
+                canceledAt: new Date()
+            }
+        })
 
         return res.status(200).send({ message: 'Manager removed successfully.', deletedManager })
     } catch (error) {
