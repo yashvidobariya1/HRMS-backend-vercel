@@ -49,7 +49,10 @@ exports.getEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
+            const employee = await User.findOne({
+                _id: employeeId,
+                isDeleted: { $ne: true },
+            });
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
@@ -66,7 +69,7 @@ exports.getEmployee = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
     try {
         // if(req.user.role == 'Manager') {
-            const employees = await User.find({role: 'Employee'})
+            const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             res.status(200).send(employees)
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
@@ -80,8 +83,10 @@ exports.updateEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
-            // console.log('employee/...', employee)
+            const employee = await User.findOne({
+                _id: employeeId,
+                isDeleted: { $ne: true }
+            });
 
             if(!employee) {
                 return res.status(404).send('Employee not found')
@@ -195,15 +200,22 @@ exports.deleteEmployee = async (req, res) => {
         // if(req.user.role == 'Manager'){
             const employeeId = req.params.id
 
-            const employee = await User.findOne({_id: employeeId, role: 'Employee'})
-
+            const employee = await User.findOne({
+                _id: employeeId,
+                isDeleted: { $ne: true },
+            });
             if(!employee) {
                 return res.status(404).send('Employee not found')
             }
 
-            let deletedEmployee = await User.findByIdAndDelete(employeeId)
+            let deletedEmployee = await User.findByIdAndUpdate(employeeId, {
+                $set: {
+                    isDeleted: true,
+                    canceledAt: new Date()
+                }
+            })
 
-            return res.status(200).send({ message: 'Employee removed successfully.', deletedEmployee })
+            return res.status(200).send({ message: 'Employee deleted successfully.', deletedEmployee })
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {
         console.log('Error:', error)

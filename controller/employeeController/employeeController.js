@@ -1,11 +1,14 @@
 const User = require("../../models/user")
 
 
-exports.getDetails = (req, res) => {
+exports.getDetails = async (req, res) => {
     try {
         if(req.user.role == 'Employee') {
             const employeeId = req.user._id
-            const employee = User.findById(employeeId)
+            const employee = await User.findOne({
+                _id: employeeId,
+                isDeleted: { $ne: true },
+            });
             if(!employee) {
                 return res.status(404).json({ message: 'Employee not found' })
             }
