@@ -70,6 +70,9 @@ exports.getAllEmployees = async (req, res) => {
     try {
         // if(req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
+            if(!employees) {
+                return res.status(404).send('Employees not found')
+            }
             res.status(200).send(employees)
         // } else return res.status(401).send('You can not authorize for this action.')
     } catch (error) {

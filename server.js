@@ -11,11 +11,13 @@ const managerRoute = require('./routes/managerRoute');
 const superAdminRoute = require('./routes/superAdminRoute');
 const { auth } = require('./middleware/authenticate');
 const administratorRoute = require('./routes/administratorRoute');
+const employeeRoute = require('./routes/employeeRoute');
 
 // app.use(auth)
 app.use(managerRoute)
 app.use(superAdminRoute)
 app.use(administratorRoute)
+app.use(employeeRoute)
 
 app.listen(port, () => {
   console.log("Server is listening at port:", port)
@@ -24,3 +26,5 @@ app.listen(port, () => {
 app.get("/", (req, res) => {
   res.send('HRMS BACKEND')
 })
+
+module.exports = app
