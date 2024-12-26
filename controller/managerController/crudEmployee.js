@@ -36,10 +36,10 @@ exports.addEmployee = async (req, res) => {
             const employee = await User.create(newEmployee)
 
             return res.status(200).send({ message: 'Employee created successfully.', employee })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
@@ -62,10 +62,10 @@ exports.getEmployee = async (req, res) => {
             }
 
             return res.status(200).send({ message: 'Employee get successfully.', employee })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
@@ -74,10 +74,10 @@ exports.getAllEmployees = async (req, res) => {
         // if (req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             res.status(200).send({ message: 'Employee all get successfully.', employees })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -197,10 +197,10 @@ exports.updateEmployee = async (req, res) => {
 
             return res.status(200).send({ message: 'Employee details updated successfully.', updatedEmployee })
 
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
@@ -225,9 +225,9 @@ exports.deleteEmployee = async (req, res) => {
             })
 
             return res.status(200).send({ message: 'Employee deleted successfully.', deletedEmployee })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }

@@ -12,10 +12,10 @@ exports.getDetails = async (req, res) => {
             if(!employee) {
                 return res.status(404).json({ message: 'Employee not found' })
             }
-            return res.status(200).send(employee)
-        } else return res.status(401).send('You can not authorize for this action.')
+            return res.status(200).send({ message: 'Employee get successfully.', employee })
+        } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
