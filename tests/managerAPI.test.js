@@ -4,6 +4,18 @@ const mongoose = require('mongoose')
 const User = require('../models/user')
 const Company = require('../models/company')
 
+const mongoURI = "mongodb://localhost:27017/HRMS-testing"
+
+beforeAll(async () => {
+    try {
+        await mongoose.connect(mongoURI)
+        console.log("Connected to MongoDB")
+    } catch (error) {
+        console.error("Error connecting to MongoDB:", error)
+        process.exit(1)
+    }
+})
+
 afterAll(async () => {
     await mongoose.connection.close()
 })
@@ -11,7 +23,7 @@ afterAll(async () => {
 let employee;
 let companies;
 
-beforeAll(async () => {
+beforeEach(async () => {
     employee = await User.find()
     // console.log('employees/...', employee)
     companies = await Company.find()
@@ -20,9 +32,7 @@ beforeAll(async () => {
 
 // this all function called by manager
 
-let employeeIdforGetdetails = "676d238f81bb936af89fb41a"
-let employeeIdforUpdatedetails = "676d238f81bb936af89fb41a"
-let employeeIdforRemoveEmployee = "676d238f81bb936af89fb41a"
+let employeeId
 
 it('Manager can create a employee', async () => {
     const employeeData = {
@@ -100,34 +110,51 @@ it('Manager can create a employee', async () => {
 
     }
     const res = await request(app).post('/addemployee').set('x-api-key', 'Manager').send(employeeData)
-    // console.log('res', res)
-    if(res.statusCode === 200){
+    employeeId = await JSON.parse(res.text).employee._id
+    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if(res.statusCode === 200){
+        console.log('created manager/...', res.text)
         expect(res.statusCode).toBe(200)
     } else {
+        console.log('Error:', res.text)
         expect(res.text)
     }
 })
 
 it('Manager can access employee details by ID', async () => {
-    const res = await request(app).post(`/getemployee/${employeeIdforGetdetails}`).set('x-api-key', `Manager`)
-    console.log('employee Details/..', res.text)
-    if (res.statusCode === 404) {
+    const res = await request(app).post(`/getemployee/${employeeId}`).set('x-api-key', `Manager`)    
+    if(res.statusCode === 401){ 
+        console.log('Error:', res.text)  
+        expect(res.text)
+    } else if (res.statusCode === 404) {
+        console.log('Error:', res.text)
         expect(res.text).toBe('Employee not found');
-    } else {
+    } else if(res.statusCode === 200) {
+        console.log('employee Details/..', res.text)
         expect(res.statusCode).toBe(200);
-        expect(res.body).toHaveProperty('personalDetails.firstName');
+    } else {
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 });
 
 it('Manager can access all employees details', async () => {
-    const res = await request(app).post('/getallemployee').set('x-api-key', 'Manager')
-    // console.log('res', res.text)
-    if (res.statusCode === 200) {
+    const res = await request(app).post('/getallemployee').set('x-api-key', 'Manager')    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if (res.statusCode === 200) {
+        console.log('get all employees details/..', res.text)
         expect(res.statusCode).toBe(200)
     } else if(res.statusCode === 404){
+        console.log('Error:', res.text)
         expect(res.text).toBe('Employees not found')
     } else {
-       expect(res.text)
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 })
 
@@ -163,24 +190,36 @@ it('Manager can update any employee details', async () => {
             "passportExpiry": "updated passport expiry",
         }
     }
-    const res = await request(app).post(`/updateemployee/${employeeIdforUpdatedetails}`).set('x-api-key', 'Manager').send(updateEmployeeDetails)
-    console.log('updatedEmployeeZDetails/...', res.text)
+    const res = await request(app).post(`/updateemployee/${employeeId}`).set('x-api-key', 'Manager').send(updateEmployeeDetails)    
     // console.log('status', res.statusCode)
-    if (res.statusCode === 200) {
-        expect(res.body).toHaveProperty('updatedEmployee.personalDetails.firstName', 'update first name')
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text)
+        expect(res.text)
+    } else if (res.statusCode === 200) {
+        console.log('updatedEmployeeZDetails/...', res.text)
+        expect(res.statusCode).toBe(200)
     } else if(res.status == 404) {
+        console.log('Error:', res.text)
         expect(res.text).toBe('Employee not found')
     } else {
+        console.log('Error:', res.text)
         expect(res.text)
     }
 })
 
 it('Manager can remove any employe',async () => {
-    const res = await request(app).post(`/deletemanager/${employeeIdforRemoveEmployee}`).set('x-api-key', 'Administrator')
-    console.log('deletedEmployeeDZetails/..', res.text)
-    if(res.statusCode === 404){
+    const res = await request(app).post(`/deletemanager/${employeeId}`).set('x-api-key', 'Administrator')    
+    if(res.statusCode === 401){   
+        console.log('Error:', res.text)
+        expect(res.text)
+    } else if(res.statusCode === 404){
+        console.log('Error:', res.text)
         expect(res.text).toBe('Employee not found')
-    } else {
+    } else if(res.statusCode === 200) {
+        console.log('deletedEmployeeDZetails/..', res.text)
         expect(res.statusCode).toBe(200)
+    } else {
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 })

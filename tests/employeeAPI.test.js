@@ -4,6 +4,18 @@ const mongoose = require('mongoose')
 const User = require('../models/user')
 const Company = require('../models/company')
 
+const mongoURI = "mongodb://localhost:27017/HRMS-testing"
+
+beforeAll(async () => {
+    try {
+        await mongoose.connect(mongoURI)
+        console.log("Connected to MongoDB")
+    } catch (error) {
+        console.error("Error connecting to MongoDB:", error)
+        process.exit(1)
+    }
+})
+
 afterAll(async () => {
     await mongoose.connection.close()
 })
@@ -11,7 +23,7 @@ afterAll(async () => {
 let employee;
 let companies;
 
-beforeAll(async () => {
+beforeEach(async () => {
     employee = await User.find()
     // console.log('employees/...', employee)
     companies = await Company.find()

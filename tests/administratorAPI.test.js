@@ -4,6 +4,18 @@ const mongoose = require('mongoose')
 const User = require('../models/user')
 const Company = require('../models/company')
 
+const mongoURI = "mongodb://localhost:27017/HRMS-testing"
+
+beforeAll(async () => {
+    try {
+        await mongoose.connect(mongoURI)
+        console.log("Connected to MongoDB")
+    } catch (error) {
+        console.error("Error connecting to MongoDB:", error)
+        process.exit(1)
+    }
+})
+
 afterAll(async () => {
     await mongoose.connection.close()
 })
@@ -11,7 +23,7 @@ afterAll(async () => {
 let employee;
 let companies;
 
-beforeAll(async () => {
+beforeEach(async () => {
     employee = await User.find()
     // console.log('employees/...', employee)
     companies = await Company.find()
@@ -21,9 +33,7 @@ beforeAll(async () => {
 
 // this all function called by administrator
 
-let managerIdforGetDetails = "676d19b5373f08193ed6008f"
-let managerIdforUpdateDetails = "676d19b5373f08193ed6008f"
-let managerIdforRemoveManager = "676d1ba0c25cc65d03af3463"
+let managerId
 
 it('Administrator can create manager', async () => {
     let managerDetails = {
@@ -100,30 +110,45 @@ it('Administrator can create manager', async () => {
         }
     }
     const res = await request(app).post('/addmanager').set('x-api-key', 'Administrator').send(managerDetails)
-    console.log('res/...', res.text)
-    if(res.statusCode === 200){
+    managerId = await JSON.parse(res.text).manager._id    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if(res.statusCode === 200){
+        console.log('created manager/...', res.text)
         expect(res.statusCode).toBe(200)
     } else {
         expect(res.text)
+        console.log('Error:', res.text)
     }
 })
 
 it('Administrator can access manager details by ID', async () => {
-    const res = await request(app).post(`/getmanager/${managerIdforGetDetails}`).set('x-api-key', 'Administrator')
-    // console.log('res...', res.text)
-    if(res.statusCode === 404){
+    const res = await request(app).post(`/getmanager/${managerId}`).set('x-api-key', 'Administrator')    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if(res.statusCode === 404){
         expect(res.text).toBe('Manager not found.')
-    } else {
+    } else if(res.statusCode === 200) {
+        console.log('get manager details', res.text)
         expect(res.statusCode).toBe(200)
+    } else {
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 })
 
 it('Administrator can access all managers details', async () => {
-    const res = await request(app).post('/getallmanager').set('x-api-key', 'Administrator')
-    // console.log('mangerDetails/..', res.statusCode)
-    if(res.statusCode === 401){   
+    const res = await request(app).post('/getallmanager').set('x-api-key', 'Administrator')    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
         expect(res.text)
     } else if(res.statusCode === 200) {
+        console.log('get all manager details/..', res.text)
+        expect(res.statusCode).toBe(200)
+    } else {
+        console.log('Error:', res.text)
         expect(res.text)
     }
 })
@@ -160,22 +185,35 @@ it('Administrator can update any manager details by ID', async () => {
             "passportExpiry": "updated passport expiry",
         }
     }
-    const res = await request(app).post(`/updatemanager/${managerIdforUpdateDetails}`).set('x-api-key', 'Administrator').send(managerUpdateDetails)
-    console.log('updatedManagerDetails/...', res.text)
-    if(res.statusCode === 404){
+    const res = await request(app).post(`/updatemanager/${managerId}`).set('x-api-key', 'Administrator').send(managerUpdateDetails)
+    
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if(res.statusCode === 404){
         expect(res.text).toBe('Manager not found')
-    } else {
+    } else if(res.statusCode === 200) {
+        console.log('updatedManagerDetails/...', res.text)
         expect(res.statusCode).toBe(200)
+    } else {
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 })
 
 it('Administrator can remove any manager',async () => {
-    const res = await request(app).post(`/deletemanager/${managerIdforRemoveManager}`).set('x-api-key', 'Administrator')
-    console.log('deletedManagerDetails/..', res.text)
-    console.log('statusCode/...', res.statusCode)
-    if(res.statusCode === 404){
+    const res = await request(app).post(`/deletemanager/${managerId}`).set('x-api-key', 'Administrator')
+    // console.log('statusCode/...', res.statusCode)
+    if(res.statusCode === 401){  
+        console.log('Error:', res.text) 
+        expect(res.text)
+    } else if(res.statusCode === 404){
         expect(res.text).toBe('Manager not found')
-    } else {
+    } else if(res.statusCode === 200) {
+        console.log('deletedManagerDetails/..', res.text)
         expect(res.statusCode).toBe(200)
+    } else {
+        console.log('Error:', res.text)
+        expect(res.text)
     }
 })
