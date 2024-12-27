@@ -5,7 +5,7 @@ const cors = require('cors')
 
 app.use(cors())
 app.use(bodyParser.json());
-// require("./db").connect();
+require("./db").connect();
 require("dotenv").config();
 
 let port = process.env.PORT || 3001;
