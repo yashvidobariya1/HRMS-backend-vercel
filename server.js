@@ -4,8 +4,9 @@ const app = express();
 const cors = require('cors')
 
 app.use(cors())
-app.use(bodyParser.json());
-// require("./db").connect();
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
+require("./db").connect();
 require("dotenv").config();
 
 let port = process.env.PORT || 3001;

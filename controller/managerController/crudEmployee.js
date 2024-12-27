@@ -1,4 +1,6 @@
 const User = require("../../models/user")
+const fs = require('fs');
+const path = require('path');
 
 exports.addEmployee = async (req, res) => {
     try {
@@ -17,6 +19,21 @@ exports.addEmployee = async (req, res) => {
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
+            
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const document = documentDetails[i].document;
+    
+                    if (document) {
+                        const base64Data = document.replace(/^data:image\/\w+;base64,/, '');
+                        documentDetails[i].document = `data:image/png;base64,${base64Data}`
+                    } else {
+                        console.log(`No document provided for item ${i}`);
+                    }
+                }
+            } else {
+                console.log('documentDetails is not an array or is undefined');
+            }
 
             const newEmployee = {
                 personalDetails,
