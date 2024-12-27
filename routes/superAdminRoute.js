@@ -1,7 +1,7 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controller/superAdminController/crudCompanies')
-const { addLocation, getLocation, getAllLocation, updateLocationDetails, deleteLocation } = require('../controller/superAdminController/crudLocation')
+const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controllers/company')
+const { addLocation, getLocation, getAllLocation, updateLocationDetails, deleteLocation } = require('../controllers/location')
 
 const superAdminRoute = Router()
 

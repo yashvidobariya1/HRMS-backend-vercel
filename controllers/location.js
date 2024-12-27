@@ -1,5 +1,4 @@
-const Location = require("../../models/location")
-
+const Location = require("../models/location")
 
 exports.addLocation = async (req, res) => {
     try {

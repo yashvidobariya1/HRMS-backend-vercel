@@ -5,10 +5,5 @@ const { addManager, getManager, getAllManager, updateManagerDetails, deleteManag
 const administratorRoute = Router()
 
 
-administratorRoute.post('/addmanager', auth(['Administrator']), addManager)
-administratorRoute.post('/getmanager/:id', auth(['Administrator']), getManager)
-administratorRoute.post('/getallmanager', auth(['Administrator']), getAllManager)
-administratorRoute.post('/updatemanager/:id', auth(['Administrator']), updateManagerDetails)
-administratorRoute.post('/deletemanager/:id', auth(['Administrator']), deleteManager)
 
 module.exports = administratorRoute
