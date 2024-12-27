@@ -1,9 +1,8 @@
 const User = require("../../models/user")
 
-
 exports.addEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             let {
                 personalDetails,
                 addressDetails,
@@ -17,7 +16,7 @@ exports.addEmployee = async (req, res) => {
 
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
-            // }            
+            // }
 
             const newEmployee = {
                 personalDetails,
@@ -26,7 +25,7 @@ exports.addEmployee = async (req, res) => {
                 financialDetails,
                 jobDetails,
                 immigrationDetails,
-                role: "Employee",
+                role: jobDetails?.role,
                 documentDetails,
                 contractDetails,
                 // createdBy: req.user.role,
@@ -37,53 +36,57 @@ exports.addEmployee = async (req, res) => {
             const employee = await User.create(newEmployee)
 
             return res.status(200).send({ message: 'Employee created successfully.', employee })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
 exports.getEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
+
+            if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
+                return res.status(404).send({ message: 'Employee not found' })
+            }
 
             const employee = await User.findOne({
                 _id: employeeId,
                 isDeleted: { $ne: true },
             });
 
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
-            return res.status(200).send(employee)
-        // } else return res.status(401).send('You can not authorize for this action.')
+            return res.status(200).send({ message: 'Employee get successfully.', employee })
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager') {
+        // if (req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             if(!employees) {
                 return res.status(404).send('Employees not found')
             }
-            res.status(200).send(employees)
-        // } else return res.status(401).send('You can not authorize for this action.')
+            res.status(200).send({ message: 'Employee all get successfully.', employees })
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
 exports.updateEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -91,8 +94,8 @@ exports.updateEmployee = async (req, res) => {
                 isDeleted: { $ne: true }
             });
 
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
             let {
@@ -194,27 +197,27 @@ exports.updateEmployee = async (req, res) => {
                     }
                 }, { new: true }
             )
-            
+
             return res.status(200).send({ message: 'Employee details updated successfully.', updatedEmployee })
 
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        // if(req.user.role == 'Manager'){
+        // if (req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
                 _id: employeeId,
                 isDeleted: { $ne: true },
             });
-            if(!employee) {
-                return res.status(404).send('Employee not found')
+            if (!employee) {
+                return res.status(404).send({ message: 'Employee not found' })
             }
 
             let deletedEmployee = await User.findByIdAndUpdate(employeeId, {
@@ -225,9 +228,9 @@ exports.deleteEmployee = async (req, res) => {
             })
 
             return res.status(200).send({ message: 'Employee deleted successfully.', deletedEmployee })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.messsage)
+        return res.send({ message: error.message })
     }
 }

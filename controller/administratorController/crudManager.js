@@ -24,7 +24,7 @@ exports.addManager = async (req, res) =>{
             financialDetails,
             jobDetails,
             immigrationDetails,
-            role: "Manager",
+            role: jobDetails?.role,
             documentDetails,
             contractDetails,
             // createdBy: req.user.role,
@@ -37,13 +37,16 @@ exports.addManager = async (req, res) =>{
         return res.status(200).send({ message: 'Manager created successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
 exports.getManager = async (req, res) =>{
     try {
         const managerId = req.params.id
+        if (!managerId || managerId == 'undefined' || managerId == 'null') {
+            return res.status(404).send({ message: 'Manager not found' })
+        }
         const manager = await User.findOne({
             _id: managerId,
             isDeleted: { $ne: true }
@@ -52,10 +55,10 @@ exports.getManager = async (req, res) =>{
         if(!manager){
             return res.status(404).send({ message: 'Manager not found.' })
         }
-        return res.status(200).send(manager)
+        return res.status(200).send({ message: 'Manager get successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -65,10 +68,10 @@ exports.getAllManager = async (req, res) =>{
             role: "Manager",
             isDeleted: { $ne: true }
         })
-        return res.status(200).send(managers)
+        return res.status(200).send({ message: 'Manager all get successfully.', managers })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -83,7 +86,7 @@ exports.updateManagerDetails = async (req, res) =>{
         // console.log('manager/...', manager)
 
         if(!manager) {
-            return res.status(404).send('Manager not found')
+            return res.status(404).send({ message: 'Manager not found' })
         }
 
         let {
@@ -189,7 +192,7 @@ exports.updateManagerDetails = async (req, res) =>{
         return res.status(200).send({ message: 'Manager details updated successfully.', updateManager })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -203,7 +206,7 @@ exports.deleteManager = async (req, res) =>{
         })
 
         if(!manager) {
-            return res.status(404).send('Manager not found')
+            return res.status(404).send({ message: 'Manager not found' })
         }
 
         let deletedManager = await User.findByIdAndUpdate(managerId, {
@@ -213,9 +216,9 @@ exports.deleteManager = async (req, res) =>{
             }
         })
 
-        return res.status(200).send({ message: 'Manager removed successfully.', deletedManager })
+        return res.status(200).send({ message: 'Manager deleted successfully.', deletedManager })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }

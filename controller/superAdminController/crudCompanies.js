@@ -8,7 +8,7 @@ exports.addCompany = async (req, res) => {
                 companyDetails,
                 employeeSettings,
                 contractDetails
-            } = req.body            
+            } = req.body
 
             const newCompany = {
                 companyDetails,
@@ -20,10 +20,10 @@ exports.addCompany = async (req, res) => {
             const company = await Company.create(newCompany)
 
             return res.status(200).send({ message: 'Company created successfully.', company })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -31,21 +31,23 @@ exports.getCompany = async (req, res) => {
     try {
         // if(req.user.role == 'Superadmin') {
             const companyId = req.params.id
-
+            if (!companyId || companyId == 'undefined' || companyId == 'null') {
+                return res.status(404).send({ message: 'Company not found' })
+            }
             const company = await Company.findOne({
                 _id: companyId,
                 isDeleted: { $ne: true }
               });
 
             if(!company) {
-                return res.status(404).send('Company not found')
+                return res.status(404).send({ message: 'Company not found'})
             }
 
-            return res.status(200).send(company)
-        // } else return res.status(401).send('You can not authorize for this action.')
+            return res.status(200).send({ message: 'Company get successfully.', company })
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -56,14 +58,14 @@ exports.getAllCompany = async (req, res) => {
             const company = await Company.find({ isDeleted: { $ne: true } })
 
             if(!company) {
-                return res.status(404).send('Company not found')
+                return res.status(404).send({ message: 'Company not found' })
             }
 
-            return res.status(200).send(company)
-        // } else return res.status(401).send('You can not authorize for this action.')
+            return res.status(200).send({ message: 'Company all get successfully.', company })
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -78,7 +80,7 @@ exports.updateCompanyDetails = async (req, res) => {
             });
 
             if(!company) {
-                return res.status(404).send('Company not found')
+                return res.status(404).send({ message: 'Company not found' })
             }
 
             let {
@@ -146,10 +148,10 @@ exports.updateCompanyDetails = async (req, res) => {
             // await updatedCompany.save()
             
             return res.status(200).send({ message: 'Company details updated successfully.', updatedCompany })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
 
@@ -164,7 +166,7 @@ exports.deleteCompany = async (req, res) => {
             });
 
             if(!company) {
-                return res.status(404).send('Company not found')
+                return res.status(404).send({ message: 'Company not found'})
             }
 
             let deletedCompany = await Company.findByIdAndUpdate(companyId,{
@@ -175,9 +177,9 @@ exports.deleteCompany = async (req, res) => {
             })
 
             return res.status(200).send({ message: 'Company deleted successfully.', deletedCompany })
-        // } else return res.status(401).send('You can not authorize for this action.')
+        // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
-        return res.send(error.message)
+        return res.send({ message: error.message })
     }
 }
