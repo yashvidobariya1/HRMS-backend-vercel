@@ -11,4 +11,5 @@ managerRoute.post('/getallmanager', auth(['Administrator', 'superAdmin']), getAl
 managerRoute.post('/updatemanager/:id', auth(['Administrator', 'superAdmin']), updateManagerDetails)
 managerRoute.post('/deletemanager/:id', auth(['Administrator', 'superAdmin']), deleteManager)
 
+
 module.exports = managerRoute
