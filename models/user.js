@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     middleName: String,
     lastName: String,
     dateOfBirth: String,
-    gender: { type: String, enum: ['Male', 'Female'] },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
     phone: String,
     homeTelephone: String,
