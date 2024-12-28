@@ -119,9 +119,9 @@ exports.addEmployee = async (req, res) => {
             }
         }
         // console.log('new employee', newEmployee)
-        // const employee = await User.create(newEmployee)
+        const employee = await User.create(newEmployee)
 
-        return res.status(200).send({ message: 'Employee created successfully.', newEmployee })
+        return res.status(200).send({ message: 'Employee created successfully.', employee })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
