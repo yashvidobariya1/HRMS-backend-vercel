@@ -1,6 +1,8 @@
 const User = require("../models/user")
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt')
+const { transporter } = require("../utils/nodeMailer");
 
 exports.addEmployee = async (req, res) => {
     try {
@@ -35,8 +37,27 @@ exports.addEmployee = async (req, res) => {
             console.log('documentDetails is not an array or is undefined');
         }
 
+        const generatePass = () => {
+            const fname = `${personalDetails.firstName}`
+            const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            const formatName = capitalizeWords(fname)
+            const uname = formatName[0]
+            // console.log('uname', uname)
+            const lastFourDigits = personalDetails.phone.slice(-4)
+            // console.log('lastFourDigits', lastFourDigits)
+            const pass = `${uname}@${lastFourDigits}`
+            // console.log('pass', pass)
+            return pass
+        }
+
+        const pass = generatePass()
+        const hashedPassword = await bcrypt.hash(pass, 10)
+
         const newEmployee = {
-            personalDetails,
+            personalDetails: {
+                ...personalDetails,
+                password: hashedPassword,
+            },
             addressDetails,
             kinDetails,
             financialDetails,
@@ -49,6 +70,41 @@ exports.addEmployee = async (req, res) => {
             // creatorId: req.user._id,
         }
 
+        if (personalDetails.sendRegistrationLink == true) {
+            let mailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: newEmployee.personalDetails.email,
+                subject: "Welcome to [Company Name]'s HRMS Portal",
+                html: `
+                <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+
+                <p>Welcome to HRMS Portal!</p>
+
+                <p>Your account has been successfully created in our HRMS portal. Below are your login credentials:</p>
+
+                <ul>
+                    <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                    <li><b>Username/Email:</b> ${newEmployee.personalDetails.email}</li>
+                    <li><b>Temporary Password:</b> ${generatePass()}</li>
+                </ul>
+
+                <p>We recommend that you log in as soon as possible and change your password to something secure.</p>
+
+                <p>If you have any questions or need assistance, feel free to reach out to [Manager Name] or [HR Department Contact Details].</p>
+
+                <p>Looking forward to your journey with us!</p>
+
+                <p>Best regards,<br>HRMS Team</p>
+            `
+            }
+            transporter.sendMail(mailOptions, (error, info) => {
+                if (error) {
+                    console.log('Error occurred:', error);
+                } else {
+                    console.log('Email sent:', info.response);
+                }
+            });
+        }
         // console.log('new employee', newEmployee)
         const employee = await User.create(newEmployee)
 
