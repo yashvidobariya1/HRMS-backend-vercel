@@ -17,8 +17,94 @@ exports.addManager = async (req, res) => {
         //     return res.status(400).send({ message: "All sections of employee details are required." });
         // }            
 
+        if (documentDetails && Array.isArray(documentDetails)) {
+            for (let i = 0; i < documentDetails.length; i++) {
+                const document = documentDetails[i].document;
+
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item ${i}`)
+                }
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                    if (document.startsWith("JVBER")) {
+                        documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                    } else if (document.startsWith("iVBOR") || document.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                    } else {
+                        documentDetails[i].document = `data:text/plain;base64,${document}`;
+                    }
+                } else {
+                    console.log(`Invalid Base64 string for item ${i}`);
+                }
+            }
+        } else {
+            console.log('documentDetails is not an array or is undefined');
+        }
+
+        const generatePass = () => {
+            const fname = `${personalDetails.firstName}`
+            const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            const formatName = capitalizeWords(fname)
+            const uname = formatName[0]
+            // console.log('uname', uname)
+            const lastFourDigits = personalDetails.phone.slice(-4)
+            // console.log('lastFourDigits', lastFourDigits)
+            const pass = `${uname}@${lastFourDigits}`
+            // console.log('pass', pass)
+            return pass
+        }
+
+        const pass = generatePass()
+        const hashedPassword = await bcrypt.hash(pass, 10)
+
+        if (personalDetails.sendRegistrationLink == true) {
+            let mailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: newEmployee.personalDetails.email,
+                subject: "Welcome to [Company Name]'s HRMS Portal",
+                html: `
+                    <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+
+                    <p>Welcome to HRMS Portal!</p>
+
+                    <p>We are pleased to inform you that a new manager account has been successfully created by the Administrator under your supervision in the HRMS portal. Below are the details:</p>
+
+                    <ul>
+                        <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
+                        <li><b>Email:</b> ${personalDetails.email}</li>
+                        <li><b>Position:</b> ${jobDetails.jobTitle}</li>
+                        <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
+                    </ul>
+
+                    <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+
+                    <ul>
+                        <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                        <li><b>Username/Email:</b> ${personalDetails.email}</li>
+                        <li><b>Temporary Password:</b> ${generatePass()}</li>
+                    </ul>
+
+                    <p>If you have any questions or need further assistance, feel free to reach out to the HR department.</p>
+
+                    <p>Looking forward to your journey with us!</p>
+
+                    <p>Best regards,<br>HRMS Team</p>
+                `
+            }
+            transporter.sendMail(mailOptions, (error, info) => {
+                if (error) {
+                    console.log('Error occurred:', error);
+                } else {
+                    console.log('Email sent:', info.response);
+                }
+            });
+        }
+
         const newManager = {
-            personalDetails,
+            personalDetails :{
+                ...personalDetails,
+                password: hashedPassword
+            },
             addressDetails,
             kinDetails,
             financialDetails,
