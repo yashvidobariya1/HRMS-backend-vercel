@@ -78,48 +78,45 @@ exports.addEmployee = async (req, res) => {
             // createdBy: req.user.role,
             // creatorId: req.user._id,
         }
-
         if (personalDetails.sendRegistrationLink == true) {
-            let mailOptions = {
-                from: process.env.NODEMAILER_EMAIL,
-                to: newEmployee.personalDetails.email,
-                subject: "Welcome to [Company Name]'s HRMS Portal",
-                html: `
-                <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+            try {
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: newEmployee.personalDetails.email,
+                    subject: "Welcome to [Company Name]'s HRMS Portal",
+                    html: `
+                        <p>Welcome to HRMS Portal!</p>
 
-                    <p>Welcome to HRMS Portal!</p>
+                        <p>We are pleased to inform you that a new employee account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
 
-                    <p>We are pleased to inform you that a new employee account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+                        <ul>
+                            <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
+                            <li><b>Email:</b> ${personalDetails.email}</li>
+                            <li><b>Position:</b> ${jobDetails.jobTitle}</li>
+                            <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
+                        </ul>
 
-                    <ul>
-                        <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
-                        <li><b>Email:</b> ${personalDetails.email}</li>
-                        <li><b>Position:</b> ${jobDetails.jobTitle}</li>
-                        <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
-                    </ul>
+                        <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
-                    <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                        <ul>
+                            <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                            <li><b>Username/Email:</b> ${personalDetails.email}</li>
+                            <li><b>Temporary Password:</b> ${generatePass()}</li>
+                        </ul>
 
-                    <ul>
-                        <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
-                        <li><b>Username/Email:</b> ${personalDetails.email}</li>
-                        <li><b>Temporary Password:</b> ${generatePass()}</li>
-                    </ul>
+                        <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
 
-                    <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
+                        <p>Looking forward to your journey with us!</p>
 
-                    <p>Looking forward to your journey with us!</p>
-
-                    <p>Best regards,<br>HRMS Team</p>
-                `
+                        <p>Best regards,<br>HRMS Team</p>
+                    `,
+                };                   
+                
+                await transporter.sendMail(mailOptions);
+                console.log('Email sent successfully');
+            } catch (error) {
+                console.log('Error occurred:', error);
             }
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.log('Error occurred:', error);
-                } else {
-                    console.log('Email sent:', info.response);
-                }
-            });
         }
         // console.log('new employee', newEmployee)
         // const employee = await User.create(newEmployee)
