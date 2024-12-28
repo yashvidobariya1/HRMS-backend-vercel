@@ -69,41 +69,33 @@ exports.addEmployee = async (req, res) => {
             // createdBy: req.user.role,
             // creatorId: req.user._id,
         }
-
         if (personalDetails.sendRegistrationLink == true) {
-            let mailOptions = {
-                from: process.env.NODEMAILER_EMAIL,
-                to: newEmployee.personalDetails.email,
-                subject: "Welcome to [Company Name]'s HRMS Portal",
-                html: `
-                <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+            try {
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: newEmployee.personalDetails.email,
+                    subject: "Welcome to [Company Name]'s HRMS Portal",
+                    html: `
+                        <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+                        <p>Welcome to HRMS Portal!</p>
+                        <p>Your account has been successfully created in our HRMS portal. Below are your login credentials:</p>
+                        <ul>
+                            <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                            <li><b>Username/Email:</b> ${newEmployee.personalDetails.email}</li>
+                            <li><b>Temporary Password:</b> ${generatePass()}</li>
+                        </ul>
+                        <p>We recommend that you log in as soon as possible and change your password to something secure.</p>
+                        <p>If you have any questions or need assistance, feel free to reach out to [Manager Name] or [HR Department Contact Details].</p>
+                        <p>Looking forward to your journey with us!</p>
+                        <p>Best regards,<br>HRMS Team</p>
+                    `,
+                };
 
-                <p>Welcome to HRMS Portal!</p>
-
-                <p>Your account has been successfully created in our HRMS portal. Below are your login credentials:</p>
-
-                <ul>
-                    <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
-                    <li><b>Username/Email:</b> ${newEmployee.personalDetails.email}</li>
-                    <li><b>Temporary Password:</b> ${generatePass()}</li>
-                </ul>
-
-                <p>We recommend that you log in as soon as possible and change your password to something secure.</p>
-
-                <p>If you have any questions or need assistance, feel free to reach out to [Manager Name] or [HR Department Contact Details].</p>
-
-                <p>Looking forward to your journey with us!</p>
-
-                <p>Best regards,<br>HRMS Team</p>
-            `
+                await transporter.sendMail(mailOptions);
+                console.log('Email sent successfully');
+            } catch (error) {
+                console.log('Error occurred:', error);
             }
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.log('Error occurred:', error);
-                } else {
-                    console.log('Email sent:', info.response);
-                }
-            });
         }
         // console.log('new employee', newEmployee)
         const employee = await User.create(newEmployee)
