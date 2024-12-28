@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     phone: String,
     homeTelephone: String,
     email: String,
+    password: String,
     niNumber: String,
     sendRegistrationLink: { type: Boolean, default: false },
   },
