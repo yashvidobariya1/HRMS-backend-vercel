@@ -1,8 +1,9 @@
 const Router = require('express')
-const { forgotPassword } = require('../controllers/commonCon')
+const { login, forgotPassword } = require('../controllers/common')
 
 const commonRoute = Router()
 
+commonRoute.post('/login', login)
 commonRoute.post('/forgotpassword', forgotPassword)
 
 module.exports = commonRoute
