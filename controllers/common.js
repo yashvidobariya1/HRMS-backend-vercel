@@ -7,9 +7,9 @@ exports.login = async (req, res) => {
             return res.status(400).send({ message: "Email and password are required" });
         }
 
-        const isExist = await User.findOne({ "personalDetails.email": req.body.email });
+        const isExist = await User.findOne({ "personalDetails.email": req.body.email, isDeleted: false });
 
-        if (!isExist || isExist.isDeleted) {
+        if (!isExist) {
             return res.status(404).send({ message: "User not found" });
         }
         if (isExist.personalDetails.password == req.body.password) {
