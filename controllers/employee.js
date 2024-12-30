@@ -26,11 +26,20 @@ exports.addEmployee = async (req, res) => {
             for (let i = 0; i < documentDetails.length; i++) {
                 const document = documentDetails[i].document;
 
-                if (document) {
-                    const base64Data = document.replace(/^data:image\/\w+;base64,/, '');
-                    documentDetails[i].document = `data:image/png;base64,${base64Data}`
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item ${i}`)
+                }
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                    if (document.startsWith("JVBER")) {
+                        documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                    } else if (document.startsWith("iVBOR") || document.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                    } else {
+                        documentDetails[i].document = `data:text/plain;base64,${document}`;
+                    }
                 } else {
-                    console.log(`No document provided for item ${i}`);
+                    console.log(`Invalid Base64 string for item ${i}`);
                 }
             }
         } else {
@@ -76,21 +85,33 @@ exports.addEmployee = async (req, res) => {
                     to: newEmployee.personalDetails.email,
                     subject: "Welcome to [Company Name]'s HRMS Portal",
                     html: `
-                        <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
                         <p>Welcome to HRMS Portal!</p>
-                        <p>Your account has been successfully created in our HRMS portal. Below are your login credentials:</p>
+
+                        <p>We are pleased to inform you that a new employee account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+
+                        <ul>
+                            <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
+                            <li><b>Email:</b> ${personalDetails.email}</li>
+                            <li><b>Position:</b> ${jobDetails.jobTitle}</li>
+                            <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
+                        </ul>
+
+                        <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+
                         <ul>
                             <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
-                            <li><b>Username/Email:</b> ${newEmployee.personalDetails.email}</li>
+                            <li><b>Username/Email:</b> ${personalDetails.email}</li>
                             <li><b>Temporary Password:</b> ${generatePass()}</li>
                         </ul>
-                        <p>We recommend that you log in as soon as possible and change your password to something secure.</p>
-                        <p>If you have any questions or need assistance, feel free to reach out to [Manager Name] or [HR Department Contact Details].</p>
+
+                        <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
+
                         <p>Looking forward to your journey with us!</p>
+
                         <p>Best regards,<br>HRMS Team</p>
                     `,
-                };
-
+                };                   
+                
                 await transporter.sendMail(mailOptions);
                 console.log('Email sent successfully');
             } catch (error) {

@@ -79,7 +79,7 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
                 "maxEmployeesAllowed": "100"
             }
         }).set('x-api-key', 'Superadmin');
-        // console.log('created company/...', JSON.parse(createResponse.text))
+        console.log('created company/...', JSON.parse(createResponse.text))
         expect(createResponse.status).toBe(200);
         expect(createResponse.body.message).toBe('Company created successfully.');
         expect(createResponse.body.company).toHaveProperty('_id');
@@ -88,7 +88,7 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
 
     test('POST /getcompany/:id should fetch a company by ID', async () => {
         const getResponse = await request(app).post(`/getcompany/${createdCompanyId}`).set('x-api-key', 'Superadmin')
-        // console.log('get company details/..', getResponse.text)
+        console.log('get company details/..', getResponse.text)
         expect(getResponse.status).toBe(200);
         expect(getResponse.body.message).toBe('Company get successfully.');
         expect(getResponse.body.company.companyDetails.companyCode).toBe('COMP001');
@@ -96,7 +96,7 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
 
     test('POST /getallcompany should fetch all companies', async () => {
         const getAllResponse = await request(app).post('/getallcompany').set('x-api-key', 'Superadmin')
-        // console.log('get all comapnies/...', getAllResponse.text)
+        console.log('get all comapnies/...', getAllResponse.text)
         expect(getAllResponse.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Company all get successfully.');
         expect(getAllResponse.body.company).toBeInstanceOf(Array);
@@ -109,7 +109,7 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
                 "holidayYear": "Jan-Dec"
             },
         });
-        // console.log('Updated company details:', updateResponse.text);
+        console.log('Updated company details:', updateResponse.text);
         expect(updateResponse.status).toBe(200);
         expect(updateResponse.body.message).toBe('Company details updated successfully.');
         expect(updateResponse.body.updatedCompany.employeeSettings.payrollFrequency).toBe('Monthly');
@@ -118,7 +118,7 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
     
     test('POST /deletecompany/:id should delete a company', async () => {
         const deleteResponse = await request(app).post(`/deletecompany/${createdCompanyId}`).set('x-api-key', 'Superadmin')
-        // console.log('delete company details/..', deleteResponse.text)
+        console.log('delete company details/..', deleteResponse.text)
         expect(deleteResponse.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Company deleted successfully.');
         const deletedCompany = await Company.findById(createdCompanyId);
@@ -143,7 +143,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
                 ukviApproved: true,
             })
             .set('x-api-key', 'Superadmin');
-        // console.log('created location/...', JSON.parse(createResponse.text))
+        console.log('created location/...', JSON.parse(createResponse.text))
         expect(createResponse.status).toBe(200);
         expect(createResponse.body.message).toBe('Location created successfully.');
         expect(createResponse.body.location).toHaveProperty('_id');
@@ -155,7 +155,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
         const getResponse = await request(app)
             .post(`/getlocation/${createdLocationId}`)
             .set('x-api-key', 'Superadmin');
-        // console.log('get location details/..', getResponse.text)
+        console.log('get location details/..', getResponse.text)
         expect(getResponse.status).toBe(200);
         expect(getResponse.body.message).toBe('Location get successfully.');
         expect(getResponse.body.location.companyName).toBe('Lifecycle Test Company');
@@ -165,7 +165,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
         const getAllResponse = await request(app)
             .post('/getalllocation')
             .set('x-api-key', 'Superadmin');
-        // console.log('get all comapnies/...', getAllResponse.text)
+        console.log('get all comapnies/...', getAllResponse.text)
         expect(getAllResponse.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Location all get successfully.');
         expect(getAllResponse.body.location).toBeInstanceOf(Array);
@@ -178,7 +178,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
                 address: '456 Updated Lifecycle Street',
             })
             .set('x-api-key', 'Superadmin');
-        // console.log('updated Location details/..', updateResponse.text)
+        console.log('updated Location details/..', updateResponse.text)
         expect(updateResponse.status).toBe(200);
         expect(updateResponse.body.message).toBe('Location details updated successfully.');
         expect(updateResponse.body.updatedLocation.address).toBe('456 Updated Lifecycle Street');
@@ -188,7 +188,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
         const deleteResponse = await request(app)
             .post(`/deletelocation/${createdLocationId}`)
             .set('x-api-key', 'Superadmin');
-        // console.log('delete Location details/..', deleteResponse.text)
+        console.log('delete Location details/..', deleteResponse.text)
         expect(deleteResponse.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Location deleted successfully.');
         const deletedLocation = await Location.findById(createdLocationId);

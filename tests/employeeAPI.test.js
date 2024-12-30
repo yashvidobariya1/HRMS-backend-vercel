@@ -103,7 +103,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
                 "contractDocument": "String"
             }
         })
-        // console.log('created employee/...', JSON.parse(createResponse.text))
+        console.log('created employee/...', JSON.parse(createResponse.text))
         expect(createResponse.status).toBe(200);
         expect(createResponse.body.message).toBe('Employee created successfully.');
         expect(createResponse.body.employee).toHaveProperty('_id');
@@ -112,7 +112,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
 
     test('POST /getemployee/:id should fetch a employee by ID', async () => {
         const getResponse = await request(app).post(`/getemployee/${createdEmployeeId}`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
-        // console.log('get employee details/..', getResponse.text)
+        console.log('get employee details/..', getResponse.text)
         expect(getResponse.status).toBe(200);
         expect(getResponse.body.message).toBe('Employee get successfully.');
         expect(getResponse.body.employee.personalDetails.firstName).toBe('add employee for testing');
@@ -120,7 +120,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
 
     test('POST /getallemployee should fetch all employees', async () => {
         const getAllResponse = await request(app).post('/getallemployee').set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
-        // console.log('get all employees/...', getAllResponse.text)
+        console.log('get all employees/...', getAllResponse.text)
         expect(getAllResponse.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Employee all get successfully.');
         expect(getAllResponse.body.employees).toBeInstanceOf(Array);
@@ -145,7 +145,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
                 "emergencyContactNumber": "updated emergency contact number",
             },
         })
-        // console.log('Updated employee details:', updateResponse.text);
+        console.log('Updated employee details:', updateResponse.text);
         expect(updateResponse.status).toBe(200);
         expect(updateResponse.body.message).toBe('Employee details updated successfully.');
         expect(updateResponse.body.updatedEmployee.personalDetails.email).toBe('update@example.com');
@@ -153,7 +153,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
 
     test('POST /deleteemployee/:id should delete a employee', async () => {
         const deleteResponse = await request(app).post(`/deleteemployee/${createdEmployeeId}`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
-        // console.log('delete employee details/..', deleteResponse.text)
+        console.log('delete employee details/..', deleteResponse.text)
         expect(deleteResponse.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Employee deleted successfully.');
         const deletedEmployee = await User.findById(createdEmployeeId);

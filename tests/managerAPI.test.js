@@ -104,7 +104,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
                 "contractDocument": "String"
             }
         })
-        // console.log('created manager/...', JSON.parse(createResponse.text))
+        console.log('created manager/...', JSON.parse(createResponse.text))
         expect(createResponse.status).toBe(200);
         expect(createResponse.body.message).toBe('Manager created successfully.');
         expect(createResponse.body.manager).toHaveProperty('_id');
@@ -114,7 +114,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
 
     test('POST /getmanager/:id should fetch a manager by ID', async () => {
         const getResponse = await request(app).post(`/getmanager/${createdManagerId}`).set('x-api-key', 'Administrator' || 'Superadmin')
-        // console.log('get manager details/..', getResponse.text)
+        console.log('get manager details/..', getResponse.text)
         expect(getResponse.status).toBe(200);
         expect(getResponse.body.message).toBe('Manager get successfully.');
         expect(getResponse.body.manager.personalDetails.firstName).toBe('add manager for testing');
@@ -122,7 +122,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
 
     test('POST /getallmanager should fetch all managers', async () => {
         const getAllResponse = await request(app).post('/getallmanager').set('x-api-key', 'Administrator' || 'Superadmin')
-        // console.log('get all managers/...', getAllResponse.text)
+        console.log('get all managers/...', getAllResponse.text)
         expect(getAllResponse.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Manager all get successfully.');
         expect(getAllResponse.body.managers).toBeInstanceOf(Array);
@@ -160,8 +160,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
                 "passportExpiry": "updated passport expiry",
             }
         })
-
-        // console.log('Updated manager details:', updateResponse.text);
+        console.log('Updated manager details:', updateResponse.text);
         expect(updateResponse.status).toBe(200);
         expect(updateResponse.body.message).toBe('Manager details updated successfully.');
         expect(updateResponse.body.updateManager.personalDetails.email).toBe('update@example.com');
@@ -169,7 +168,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
 
     test('POST /deletemanager/:id should delete a manager', async () => {
         const deleteResponse = await request(app).post(`/deletemanager/${createdManagerId}`).set('x-api-key', 'Administrator' || 'Superadmin')
-        // console.log('delete manager details/..', deleteResponse.text)
+        console.log('delete manager details/..', deleteResponse.text)
         expect(deleteResponse.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Manager deleted successfully.');
         const deletedManager = await User.findById(createdManagerId);
