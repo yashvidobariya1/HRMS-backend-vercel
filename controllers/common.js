@@ -20,20 +20,22 @@ exports.login = async (req, res) => {
         } else {
             const hashedPassword = isExist.personalDetails.password;
             bcrypt.compare(req.body.password, hashedPassword, (err, result) => {
-                if (result) {
-                    return res.status(200).send({
-                        message: "User login successfully",
-                        user: isExist.toJSON(),
-                    });
-                } else {
+                if (err) {
                     console.error("Error comparing passwords:", err);
-                    return res.status(500).send({ message: "Password does not match" });
+                    return res.status(500).send({ message: "Internal server error" });
                 }
+                if (!result) {
+                    return res.status(404).send({ message: "Password does not match" });
+                }
+                return res.status(200).send({
+                    message: "User login successfully",
+                    user: isExist.toJSON(),
+                });
             });
         }
     } catch (error) {
         console.error("Error occurred while logging in:", error);
-        return res.status(500).send({ message: error.message });
+        return res.send({ message: error.message })
     }
 };
 
