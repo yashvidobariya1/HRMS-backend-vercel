@@ -7,6 +7,7 @@
     "test:employee": "jest employeeAPI.test.js",
     "test:administrator": "jest administratorAPI.test.js",
     "test:superadmin": "jest superadminAPI.test.js",
+    "test:common": "jest commonAPI.test.js",
     "start": "nodemon server.js"
   },
   "keywords": [],
