@@ -19,7 +19,7 @@ exports.login = async (req, res) => {
             });
         } else {
             const hashedPassword = isExist.personalDetails.password;
-            bcrypt.compare(req.body.password, hashedPassword, (err, result) => {
+            await bcrypt.compare(req.body.password, hashedPassword, (err, result) => {
                 if (err) {
                     console.error("Error comparing passwords:", err);
                     return res.status(500).send({ message: "Internal server error" });
