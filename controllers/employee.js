@@ -30,9 +30,9 @@ exports.addEmployee = async (req, res) => {
                     console.log(`Invalid or missing document for item ${i}`)
                 }
                 if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document.startsWith("JVBER")) {
+                    if (document?.startsWith("JVBER")) {
                         documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                    } else if (document.startsWith("iVBOR") || document.startsWith("/9j/")) {
+                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
                         const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
                         documentDetails[i].document = `data:${mimeType};base64,${document}`;
                     } else {
@@ -142,6 +142,13 @@ exports.getEmployee = async (req, res) => {
             _id: employeeId,
             isDeleted: { $ne: true },
         });
+        if(employee.documentDetails){
+            for(let i=0; i<employee.documentDetails.length; i++){
+                const doc = employee.documentDetails[i];
+                doc.document = 'documentFile.pdf'
+            }
+        }
+        employee.save()
 
         if (!employee) {
             return res.status(404).send({ message: 'Employee not found' })

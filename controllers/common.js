@@ -59,3 +59,13 @@ exports.forgotPassword = async (req, res) => {
         return res.send({ message: error.message })
     }
 }
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find()
+        return res.status(200).send({ message: 'Users get successfully.', users })
+    } catch (error) {
+        console.log('Error:', error)
+        return res.send(error.message)
+    }
+}
