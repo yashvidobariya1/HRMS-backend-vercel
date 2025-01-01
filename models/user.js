@@ -89,6 +89,10 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  // lastKnownLocation: {
+  //   latitude: String,
+  //   longitude: String
+  // },
   canceledAt: Date,
 }, { timestamps: true });
 

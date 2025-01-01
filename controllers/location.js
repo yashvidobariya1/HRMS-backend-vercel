@@ -18,7 +18,7 @@ exports.addLocation = async (req, res) => {
         // console.log('new Location', newLocation)
         const location = await Location.create(newLocation)
 
-        return res.status(200).send({ message: 'Location created successfully.', location })
+        return res.send({ status: 200, message: 'Location created successfully.', location })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -31,7 +31,7 @@ exports.getLocation = async (req, res) => {
         // if(req.user.role == 'Superadmin') {
         const locationId = req.params.id
         if (!locationId || locationId == 'undefined' || locationId == 'null') {
-            return res.status(404).send({ message: 'Location not found' })
+            return res.send({ status: 404, message: 'Location not found' })
         }
         const location = await Location.findOne({
             _id: locationId,
@@ -39,10 +39,10 @@ exports.getLocation = async (req, res) => {
         });
 
         if (!location) {
-            return res.status(404).send({ message: 'Location not found' })
+            return res.send({ status: 404, message: 'Location not found' })
         }
 
-        return res.status(200).send({ message: 'Location get successfully.', location })
+        return res.send({ status: 200, message: 'Location get successfully.', location })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -57,10 +57,10 @@ exports.getAllLocation = async (req, res) => {
         const location = await Location.find({ isDeleted: { $ne: true } })
 
         if (!location) {
-            return res.status(404).send({ message: 'Location not found' })
+            return res.send({ status: 404, message: 'Location not found' })
         }
 
-        return res.status(200).send({ message: 'Location all get successfully.', location })
+        return res.send({ status: 200, message: 'Location all get successfully.', location })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -79,28 +79,28 @@ exports.updateLocationDetails = async (req, res) => {
         });
 
         if (!location) {
-            return res.status(404).send({ message: 'Location not found' })
+            return res.send({ status: 404, message: 'Location not found' })
         }
 
         let updatedLocation = await Location.findByIdAndUpdate(
             { _id: locationId },
             {
                 $set: {
-                    companyName: req.body.companyName || location?.companyName,
-                    payeReferenceNumber: req.body.payeReferenceNumber || location?.payeReferenceNumber,
-                    locationName: req.body.locationName || location?.locationName,
-                    address: req.body.address || location?.address,
-                    addressLine2: req.body.addressLine2 || location?.addressLine2,
-                    city: req.body.city || location?.city,
-                    postcode: req.body.postcode || location?.postcode,
-                    country: req.body.country || location?.country,
-                    ukviApproved: req.body.ukviApproved || location?.ukviApproved,
+                    companyName: req.body.companyName,
+                    payeReferenceNumber: req.body.payeReferenceNumber,
+                    locationName: req.body.locationName,
+                    address: req.body.address,
+                    addressLine2: req.body.addressLine2,
+                    city: req.body.city,
+                    postcode: req.body.postcode,
+                    country: req.body.country,
+                    ukviApproved: req.body.ukviApproved,
                     updatedAt: new Date()
                 }
             }, { new: true }
         )
 
-        return res.status(200).send({ message: 'Location details updated successfully.', updatedLocation })
+        return res.send({ status: 200, message: 'Location details updated successfully.', updatedLocation })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -119,7 +119,7 @@ exports.deleteLocation = async (req, res) => {
         });
 
         if (!location) {
-            return res.status(404).send({ message: 'Location not found' })
+            return res.send({ status: 404, message: 'Location not found' })
         }
 
         let deletedLocation = await Location.findByIdAndUpdate(
@@ -131,7 +131,7 @@ exports.deleteLocation = async (req, res) => {
                 }
             })
 
-        return res.status(200).send({ message: 'Location deleted successfully.', deletedLocation })
+        return res.send({ status: 200, message: 'Location deleted successfully.', deletedLocation })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)

@@ -18,7 +18,7 @@ exports.addCompany = async (req, res) => {
         // console.log('new company', newCompany)
         const company = await Company.create(newCompany)
 
-        return res.status(200).send({ message: 'Company created successfully.', company })
+        return res.send({ status: 200, message: 'Company created successfully.', company })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -31,7 +31,7 @@ exports.getCompany = async (req, res) => {
         // if(req.user.role == 'Superadmin') {
         const companyId = req.params.id
         if (!companyId || companyId == 'undefined' || companyId == 'null') {
-            return res.status(404).send({ message: 'Company not found' })
+            return res.send({ status: 404, message: 'Company not found' })
         }
         const company = await Company.findOne({
             _id: companyId,
@@ -39,10 +39,10 @@ exports.getCompany = async (req, res) => {
         });
 
         if (!company) {
-            return res.status(404).send({ message: 'Company not found' })
+            return res.send({ status: 404, message: 'Company not found' })
         }
 
-        return res.status(200).send({ message: 'Company get successfully.', company })
+        return res.send({ status: 200, message: 'Company get successfully.', company })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -57,10 +57,10 @@ exports.getAllCompany = async (req, res) => {
         const company = await Company.find({ isDeleted: { $ne: true } })
 
         if (!company) {
-            return res.status(404).send({ message: 'Company not found' })
+            return res.send({ status: 404, message: 'Company not found' })
         }
 
-        return res.status(200).send({ message: 'Company all get successfully.', company })
+        return res.send({ status: 200, message: 'Company all get successfully.', company })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -79,7 +79,7 @@ exports.updateCompanyDetails = async (req, res) => {
         });
 
         if (!company) {
-            return res.status(404).send({ message: 'Company not found' })
+            return res.send({ status: 404, message: 'Company not found' })
         }
 
         let {
@@ -89,48 +89,48 @@ exports.updateCompanyDetails = async (req, res) => {
         } = req.body
 
         const updatedCompanyDetails = {
-            companyCode: companyDetails?.companyCode || company.companyDetails?.companyCode,
-            businessName: companyDetails?.businessName || company.companyDetails?.businessName,
-            companyLogo: companyDetails?.companyLogo || company.companyDetails?.companyLogo,
-            companyRegistrationNumber: companyDetails?.companyRegistrationNumber || company.companyDetails?.companyRegistrationNumber,
-            payeReferenceNumber: companyDetails?.payeReferenceNumber || company.companyDetails?.payeReferenceNumber,
-            address: companyDetails?.address || company.companyDetails?.address,
-            addressLine2: companyDetails?.addressLine2 || company.companyDetails?.addressLine2,
-            city: companyDetails?.city || company.companyDetails?.city,
-            postCode: companyDetails?.postCode || company.companyDetails?.postCode,
-            country: companyDetails?.country || company.companyDetails?.country,
-            timeZone: companyDetails?.timeZone || company.companyDetails?.timeZone,
-            contactPersonFirstname: companyDetails?.contactPersonFirstname || company.companyDetails?.contactPersonFirstname,
-            contactPersonMiddlename: companyDetails?.contactPersonMiddlename || company.companyDetails?.contactPersonMiddlename,
-            contactPersonLastname: companyDetails?.contactPersonLastname || company.companyDetails?.contactPersonLastname,
-            contactPersonEmail: companyDetails?.contactPersonEmail || company.companyDetails?.contactPersonEmail,
-            contactPhone: companyDetails?.contactPhone || company.companyDetails?.contactPhone,
-            adminToReceiveNotification: companyDetails?.adminToReceiveNotification || company.companyDetails?.adminToReceiveNotification,
-            additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance || company.companyDetails?.additionalEmailsForCompliance,
-            pensionProvider: companyDetails?.pensionProvider || company.companyDetails?.pensionProvider,
+            companyCode: companyDetails?.companyCode,
+            businessName: companyDetails?.businessName,
+            companyLogo: companyDetails?.companyLogo,
+            companyRegistrationNumber: companyDetails?.companyRegistrationNumber,
+            payeReferenceNumber: companyDetails?.payeReferenceNumber,
+            address: companyDetails?.address,
+            addressLine2: companyDetails?.addressLine2,
+            city: companyDetails?.city,
+            postCode: companyDetails?.postCode,
+            country: companyDetails?.country,
+            timeZone: companyDetails?.timeZone,
+            contactPersonFirstname: companyDetails?.contactPersonFirstname,
+            contactPersonMiddlename: companyDetails?.contactPersonMiddlename,
+            contactPersonLastname: companyDetails?.contactPersonLastname,
+            contactPersonEmail: companyDetails?.contactPersonEmail,
+            contactPhone: companyDetails?.contactPhone,
+            adminToReceiveNotification: companyDetails?.adminToReceiveNotification,
+            additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance,
+            pensionProvider: companyDetails?.pensionProvider,
         }
 
         const updatedEmployeeSettinf = {
-            payrollFrequency: employeeSettings?.payrollFrequency || company.employeeSettings?.payrollFrequency,
+            payrollFrequency: employeeSettings?.payrollFrequency,
             immigrationReminders: {
-                day1st: employeeSettings?.immigrationReminders?.day1st || company.employeeSettings?.immigrationReminders?.day1st,
-                day2nd: employeeSettings?.immigrationReminders?.day2nd || company.employeeSettings?.immigrationReminders?.day2nd,
-                day3rd: employeeSettings?.immigrationReminders?.day3rd || company.employeeSettings?.immigrationReminders?.day3rd
+                day1st: employeeSettings?.immigrationReminders?.day1st,
+                day2nd: employeeSettings?.immigrationReminders?.day2nd,
+                day3rd: employeeSettings?.immigrationReminders?.day3rdd
             },
-            holidayYear: employeeSettings?.holidayYear || company.employeeSettings?.holidayYear,
-            noticePeriodDays: employeeSettings?.noticePeriodDays || company.employeeSettings?.noticePeriodDays,
-            contactConfirmationDays: employeeSettings?.contactConfirmationDays || company.employeeSettings?.contactConfirmationDays,
-            rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder || company.employeeSettings?.rightToWorkCheckReminder,
+            holidayYear: employeeSettings?.holidayYear,
+            noticePeriodDays: employeeSettings?.noticePeriodDays,
+            contactConfirmationDays: employeeSettings?.contactConfirmationDays,
+            rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder,
             leaveEntitlements: {
-                holidaysExcludingBank: employeeSettings?.leaveEntitlements?.holidaysExcludingBank || company.employeeSettings?.leaveEntitlements?.holidaysExcludingBank,
-                sickLeaves: employeeSettings?.leaveEntitlements?.sickLeaves || company.employeeSettings?.leaveEntitlements?.sickLeaves
+                holidaysExcludingBank: employeeSettings?.leaveEntitlements?.holidaysExcludingBank,
+                sickLeaves: employeeSettings?.leaveEntitlements?.sickLeavess
             },
         }
 
         const updateContractDetails = {
-            startDate: contractDetails?.startDate || company.contractDetails?.startDate,
-            endDate: contractDetails?.endDate || company.contractDetails?.endDate,
-            maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed || company.contractDetails?.maxEmployeesAllowed,
+            startDate: contractDetails?.startDate,
+            endDate: contractDetails?.endDate,
+            maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed,
         }
 
         let updatedCompany = await Company.findByIdAndUpdate(
@@ -146,7 +146,7 @@ exports.updateCompanyDetails = async (req, res) => {
         )
         // await updatedCompany.save()
 
-        return res.status(200).send({ message: 'Company details updated successfully.', updatedCompany })
+        return res.send({ status: 200, message: 'Company details updated successfully.', updatedCompany })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -165,7 +165,7 @@ exports.deleteCompany = async (req, res) => {
         });
 
         if (!company) {
-            return res.status(404).send({ message: 'Company not found' })
+            return res.send({ status: 404, message: 'Company not found' })
         }
 
         let deletedCompany = await Company.findByIdAndUpdate(companyId, {
@@ -175,7 +175,7 @@ exports.deleteCompany = async (req, res) => {
             }
         })
 
-        return res.status(200).send({ message: 'Company deleted successfully.', deletedCompany })
+        return res.send({ status: 404, message: 'Company deleted successfully.', deletedCompany })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)

@@ -6,11 +6,11 @@ const { upload } = require('../utils/multer')
 const employeeRoute = Router()
 
 //crud by superAdmin, administrator, manager
-employeeRoute.post('/addemployee', upload.array('documentDetials.document'), auth(["Manager", "Administrator", "Superadmin"]), addEmployee)
-employeeRoute.post('/getemployee/:id', auth(["Manager", "Administrator", "Superadmin"]), getEmployee)
-employeeRoute.post('/getallemployee', auth(["Manager", "Administrator", "Superadmin"]), getAllEmployees)
-employeeRoute.post('/updateemployee/:id', auth(["Manager", "Administrator", "Superadmin"]), updateEmployee)
-employeeRoute.post('/deleteemployee/:id', auth(["Manager", "Administrator", "Superadmin"]), deleteEmployee)
+employeeRoute.post('/addemployee', upload.array('documentDetials.document'), auth(['Superadmin', 'Administrator', 'Manager']), addEmployee)
+employeeRoute.post('/getemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), getEmployee)
+employeeRoute.post('/getallemployee', auth(['Superadmin', 'Administrator', 'Manager']), getAllEmployees)
+employeeRoute.post('/updateemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), updateEmployee)
+employeeRoute.post('/deleteemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), deleteEmployee)
 
 //get own details(employee)
 employeeRoute.post('/getdetails', auth(["Employee"]), getDetails)

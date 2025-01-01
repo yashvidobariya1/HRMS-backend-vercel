@@ -16,7 +16,14 @@ exports.addManager = async (req, res) => {
 
         // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
         //     return res.status(400).send({ message: "All sections of employee details are required." });
-        // }            
+        // }
+
+        if(personalDetails && personalDetails.email){
+            const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+            if(user){
+                return res.send({ status: 409, message: "Email already exists." });
+            }
+        }         
 
         if (documentDetails && Array.isArray(documentDetails)) {
             for (let i = 0; i < documentDetails.length; i++) {
@@ -121,7 +128,7 @@ exports.addManager = async (req, res) => {
         // console.log('new manager', newManager)
         const manager = await User.create(newManager)
 
-        return res.status(200).send({ message: 'Manager created successfully.', manager })
+        return res.send({ status: 200, message: 'Manager created successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -132,7 +139,7 @@ exports.getManager = async (req, res) => {
     try {
         const managerId = req.params.id
         if (!managerId || managerId == 'undefined' || managerId == 'null') {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
         const manager = await User.findOne({
             _id: managerId,
@@ -140,9 +147,9 @@ exports.getManager = async (req, res) => {
         })
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found.' })
+            return res.send({ status: 404, message: 'Manager not found.' })
         }
-        return res.status(200).send({ message: 'Manager get successfully.', manager })
+        return res.send({ status: 200, message: 'Manager get successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -155,7 +162,7 @@ exports.getAllManager = async (req, res) => {
             role: "Manager",
             isDeleted: { $ne: true }
         })
-        return res.status(200).send({ message: 'Manager all get successfully.', managers })
+        return res.send({ status: 200, message: 'Manager all get successfully.', managers })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -173,7 +180,7 @@ exports.updateManagerDetails = async (req, res) => {
         // console.log('manager/...', manager)
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
 
         let {
@@ -188,75 +195,75 @@ exports.updateManagerDetails = async (req, res) => {
         } = req.body
 
         const updatedPersonalDetails = {
-            firstName: personalDetails?.firstName || manager.personalDetails.firstName,
-            middleName: personalDetails?.middleName || manager.personalDetails.middleName,
-            lastName: personalDetails?.lastName || manager.personalDetails.lastName,
-            dateOfBirth: personalDetails?.dateOfBirth || manager.personalDetails.dateOfBirth,
-            gender: personalDetails?.gender || manager.personalDetails.gender,
-            maritalStatus: personalDetails?.maritalStatus || manager.personalDetails.maritalStatus,
-            phone: personalDetails?.phone || manager.personalDetails.phone,
-            homeTelephone: personalDetails?.homeTelephone || manager.personalDetails.homeTelephone,
-            email: personalDetails?.email || manager.personalDetails.email,
-            niNumber: personalDetails?.niNumber || manager.personalDetails.niNumber,
+            firstName: personalDetails?.firstName,
+            middleName: personalDetails?.middleName,
+            lastName: personalDetails?.lastName,
+            dateOfBirth: personalDetails?.dateOfBirth,
+            gender: personalDetails?.gender,
+            maritalStatus: personalDetails?.maritalStatus,
+            phone: personalDetails?.phone,
+            homeTelephone: personalDetails?.homeTelephone,
+            email: personalDetails?.email,
+            niNumber: personalDetails?.niNumber,
         }
 
         const updatedAddressDetails = {
-            address: addressDetails?.address || manager.addressDetails.address,
-            addressLine2: addressDetails?.addressLine2 || manager.addressDetails.addressLine2,
-            city: addressDetails?.city || manager.addressDetails.city,
-            postCode: addressDetails?.postCode || manager.addressDetails.postCode,
+            address: addressDetails?.address,
+            addressLine2: addressDetails?.addressLine2,
+            city: addressDetails?.city,
+            postCode: addressDetails?.postCode,
         }
 
         const updatedKinDetails = {
-            kinName: kinDetails?.kinName || manager.kinDetails.kinName,
-            relationshipToYou: kinDetails?.relationshipToYou || manager.kinDetails.relationshipToYou,
-            address: kinDetails?.address || manager.kinDetails.address,
-            postCode: kinDetails?.kinName || manager.kinDetails.kinName,
-            emergencyContactNumber: kinDetails?.emergencyContactNumber || manager.kinDetails.emergencyContactNumber,
-            email: kinDetails?.email || manager.kinDetails.email,
+            kinName: kinDetails?.kinName,
+            relationshipToYou: kinDetails?.relationshipToYou,
+            address: kinDetails?.address,
+            postCode: kinDetails?.kinName,
+            emergencyContactNumber: kinDetails?.emergencyContactNumber,
+            email: kinDetails?.email,
         }
 
         const updatedFinancialDetails = {
-            bankName: financialDetails?.bankName || manager.financialDetails.bankName,
-            holderName: financialDetails?.holderName || manager.financialDetails.holderName,
-            sortCode: financialDetails?.sortCode || manager.financialDetails.sortCode,
-            accountNumber: financialDetails?.accountNumber || manager.financialDetails.accountNumber,
-            payrollFrequency: financialDetails?.payrollFrequency || manager.financialDetails.payrollFrequency,
-            pension: financialDetails?.pension || manager.financialDetails.pension,
+            bankName: financialDetails?.bankName,
+            holderName: financialDetails?.holderName,
+            sortCode: financialDetails?.sortCode,
+            accountNumber: financialDetails?.accountNumber,
+            payrollFrequency: financialDetails?.payrollFrequency,
+            pension: financialDetails?.pension,
         }
 
         const updatedJobDetails = {
-            jobTitle: jobDetails?.jobTitle || manager.jobDetails.jobTitle,
-            jobDescription: jobDetails?.jobDescription || manager.jobDetails.jobDescription,
-            annualSalary: jobDetails?.annualSalary || manager.jobDetails.annualSalary,
-            hourlyRate: jobDetails?.hourlyRate || manager.jobDetails.hourlyRate,
-            weeklyWorkingHours: jobDetails?.weeklyWorkingHours || manager.jobDetails.weeklyWorkingHours,
-            weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern || manager.jobDetails.weeklyWorkingHoursPattern,
-            weeklySalary: jobDetails?.weeklySalary || manager.jobDetails.weeklySalary,
-            joiningDate: jobDetails?.joiningDate || manager.jobDetails.joiningDate,
-            socCode: jobDetails?.socCode || manager.jobDetails.socCode,
-            modeOfTransfer: jobDetails?.modeOfTransfer || manager.jobDetails.modeOfTransfer,
-            sickLeavesAllow: jobDetails?.sickLeavesAllow || manager.jobDetails.sickLeavesAllow,
-            leavesAllow: jobDetails?.leavesAllow || manager.jobDetails.leavesAllow,
-            location: jobDetails?.location || manager.jobDetails.location,
-            assignManager: jobDetails?.assignManager || manager.jobDetails.assignManager,
-            role: jobDetails?.role || manager.jobDetails.role,
+            jobTitle: jobDetails?.jobTitle,
+            jobDescription: jobDetails?.jobDescription,
+            annualSalary: jobDetails?.annualSalary,
+            hourlyRate: jobDetails?.hourlyRate,
+            weeklyWorkingHours: jobDetails?.weeklyWorkingHours,
+            weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern,
+            weeklySalary: jobDetails?.weeklySalary,
+            joiningDate: jobDetails?.joiningDate,
+            socCode: jobDetails?.socCode,
+            modeOfTransfer: jobDetails?.modeOfTransfer,
+            sickLeavesAllow: jobDetails?.sickLeavesAllow,
+            leavesAllow: jobDetails?.leavesAllow,
+            location: jobDetails?.location,
+            assignManager: jobDetails?.assignManager,
+            role: jobDetails?.role,
         }
 
         const updatedImmigrationDetails = {
-            passportNumber: immigrationDetails?.passportNumber || manager.immigrationDetails.passportNumber,
-            countryOfIssue: immigrationDetails?.countryOfIssue || manager.immigrationDetails.countryOfIssue,
-            passportExpiry: immigrationDetails?.passportExpiry || manager.immigrationDetails.passportExpiry,
-            nationality: immigrationDetails?.nationality || manager.immigrationDetails.nationality,
-            visaCategory: immigrationDetails?.visaCategory || manager.immigrationDetails.visaCategory,
-            visaValidFrom: immigrationDetails?.visaValidFrom || manager.immigrationDetails.visaValidFrom,
-            visaValidTo: immigrationDetails?.visaValidTo || manager.immigrationDetails.visaValidTo,
-            brpNumber: immigrationDetails?.brpNumber || manager.immigrationDetails.brpNumber,
-            cosNumber: immigrationDetails?.cosNumber || manager.immigrationDetails.cosNumber,
-            restriction: immigrationDetails?.restriction || manager.immigrationDetails.restriction,
-            shareCode: immigrationDetails?.shareCode || manager.immigrationDetails.shareCode,
-            rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate || manager.immigrationDetails.rightToWorkCheckDate,
-            rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate || manager.immigrationDetails.rightToWorkEndDate,
+            passportNumber: immigrationDetails?.passportNumber,
+            countryOfIssue: immigrationDetails?.countryOfIssue,
+            passportExpiry: immigrationDetails?.passportExpiry,
+            nationality: immigrationDetails?.nationality,
+            visaCategory: immigrationDetails?.visaCategory,
+            visaValidFrom: immigrationDetails?.visaValidFrom,
+            visaValidTo: immigrationDetails?.visaValidTo,
+            brpNumber: immigrationDetails?.brpNumber,
+            cosNumber: immigrationDetails?.cosNumber,
+            restriction: immigrationDetails?.restriction,
+            shareCode: immigrationDetails?.shareCode,
+            rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
+            rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
         }
 
         let updateManager = await User.findByIdAndUpdate(
@@ -276,7 +283,7 @@ exports.updateManagerDetails = async (req, res) => {
             }, { new: true }
         )
 
-        return res.status(200).send({ message: 'Manager details updated successfully.', updateManager })
+        return res.send({ status: 200, message: 'Manager details updated successfully.', updateManager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -293,7 +300,7 @@ exports.deleteManager = async (req, res) => {
         })
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
 
         let deletedManager = await User.findByIdAndUpdate(managerId, {
@@ -303,7 +310,7 @@ exports.deleteManager = async (req, res) => {
             }
         })
 
-        return res.status(200).send({ message: 'Manager deleted successfully.', deletedManager })
+        return res.send({ status: 200, message: 'Manager deleted successfully.', deletedManager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
