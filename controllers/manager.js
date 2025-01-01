@@ -16,7 +16,14 @@ exports.addManager = async (req, res) => {
 
         // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
         //     return res.status(400).send({ message: "All sections of employee details are required." });
-        // }            
+        // }
+
+        if(personalDetails && personalDetails.email){
+            const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+            if(user){
+                return res.send({ status: 409, message: "Email already exists." });
+            }
+        }         
 
         if (documentDetails && Array.isArray(documentDetails)) {
             for (let i = 0; i < documentDetails.length; i++) {
@@ -121,7 +128,7 @@ exports.addManager = async (req, res) => {
         // console.log('new manager', newManager)
         const manager = await User.create(newManager)
 
-        return res.status(200).send({ message: 'Manager created successfully.', manager })
+        return res.send({ status: 200, message: 'Manager created successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -132,7 +139,7 @@ exports.getManager = async (req, res) => {
     try {
         const managerId = req.params.id
         if (!managerId || managerId == 'undefined' || managerId == 'null') {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
         const manager = await User.findOne({
             _id: managerId,
@@ -140,9 +147,9 @@ exports.getManager = async (req, res) => {
         })
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found.' })
+            return res.send({ status: 404, message: 'Manager not found.' })
         }
-        return res.status(200).send({ message: 'Manager get successfully.', manager })
+        return res.send({ status: 200, message: 'Manager get successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -155,7 +162,7 @@ exports.getAllManager = async (req, res) => {
             role: "Manager",
             isDeleted: { $ne: true }
         })
-        return res.status(200).send({ message: 'Manager all get successfully.', managers })
+        return res.send({ status: 200, message: 'Manager all get successfully.', managers })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -173,7 +180,7 @@ exports.updateManagerDetails = async (req, res) => {
         // console.log('manager/...', manager)
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
 
         let {
@@ -276,7 +283,7 @@ exports.updateManagerDetails = async (req, res) => {
             }, { new: true }
         )
 
-        return res.status(200).send({ message: 'Manager details updated successfully.', updateManager })
+        return res.send({ status: 200, message: 'Manager details updated successfully.', updateManager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
@@ -293,7 +300,7 @@ exports.deleteManager = async (req, res) => {
         })
 
         if (!manager) {
-            return res.status(404).send({ message: 'Manager not found' })
+            return res.send({ status: 404, message: 'Manager not found' })
         }
 
         let deletedManager = await User.findByIdAndUpdate(managerId, {
@@ -303,7 +310,7 @@ exports.deleteManager = async (req, res) => {
             }
         })
 
-        return res.status(200).send({ message: 'Manager deleted successfully.', deletedManager })
+        return res.send({ status: 200, message: 'Manager deleted successfully.', deletedManager })
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })

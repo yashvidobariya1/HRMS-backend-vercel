@@ -1,6 +1,4 @@
 const User = require("../models/user")
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcrypt')
 const { transporter } = require("../utils/nodeMailer");
 
@@ -21,6 +19,13 @@ exports.addEmployee = async (req, res) => {
         // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
         //     return res.status(400).send({ message: "All sections of employee details are required." });
         // }
+
+        if(personalDetails && personalDetails.email){
+            const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+            if(user){
+                return res.send({ status: 409, message: "Email already exists." });
+            }
+        }
 
         if (documentDetails && Array.isArray(documentDetails)) {
             for (let i = 0; i < documentDetails.length; i++) {
@@ -121,7 +126,7 @@ exports.addEmployee = async (req, res) => {
         // console.log('new employee', newEmployee)
         const employee = await User.create(newEmployee)
 
-        return res.status(200).send({ message: 'Employee created successfully.', employee })
+        return res.send({ status: 200, message: 'Employee created successfully.', employee })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -135,7 +140,7 @@ exports.getEmployee = async (req, res) => {
         const employeeId = req.params.id
 
         if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
-            return res.status(404).send({ message: 'Employee not found' })
+            return res.send({ status: 404, message: 'Employee not found' })
         }
 
         const employee = await User.findOne({
@@ -151,10 +156,10 @@ exports.getEmployee = async (req, res) => {
         employee.save()
 
         if (!employee) {
-            return res.status(404).send({ message: 'Employee not found' })
+            return res.send({ status: 404, message: 'Employee not found' })
         }
 
-        return res.status(200).send({ message: 'Employee get successfully.', employee })
+        return res.send({ status: 200, message: 'Employee get successfully.', employee })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -167,9 +172,9 @@ exports.getAllEmployees = async (req, res) => {
         // if (req.user.role == 'Manager') {
         const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
         if (!employees) {
-            return res.status(404).send('Employees not found')
+            return res.send('Employees not found')
         }
-        res.status(200).send({ message: 'Employee all get successfully.', employees })
+        res.send({ status: 200, message: 'Employee all get successfully.', employees })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
@@ -188,7 +193,7 @@ exports.updateEmployee = async (req, res) => {
         });
 
         if (!employee) {
-            return res.status(404).send({ message: 'Employee not found' })
+            return res.send({ status: 404, message: 'Employee not found' })
         }
 
         let {
@@ -291,7 +296,7 @@ exports.updateEmployee = async (req, res) => {
             }, { new: true }
         )
 
-        return res.status(200).send({ message: 'Employee details updated successfully.', updatedEmployee })
+        return res.send({ status: 200, message: 'Employee details updated successfully.', updatedEmployee })
 
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
@@ -310,7 +315,7 @@ exports.deleteEmployee = async (req, res) => {
             isDeleted: { $ne: true },
         });
         if (!employee) {
-            return res.status(404).send({ message: 'Employee not found' })
+            return res.send({ status: 404, message: 'Employee not found' })
         }
 
         let deletedEmployee = await User.findByIdAndUpdate(employeeId, {
@@ -320,7 +325,7 @@ exports.deleteEmployee = async (req, res) => {
             }
         })
 
-        return res.status(200).send({ message: 'Employee deleted successfully.', deletedEmployee })
+        return res.send({ status: 200, message: 'Employee deleted successfully.', deletedEmployee })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
     } catch (error) {
         console.log('Error:', error)
