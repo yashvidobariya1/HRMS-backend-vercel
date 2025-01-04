@@ -37,13 +37,13 @@ exports.auth = (allowedRoles) => {
         const apiKey = req.headers["x-api-key"];
     
         if (!apiKey || !users[apiKey]) {
-            return res.status(401).json({ message: "Unauthorized: Invalid API key" });
+            return res.send({ status: 401, message: "Unauthorized: Invalid API key" });
         }
     
         const userRole = users[apiKey].role;
     
         if (!allowedRoles.includes(userRole)) {
-            return res.status(403).json({ message: "Forbidden: Access denied" });
+            return res.send({ status: 403, message: "Forbidden: Access denied" });
         }
     
         req.user = { apiKey, role: userRole };

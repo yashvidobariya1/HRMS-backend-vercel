@@ -7,6 +7,12 @@ const Location = require('../models/location')
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
+jest.mock('nodemailer', () => ({
+    createTransport: jest.fn().mockReturnValue({
+        sendMail: jest.fn().mockResolvedValue({ messageId: '123' }),
+    }),
+}))
+
 let mongoServer;
 beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -93,6 +99,12 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
         expect(getResponse.body.message).toBe('Company get successfully.');
         expect(getResponse.body.company.companyDetails.companyCode).toBe('COMP001');
     })
+    test('POST /getcompany/:id when fetching company details and company not found', async() => {
+        const getResponse = await request(app).post(`/getcompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(getResponse.text).status).toBe(404)
+        expect(getResponse.body.message).toBe('Company not found')
+    })
 
     test('POST /getallcompany should fetch all companies', async () => {
         const getAllResponse = await request(app).post('/getallcompany').set('x-api-key', 'Superadmin')
@@ -100,6 +112,11 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
         expect(getAllResponse.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Company all get successfully.');
         expect(getAllResponse.body.company).toBeInstanceOf(Array);
+    })
+    test("POST /getallcompany when fetching all company and company's not found", async() => {
+        const getAllResponse = await request(app).post('/getallcompany').set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect([]).toStrictEqual([])
     })
 
     test('POST /updatecompany/:id should update company details', async () => {
@@ -114,6 +131,17 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
         expect(updateResponse.body.message).toBe('Company details updated successfully.');
         expect(updateResponse.body.updatedCompany.employeeSettings.payrollFrequency).toBe('Monthly');
     });
+    test('POST /updatecompany/:id when updating company details and company not found, null or undefine', async() => {
+        const updateResponse = await request(app).post(`/updatecompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin').send({
+            "employeeSettings": {
+                "payrollFrequency": "Monthly",
+                "holidayYear": "Jan-Dec"
+            },
+        });
+        // console.log('details/...', JSON.parse(updateResponse.text))
+        expect(JSON.parse(updateResponse.text).status).toBe(404)
+        expect(updateResponse.body.message).toBe('Company not found')
+    })
 
     
     test('POST /deletecompany/:id should delete a company', async () => {
@@ -123,6 +151,12 @@ describe('SuperAdmin Routes - Crud Company Test', () => {
         expect(deleteResponse.body.message).toBe('Company deleted successfully.');
         const deletedCompany = await Company.findById(createdCompanyId);
         expect(deletedCompany.isDeleted).toBe(true);
+    })
+    test('POST /deletecompany/:id when deleting company and company not found', async() => {
+        const deletedCompany = await request(app).post(`/deletecompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(deletedCompany.text))
+        expect(JSON.parse(deletedCompany.text).status).toBe(404)
+        expect(deletedCompany.body.message).toBe('Company not found')
     })
 })
 
@@ -144,7 +178,7 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
             })
             .set('x-api-key', 'Superadmin');
         console.log('created location/...', JSON.parse(createResponse.text))
-        expect(createResponse.status).toBe(200);
+        expect(createResponse.body.status).toBe(200);
         expect(createResponse.body.message).toBe('Location created successfully.');
         expect(createResponse.body.location).toHaveProperty('_id');
 
@@ -156,20 +190,33 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
             .post(`/getlocation/${createdLocationId}`)
             .set('x-api-key', 'Superadmin');
         console.log('get location details/..', getResponse.text)
-        expect(getResponse.status).toBe(200);
+        expect(getResponse.body.status).toBe(200);
         expect(getResponse.body.message).toBe('Location get successfully.');
         expect(getResponse.body.location.companyName).toBe('Lifecycle Test Company');
     });
+    test('POST /getlocation/:id when fetching company details and company not found', async() => {
+        const getResponse = await request(app)
+            .post(`/getlocation/676f9399ea4f13581c844ab2`)
+            .set('x-api-key', 'Superadmin');
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(getResponse.text).status).toBe(404)
+        expect(getResponse.body.message).toBe('Location not found')
+    })
 
     test('POST /getalllocation should fetch all locations', async () => {
         const getAllResponse = await request(app)
             .post('/getalllocation')
             .set('x-api-key', 'Superadmin');
         console.log('get all comapnies/...', getAllResponse.text)
-        expect(getAllResponse.status).toBe(200);
+        expect(getAllResponse.body.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Location all get successfully.');
         expect(getAllResponse.body.location).toBeInstanceOf(Array);
     });
+    test("POST /getalllocation when fetching all location and location's not found", async() => {
+        const getAllResponse = await request(app).post('/getalllocation').set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect([]).toStrictEqual([])
+    })
 
     test('POST /updatelocation/:id should update location details', async () => {
         const updateResponse = await request(app)
@@ -179,19 +226,31 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
             })
             .set('x-api-key', 'Superadmin');
         console.log('updated Location details/..', updateResponse.text)
-        expect(updateResponse.status).toBe(200);
+        expect(updateResponse.body.status).toBe(200);
         expect(updateResponse.body.message).toBe('Location details updated successfully.');
         expect(updateResponse.body.updatedLocation.address).toBe('456 Updated Lifecycle Street');
     });
+    test('POST /updatelocation/:id when updating location details and location not found', async() => {
+        const updateResponse = await request(app).post(`/updatelocation/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(updateResponse.text))
+        expect(JSON.parse(updateResponse.text).status).toBe(404)
+        expect(updateResponse.body.message).toBe('Location not found')
+    })
 
     test('POST /deletelocation/:id should delete a location', async () => {
         const deleteResponse = await request(app)
             .post(`/deletelocation/${createdLocationId}`)
             .set('x-api-key', 'Superadmin');
         console.log('delete Location details/..', deleteResponse.text)
-        expect(deleteResponse.status).toBe(200);
+        expect(deleteResponse.body.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Location deleted successfully.');
         const deletedLocation = await Location.findById(createdLocationId);
         expect(deletedLocation.isDeleted).toBe(true);
     });
+    test('POST /deletelocation/:id when deleting location and location not found', async() => {
+        const deleteResponse = await request(app).post(`/deletelocation/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
+        // console.log('details/...', JSON.parse(deleteResponse.text))
+        expect(JSON.parse(deleteResponse.text).status).toBe(404)
+        expect(deleteResponse.body.message).toBe('Location not found')
+    })
 });

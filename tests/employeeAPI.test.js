@@ -5,6 +5,12 @@ const User = require('../models/user')
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
+jest.mock('nodemailer', () => ({
+    createTransport: jest.fn().mockReturnValue({
+        sendMail: jest.fn().mockResolvedValue({ messageId: '123' }),
+    }),
+}))
+
 let mongoServer;
 beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -104,7 +110,7 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
             }
         })
         console.log('created employee/...', JSON.parse(createResponse.text))
-        expect(createResponse.status).toBe(200);
+        expect(createResponse.body.status).toBe(200);
         expect(createResponse.body.message).toBe('Employee created successfully.');
         expect(createResponse.body.employee).toHaveProperty('_id');
         createdEmployeeId = await (JSON.parse(createResponse.text)).employee._id
@@ -113,17 +119,28 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
     test('POST /getemployee/:id should fetch a employee by ID', async () => {
         const getResponse = await request(app).post(`/getemployee/${createdEmployeeId}`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
         console.log('get employee details/..', getResponse.text)
-        expect(getResponse.status).toBe(200);
+        expect(getResponse.body.status).toBe(200);
         expect(getResponse.body.message).toBe('Employee get successfully.');
         expect(getResponse.body.employee.personalDetails.firstName).toBe('add employee for testing');
     });
+    test('POST /getemployee/:id when fetching employee details and employee not found', async() => {
+        const getResponse = await request(app).post(`/getemployee/6775109a39cd21ffef4f9850`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
+        console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(getResponse.text).status).toBe(404)
+        expect(getResponse.body.message).toBe('Employee not found')
+    })
 
     test('POST /getallemployee should fetch all employees', async () => {
         const getAllResponse = await request(app).post('/getallemployee').set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
         console.log('get all employees/...', getAllResponse.text)
-        expect(getAllResponse.status).toBe(200);
+        expect(getAllResponse.body.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Employee all get successfully.');
         expect(getAllResponse.body.employees).toBeInstanceOf(Array);
+    })
+    test("POST /getallemployee when fetching all employee and employee's not found", async() => {
+        const getAllResponse = await request(app).post('/getallemployee').set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect([]).toStrictEqual([])
     })
 
     test('POST /updateemployee/:id should update employee details', async () => {
@@ -146,17 +163,46 @@ describe('Superadmin, Administrator and Manager Routes - Crud Employee Test', ()
             },
         })
         console.log('Updated employee details:', updateResponse.text);
-        expect(updateResponse.status).toBe(200);
+        expect(updateResponse.body.status).toBe(200);
         expect(updateResponse.body.message).toBe('Employee details updated successfully.');
         expect(updateResponse.body.updatedEmployee.personalDetails.email).toBe('update@example.com');
+    })
+    test('POST /updateemployee/:id when updating manager details and manager not found', async() => {
+        const updateResponse = await request(app).post(`/updateemployee/6775109a39cd21ffef4f9850`).set('x-api-key', 'Manager' ||  'Administrator' || 'Superadmin').send({
+            "personalDetails": {
+                "firstName": "update first name",
+                "middleName": "update middle name",
+                "lastName": "update last name",
+                "email": "update@example.com"
+            },
+            "addressDetails": {
+                "address": "updated address",
+                "city": "updated city",
+                "postCode": "updated post code",
+            },
+            "kinDetails": {
+                "kinName": "updated kinName",
+                "address": "updated address",
+                "emergencyContactNumber": "updated emergency contact number",
+            },
+        })
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(updateResponse.text).status).toBe(404)
+        expect(updateResponse.body.message).toBe('Employee not found')
     })
 
     test('POST /deleteemployee/:id should delete a employee', async () => {
         const deleteResponse = await request(app).post(`/deleteemployee/${createdEmployeeId}`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
         console.log('delete employee details/..', deleteResponse.text)
-        expect(deleteResponse.status).toBe(200);
+        expect(deleteResponse.body.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Employee deleted successfully.');
         const deletedEmployee = await User.findById(createdEmployeeId);
         expect(deletedEmployee.isDeleted).toBe(true);
+    })
+    test('POST /deleteemployee/:id when deleting manager and manager not found', async() => {
+        const deleteResponse = await request(app).post(`/deleteemployee/${createdEmployeeId}`).set('x-api-key', 'Manager' || 'Administrator' || 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(deleteResponse.text).status).toBe(404)
+        expect(deleteResponse.body.message).toBe('Employee not found')
     })
 });

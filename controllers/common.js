@@ -1,7 +1,8 @@
-// const { default: axios } = require("axios");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-// const Timesheet = require("../models/timeSheet");
+const geolib = require('geolib')
+const Timesheet = require("../models/timeSheet");
+const { transporter } = require("../utils/nodeMailer");
 
 exports.login = async (req, res) => {
     try {
@@ -43,30 +44,166 @@ exports.login = async (req, res) => {
     }
 };
 
-exports.forgotPassword = async (req, res) => {
+exports.emailVerification = async (req, res) => {
     try {
+        const { email } = req.body
 
-        const { email, newPassword } = req.body
-        const user = await User.findOne({
-            "personalDetails.email": email,
-            isDeleted: false
-        })
-        if (!user) {
-            return res.json({ status: 404, message: "User not found" })
+        if(!email){
+            return res.send({ status: 400, message: "Please enter valid email address." })
         }
-        const hashedPassword = await bcrypt.hash(newPassword, 10)
-        user.personalDetails.password = hashedPassword
-        await user.save()
-        res.send({ status: 404, message: "Password updated successfully." })
+
+        const findUser = await User.findOne({ "personalDetails.email": email })
+        if(!findUser){
+            return res.send({ status: 404, message: "User not found." })
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000)
+        findUser.otp = otp
+        await findUser.save()
+
+        if(otp){
+            let mailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: findUser.personalDetails.email,
+                subject: "HRMS: Password recovery",
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                        <h2 style="text-align: center; color: #4CAF50;">OTP Verification</h2>
+                        <p>Dear ${findUser.personalDetails.firstName},</p>
+                        <p>We received a request to verify your email address. Please use the OTP below to complete the verification process:</p>
+                        <div style="text-align: center; margin: 20px 0;">
+                            <span style="font-size: 24px; font-weight: bold; color: #333; padding: 10px 20px; background-color: #f4f4f4; border-radius: 5px; display: inline-block;">
+                                ${otp}
+                            </span>
+                        </div>
+                        <p style="text-align: center;">This OTP is valid for the next 10 minutes.</p>
+                        <p>If you did not request this verification, please ignore this email or contact support if you have concerns.</p>
+                        <hr style="border: none; border-top: 1px solid #ddd;">
+                        <p style="font-size: 12px; color: #888; text-align: center;">
+                            This is an automated message. Please do not reply.
+                        </p>
+                    </div>
+                `,
+            }
+
+            await transporter.sendMail(mailOptions, (error, info) => {
+                if(info){
+                    console.log("Email sent successfully:", info.response);
+                }
+            });
+
+            return res.send({ status: 200, message: otp })
+        } else {
+            return res.send({ status: 400, message: "OTP not generated." })
+        }
     } catch (error) {
         console.log('Error:', error)
         return res.send({ message: error.message })
     }
 }
 
+exports.otpVerification = async (req, res) => {
+    try {
+        const { email, otp } = req.body
+        const findUser = await User.findOne({ "personalDetails.email": email, isDeleted: false })
+        if(findUser){
+            if(findUser.otp === otp){
+                return res.send({ status: 200, message: "OTP verified successfully." })
+            } else {
+                return res.send({ status: 409, message: "Invalid OTP." })
+            }
+        } else {
+            return res.send({ status: 404, message: "User not found." })
+        }
+    } catch (error) {
+        console.log('Error:', error)
+        return res.send({ message: error.message })
+    }
+}
+
+exports.forgotPassword = async (req, res) => {
+    try {
+
+        const { email, newPassword, confirmPassword } = req.body
+        const user = await User.findOne({
+            "personalDetails.email": email,
+            isDeleted: false
+        })
+        if (!user) {
+            return res.send({ status: 404, message: "User not found" })
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
+        if(!passwordRegex.test(newPassword)){
+            return res.send({
+                "status": 401,
+                "message": "Password must one capital letter, contain at least one symbol and one numeric, and be at least 8 characters long."
+            })
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.send({ status: 400, message: "New password and confirm password do not match." })
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+        user.personalDetails.password = hashedPassword
+        await user.save()
+        res.send({ status: 200, message: "Password updated successfully." })
+    } catch (error) {
+        console.log('Error:', error)
+        return res.send({ message: error.message })
+    }
+}
+
+exports.updatePassword = async (req, res) => {
+    try {
+        const { userId, oldPassword, newPassword, confirmPassword } = req.body
+
+        const user = await User.findOne({ _id: userId, isDeleted: false })
+        if (!user) {
+            return res.send({ status: 404, message: "User not found." })
+        }
+
+        const isMatch = await bcrypt.compare(oldPassword, user.personalDetails.password)
+        if (!isMatch) {
+            return res.send({ status: 400, message: "Old password is incorrect." })
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
+        if(!passwordRegex.test(newPassword)){
+            return res.send({
+                "status": 401,
+                "message": "Password must one capital letter, contain at least one symbol and one numeric, and be at least 8 characters long."
+            })
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.send({ status: 400, message: "New password and confirm password do not match." })
+        }        
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+        user.personalDetails.password = hashedPassword;
+        await user.save()
+
+        return res.send({ status: 200, message: "Password updated successfully." })
+    } catch (error) {
+        console.error("Error updating password:", error);
+        return res.send({ message: "An error when updating password, Please try again." })
+    }
+}
+
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find()
+        users.forEach((e) => {
+            if(e.documentDetails.length > 0){
+                for(let i=0; i<e.documentDetails.length; i++){
+                    const doc = e.documentDetails[i];
+                    doc.document = 'documentFile.pdf'
+                }
+            }
+        })
         return res.send({ status: 200, message: 'Users get successfully.', users })
     } catch (error) {
         console.log('Error:', error)
@@ -74,182 +211,156 @@ exports.getAllUsers = async (req, res) => {
     }
 }
 
-// const geolib = require('geolib')
-// exports.clockInFunc = async (req, res) => {
-//     try {
-        
-//         // first method for get user's location
-        
-//         // const { userId } = req.body;
+exports.clockInFunc = async (req, res) => {
+    try {
+        const { userId, location } = req.body
 
-//         // const user = await User.findById(userId)
+        const existUser = await User.findById(userId)
+        if (!existUser) {
+            return res.send({ status: 404, message: "User not found" })
+        }
 
-//         // if (!user) {
-//         //     return res.json({ status: 404, message: "User not found" })
-//         // }
+        if (!location || !location.latitude || !location.longitude) {
+            return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+        }
 
-//         // const ip = req.headers['ip']
-//         // const ipInfoToken = "5340022e70f960"
-        
-//         // const response = await axios.get(`https://ipinfo.io/${ip}?token=${ipInfoToken}`)
-//         // console.log('response/...', response)
-//         // const locData = response.data
-//         // let latitude = locData.loc.split(',')[0]
-//         // let longitude = locData.loc.split(',')[1]
+        await User.updateOne(
+            { _id: existUser._id },
+            { $set: { lastKnownLocation: location } }
+        )
 
+        const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
+        const GEOFENCE_RADIUS = 5000 // meters
 
+        if (!geolib.isPointWithinRadius(
+            { latitude: location.latitude, longitude: location.longitude },
+            GEOFENCE_CENTER,
+            GEOFENCE_RADIUS
+        )) {
+            return res.send({ status: 403, message: 'You are outside the geofence area.' })
+        }
 
-//         // secound method for get user's location
+        const currentDate = new Date().toISOString().slice(0, 10)
+        let timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-//         const { userId, location } = req.body
+        if (!timesheet) {
+            timesheet = new Timesheet({
+                userId,
+                date: currentDate,
+                clockingTime: [],
+                totalHours: 0
+            })
+        }
 
-//         const existUser = await User.findById(userId)
+        const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
+        if (clockInsToday >= 2) {
+            return res.send({ status: 400, message: "You can only clock in two times per day." })
+        }
 
-//         if (!existUser) {
-//             return res.json({ status: 404, message: "User not found" })
-//         }
+        const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
 
-//         if (location && location.latitude && location.longitude) {
-//             console.log('User location:', location)
-//             await User.updateOne(
-//                 { _id: existUser._id },
-//                 { $set: { lastKnownLocation: location } }
-//             )
-//         }
+        if (lastClocking && !lastClocking.clockOut) {
+            return res.send({ status: 400, message: "Please clock out before clocking in again." })
+        }
 
-//         const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
-//         const GEOFENCE_RADIUS = 100 // meters
+        timesheet.clockingTime.push({
+            clockIn: new Date(),
+            clockOut: ""
+        })
 
-//         let latitude = location.latitude
-//         let longitude = location.longitude
+        timesheet.isTimerOn = true
+        await timesheet.save()
 
-//         if (!geolib.isPointWithinRadius(
-//             { latitude, longitude },
-//             GEOFENCE_CENTER,
-//             GEOFENCE_RADIUS
-//         )) {
-//             return res.status(403).json({ message: 'You are outside the geofence area.' });
-//         }
+        return res.send({ status: 200, timesheet })
+    } catch (error) {
+        console.error('Error:', error)
+        return res.send({ message: error.message })
+    }
+}
 
-//         const timesheet = new Timesheet({
-//             userId,
-//             clockingTime: {
-//                 clockIn: new Date()
-//             },
-//             location: { latitude, longitude },
-//         });
+exports.clockOutFunc = async (req, res) => {
+    try {
+        const { userId, location } = req.body
 
-//         try {
-//             await timesheet.save();
-//             res.status(200).json(timesheet);
-//         } catch (error) {
-//             res.status(500).json({ message: 'Error clocking in', error });
-//         }
+        const existUser = await User.findById(userId)
+        if (!existUser) {
+            return res.send({ status: 404, message: "User not found" })
+        }
 
-//     } catch (error) {
-//         console.log('Error:', error)
-//         return res.send({ message: error.message })
-//     }
-// }
+        if (!location || !location.latitude || !location.longitude) {
+            return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+        }
 
-// exports.clockInFunc = async (req, res) => {
-//     try {
-//         const { userId, location } = req.body;
+        const currentDate = new Date().toISOString().slice(0, 10);
+        const timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-//         // Check if user exists
-//         const existUser = await User.findById(userId);
-//         if (!existUser) {
-//             return res.status(404).json({ message: "User not found" });
-//         }
+        if (!timesheet) {
+            return res.send({ status: 404, message: "No timesheet found for today." })
+        }
 
-//         // Validate location
-//         if (!location || !location.latitude || !location.longitude) {
-//             return res.status(400).json({ message: "Invalid location data" });
-//         }
+        const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
+        if (!lastClocking || lastClocking.clockOut) {
+            return res.send({ status: 400, message: "No active clock-in to clock out from." })
+        }
 
-//         // Update user's last known location
-//         await User.updateOne(
-//             { _id: existUser._id },
-//             { $set: { lastKnownLocation: location } }
-//         );
+        lastClocking.clockOut = new Date()
 
-//         // Geofence check
-//         const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 };
-//         const GEOFENCE_RADIUS = 100; // meters
+        const clockInTime = new Date(lastClocking.clockIn)
+        const clockOutTime = new Date(lastClocking.clockOut)
 
-//         if (!geolib.isPointWithinRadius(
-//             { latitude: location.latitude, longitude: location.longitude },
-//             GEOFENCE_CENTER,
-//             GEOFENCE_RADIUS
-//         )) {
-//             return res.status(403).json({ message: 'You are outside the geofence area.' });
-//         }
+        const formatDuration = (clockInTime, clockOutTime) => {
+            let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
+            const hours = Math.floor(diffInSeconds / 3600)
+            diffInSeconds %= 3600
+            const minutes = Math.floor(diffInSeconds / 60)
+            const seconds = diffInSeconds % 60
 
-//         // Find existing timesheet for the day
-//         const currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-//         let timesheet = await Timesheet.findOne({ userId, date: currentDate });
+            return `${hours}h ${minutes}m ${seconds}s`
+        }
 
-//         if (!timesheet) {
-//             // Create a new timesheet for the day if it doesn't exist
-//             timesheet = new Timesheet({
-//                 userId,
-//                 date: currentDate,
-//                 clockingTime: [],
-//                 totalHours: 0
-//             });
-//         }
+        const duration = formatDuration(clockInTime, clockOutTime)
+        lastClocking.totalTiming = duration
 
-//         const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1];
+        if(timesheet.totalHours == 0){
+            timesheet.totalHours = duration
+        } else {
+            const parseTime = (duration) => {
+                const regex = /(\d+)h|(\d+)m|(\d+)s/g
+                let hours = 0, minutes = 0, seconds = 0
+                let match
+              
+                while ((match = regex.exec(duration)) !== null) {
+                  if (match[1]) hours = parseInt(match[1], 10)
+                  if (match[2]) minutes = parseInt(match[2], 10)
+                  if (match[3]) seconds = parseInt(match[3], 10)
+                }
+              
+                return { hours, minutes, seconds }
+            }            
+            const addDurations = (duration1, duration2) => {
+                const time1 = parseTime(duration1)
+                const time2 = parseTime(duration2)
+                
+                let totalSeconds = time1.seconds + time2.seconds
+                let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+                let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
+                
+                totalSeconds %= 60
+                totalMinutes %= 60
+                
+                return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+            }
 
-//         if (lastClocking && !lastClocking.clockOut) {
-//             return res.status(400).json({ message: "Please clock out before clocking in again." });
-//         }
+            const result = addDurations(timesheet.totalHours, duration)
+            timesheet.totalHours = result
+        }
 
-//         // Add a new clock-in entry
-//         timesheet.clockingTime.push({ clockIn: new Date(), location });
+        timesheet.isTimerOn = false
+        await timesheet.save()
 
-//         await timesheet.save();
-
-//         return res.status(200).json(timesheet);
-//     } catch (error) {
-//         console.error('Error:', error);
-//         return res.status(500).json({ message: error.message });
-//     }
-// };
-
-// exports.clockOutFunc = async (req, res) => {
-//     try {
-//         const { userId } = req.body;
-
-//         // Find today's timesheet
-//         const currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-//         const timesheet = await Timesheet.findOne({ userId, date: currentDate });
-
-//         if (!timesheet) {
-//             return res.status(404).json({ message: "No timesheet found for today." });
-//         }
-
-//         const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1];
-
-//         if (!lastClocking || lastClocking.clockOut) {
-//             return res.status(400).json({ message: "No active clock-in to clock out from." });
-//         }
-
-//         // Record clock-out time
-//         lastClocking.clockOut = new Date();
-
-//         // Calculate total hours
-//         const clockInTime = new Date(lastClocking.clockIn);
-//         const clockOutTime = new Date(lastClocking.clockOut);
-//         const duration = (clockOutTime - clockInTime) / (1000 * 60 * 60); // Hours
-
-//         timesheet.totalHours += duration;
-
-//         await timesheet.save();
-
-//         return res.status(200).json(timesheet);
-//     } catch (error) {
-//         console.error('Error:', error);
-//         return res.status(500).json({ message: error.message });
-//     }
-// };
+        return res.send({ status: 200, timesheet })
+    } catch (error) {
+        console.error("Error:", error);
+        return res.send({ message: error.message })
+    }
+}

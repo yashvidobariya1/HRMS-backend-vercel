@@ -5,6 +5,12 @@ const User = require('../models/user')
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
+jest.mock('nodemailer', () => ({
+    createTransport: jest.fn().mockReturnValue({
+        sendMail: jest.fn().mockResolvedValue({ messageId: '123' }),
+    }),
+}))
+
 let mongoServer;
 beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -105,7 +111,7 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             }
         })
         console.log('created manager/...', JSON.parse(createResponse.text))
-        expect(createResponse.status).toBe(200);
+        expect(createResponse.body.status).toBe(200);
         expect(createResponse.body.message).toBe('Manager created successfully.');
         expect(createResponse.body.manager).toHaveProperty('_id');
         createdManagerId = await (JSON.parse(createResponse.text)).manager._id
@@ -115,17 +121,28 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
     test('POST /getmanager/:id should fetch a manager by ID', async () => {
         const getResponse = await request(app).post(`/getmanager/${createdManagerId}`).set('x-api-key', 'Administrator' || 'Superadmin')
         console.log('get manager details/..', getResponse.text)
-        expect(getResponse.status).toBe(200);
+        expect(getResponse.body.status).toBe(200);
         expect(getResponse.body.message).toBe('Manager get successfully.');
         expect(getResponse.body.manager.personalDetails.firstName).toBe('add manager for testing');
+    })
+    test('POST /getmanager/:id when fetching manager details and manager not found', async() => {
+        const getResponse = await request(app).post(`/getmanager/676f9399ea4f13581c844ab2`).set('x-api-key', 'Administrator' || 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(getResponse.text).status).toBe(404)
+        expect(getResponse.body.message).toBe('Manager not found.')
     })
 
     test('POST /getallmanager should fetch all managers', async () => {
         const getAllResponse = await request(app).post('/getallmanager').set('x-api-key', 'Administrator' || 'Superadmin')
         console.log('get all managers/...', getAllResponse.text)
-        expect(getAllResponse.status).toBe(200);
+        expect(getAllResponse.body.status).toBe(200);
         expect(getAllResponse.body.message).toBe('Manager all get successfully.');
         expect(getAllResponse.body.managers).toBeInstanceOf(Array);
+    })
+    test("POST /getallmanager when fetching all manager and manager's not found", async() => {
+        const getAllResponse = await request(app).post('/getallmanager').set('x-api-key', 'Administrator' || 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect([]).toStrictEqual([])
     })
 
     test('POST /updatemanager/:id should update manager details', async () => {
@@ -161,17 +178,59 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             }
         })
         console.log('Updated manager details:', updateResponse.text);
-        expect(updateResponse.status).toBe(200);
+        expect(updateResponse.body.status).toBe(200);
         expect(updateResponse.body.message).toBe('Manager details updated successfully.');
         expect(updateResponse.body.updateManager.personalDetails.email).toBe('update@example.com');
+    })
+    test('POST /updatemanager/:id when updating manager details and manager not found', async() => {
+        const updateResponse = await request(app).post(`/updatemanager/676f9399ea4f13581c844ab2`).set('x-api-key', 'Administrator' || 'Superadmin').send({
+            "personalDetails": {
+                "firstName": "update first name",
+                "middleName": "update middle name",
+                "lastName": "update last name",
+                "email": "update@example.com"
+            },
+            "addressDetails": {
+                "address": "updated address",
+                "city": "updated city",
+                "postCode": "updated post code",
+            },
+            "kinDetails": {
+                "kinName": "updated kinName",
+                "address": "updated address",
+                "emergencyContactNumber": "updated emergency contact number",
+            },
+            "financialDetails": {
+                "bankName": "updated bank name",
+                "accountNumber": "updated account number",
+            },
+            "jobDetails": {
+                "jobTitle": "updated jobDetails",
+                "location": "updated location"
+            },
+            "immigrationDetails": {
+                "passportNumber": "updated passport number",
+                "countryOfIssue": "updated country of issue",
+                "passportExpiry": "updated passport expiry",
+            }
+        })
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(updateResponse.text).status).toBe(404)
+        expect(updateResponse.body.message).toBe('Manager not found')
     })
 
     test('POST /deletemanager/:id should delete a manager', async () => {
         const deleteResponse = await request(app).post(`/deletemanager/${createdManagerId}`).set('x-api-key', 'Administrator' || 'Superadmin')
         console.log('delete manager details/..', deleteResponse.text)
-        expect(deleteResponse.status).toBe(200);
+        expect(deleteResponse.body.status).toBe(200);
         expect(deleteResponse.body.message).toBe('Manager deleted successfully.');
         const deletedManager = await User.findById(createdManagerId);
         expect(deletedManager.isDeleted).toBe(true);
+    })
+    test('POST /deletemanager/:id when deleting manager and manager not found', async() => {
+        const deleteResponse = await request(app).post(`/deletemanager/676f9399ea4f13581c844ab2`).set('x-api-key', 'Administrator' || 'Superadmin')
+        // console.log('details/...', JSON.parse(getResponse.text))
+        expect(JSON.parse(deleteResponse.text).status).toBe(404)
+        expect(deleteResponse.body.message).toBe('Manager not found')
     })
 });
