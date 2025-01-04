@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
     jobDescription: String,
     annualSalary: Number,
     hourlyRate: Number,
-    weeklyWorkingHours: String,
+    weeklyWorkingHours: Number,
     weeklyWorkingHoursPattern: String,
     weeklySalary: Number,
     joiningDate: String,
@@ -83,16 +83,23 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String, enum: ['Administrator', 'Manager', 'Employee']
   },
+  lastKnownLocation: {
+    latitude: String,
+    longitude: String
+  },
+  otp: {
+    type: Number
+  },
+  token: {
+    type: String,
+    default: ""
+  },
   createdBy: {
     type: String, enum: ['Superadmin', 'Administrator', 'Manager']
   },
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
-  // lastKnownLocation: {
-  //   latitude: String,
-  //   longitude: String
-  // },
   canceledAt: Date,
 }, { timestamps: true });
 

@@ -1,5 +1,6 @@
 const User = require('../models/user')
 const bcrypt = require('bcrypt')
+const { transporter } = require('../utils/nodeMailer')
 
 exports.addManager = async (req, res) => {
     try {
@@ -68,10 +69,10 @@ exports.addManager = async (req, res) => {
         if (personalDetails.sendRegistrationLink == true) {
             let mailOptions = {
                 from: process.env.NODEMAILER_EMAIL,
-                to: newEmployee.personalDetails.email,
+                to: personalDetails.email,
                 subject: "Welcome to [Company Name]'s HRMS Portal",
                 html: `
-                    <p>Dear ${newEmployee.personalDetails.firstName} ${newEmployee.personalDetails.lastName},</p>
+                    <p>Dear ${personalDetails.firstName} ${personalDetails.lastName},</p>
 
                     <p>Welcome to HRMS Portal!</p>
 
@@ -99,13 +100,7 @@ exports.addManager = async (req, res) => {
                     <p>Best regards,<br>HRMS Team</p>
                 `
             }
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.log('Error occurred:', error);
-                } else {
-                    console.log('Email sent:', info.response);
-                }
-            });
+            transporter.sendMail(mailOptions);
         }
 
         const newManager = {
@@ -149,6 +144,14 @@ exports.getManager = async (req, res) => {
         if (!manager) {
             return res.send({ status: 404, message: 'Manager not found.' })
         }
+
+        if(manager.documentDetails.length > 0){
+            for(let i=0; i<manager.documentDetails.length; i++){
+                const doc = manager.documentDetails[i];
+                doc.document = 'documentFile.pdf'
+            }
+        }
+
         return res.send({ status: 200, message: 'Manager get successfully.', manager })
     } catch (error) {
         console.log('Error:', error)
@@ -162,6 +165,17 @@ exports.getAllManager = async (req, res) => {
             role: "Manager",
             isDeleted: { $ne: true }
         })
+
+        if (!managers) {
+            return res.send('Managers not found')
+        }
+
+        if(managers.documentDetails.length > 0){
+            for(let i=0; i<managers.documentDetails.length; i++){
+                const doc = managers.documentDetails[i];
+                doc.document = 'documentFile.pdf'
+            }
+        }
         return res.send({ status: 200, message: 'Manager all get successfully.', managers })
     } catch (error) {
         console.log('Error:', error)

@@ -147,16 +147,16 @@ exports.getEmployee = async (req, res) => {
             _id: employeeId,
             isDeleted: { $ne: true },
         });
-        if(employee.documentDetails){
+
+        if (!employee) {
+            return res.send({ status: 404, message: 'Employee not found' })
+        }
+
+        if(employee.documentDetails.length > 0){
             for(let i=0; i<employee.documentDetails.length; i++){
                 const doc = employee.documentDetails[i];
                 doc.document = 'documentFile.pdf'
             }
-        }
-        employee.save()
-
-        if (!employee) {
-            return res.send({ status: 404, message: 'Employee not found' })
         }
 
         return res.send({ status: 200, message: 'Employee get successfully.', employee })
@@ -173,6 +173,12 @@ exports.getAllEmployees = async (req, res) => {
         const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
         if (!employees) {
             return res.send('Employees not found')
+        }
+        if(employees.documentDetails.length > 0){
+            for(let i=0; i<employees.documentDetails.length; i++){
+                const doc = employees.documentDetails[i];
+                doc.document = 'documentFile.pdf'
+            }
         }
         res.send({ status: 200, message: 'Employee all get successfully.', employees })
         // } else return res.status(401).send({ message: 'You can not authorize for this action.' })
