@@ -129,8 +129,8 @@ exports.addEmployee = async (req, res) => {
             return res.send({ status: 200, message: 'Employee created successfully.', employee })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while adding employee:", error);
+        res.send({ message: "Something went wrong while adding employee!" })
     }
 }
 
@@ -152,7 +152,7 @@ exports.getEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'Employee not found' })
             }
 
-            if(employee.documentDetails.length > 0){
+            if(employee.documentDetails){
                 for(let i=0; i<employee.documentDetails.length; i++){
                     const doc = employee.documentDetails[i];
                     doc.document = 'documentFile.pdf'
@@ -162,8 +162,8 @@ exports.getEmployee = async (req, res) => {
             return res.send({ status: 200, message: 'Employee get successfully.', employee })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while getting employee:", error);
+        res.send({ message: "Something went wrong while getting employee!" })
     }
 }
 
@@ -183,8 +183,8 @@ exports.getAllEmployees = async (req, res) => {
             res.send({ status: 200, message: 'Employee all get successfully.', employees })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while getting employees:", error);
+        res.send({ message: "Something went wrong while getting employees!" })
     }
 }
 
@@ -306,8 +306,8 @@ exports.updateEmployee = async (req, res) => {
 
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while updating employee details:", error);
+        res.send({ message: "Something went wrong while updating employee details!" })
     }
 }
 
@@ -334,26 +334,7 @@ exports.deleteEmployee = async (req, res) => {
             return res.send({ status: 200, message: 'Employee deleted successfully.', deletedEmployee })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while removing employee:", error);
+        res.send({ message: "Something went wrong while removing employee!" })
     }
-}
-
-exports.getDetails = async (req, res) => {
-    // try {
-    //     // if(req.user.role == 'Employee') {
-    //         const employeeId = req.user._id
-    //         const employee = await User.findOne({
-    //             _id: employeeId,
-    //             isDeleted: { $ne: true },
-    //         });
-    //         if(!employee) {
-    //             return res.status(404).json({ message: 'Employee not found' })
-    //         }
-    //         return res.status(200).send(employee)
-    //     // } else return res.status(401).send('You can not authorize for this action.')
-    // } catch (error) {
-    //     console.log('Error:', error)
-    //     return res.send(error.message)
-    // }
 }

@@ -7,14 +7,14 @@ const superAdminRoute = Router()
 
 //company
 superAdminRoute.post('/addcompany', auth, addCompany)
-superAdminRoute.post('/getcompany/:id', auth, getCompany)
-superAdminRoute.post('/getallcompany', auth, getAllCompany)
+superAdminRoute.get('/getcompany/:id', auth, getCompany)
+superAdminRoute.get('/getallcompany', auth, getAllCompany)
 superAdminRoute.post('/updatecompany/:id', auth, updateCompanyDetails)
 superAdminRoute.post('/deletecompany/:id', auth, deleteCompany)
 //location
 superAdminRoute.post('/addlocation', auth, addLocation)
-superAdminRoute.post('/getlocation/:id', auth, getLocation)
-superAdminRoute.post('/getalllocation', auth, getAllLocation)
+superAdminRoute.get('/getlocation/:id', auth, getLocation)
+superAdminRoute.get('/getalllocation', auth, getAllLocation)
 superAdminRoute.post('/updatelocation/:id', auth, updateLocationDetails)
 superAdminRoute.post('/deletelocation/:id', auth, deleteLocation)
 

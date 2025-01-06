@@ -127,8 +127,8 @@ exports.addManager = async (req, res) => {
             return res.send({ status: 200, message: 'Manager created successfully.', manager })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while adding manager:", error);
+        res.send({ message: "Something went wrong while adding manager!" })
     }
 }
 
@@ -148,7 +148,7 @@ exports.getManager = async (req, res) => {
                 return res.send({ status: 404, message: 'Manager not found.' })
             }
 
-            if(manager.documentDetails.length > 0){
+            if(manager.documentDetails){
                 for(let i=0; i<manager.documentDetails.length; i++){
                     const doc = manager.documentDetails[i];
                     doc.document = 'documentFile.pdf'
@@ -158,8 +158,8 @@ exports.getManager = async (req, res) => {
             return res.send({ status: 200, message: 'Manager get successfully.', manager })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while getting manager:", error);
+        res.send({ message: "Something went wrong while getting manager!" })
     }
 }
 
@@ -184,8 +184,8 @@ exports.getAllManager = async (req, res) => {
             return res.send({ status: 200, message: 'Manager all get successfully.', managers })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while getting managers:", error);
+        res.send({ message: "Something went wrong while getting managers!" })
     }
 }
 
@@ -307,8 +307,8 @@ exports.updateManagerDetails = async (req, res) => {
             return res.send({ status: 200, message: 'Manager details updated successfully.', updateManager })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while updating manager details:", error);
+        res.send({ message: "Something went wrong while updating manager details!" })
     }
 }
 
@@ -336,7 +336,7 @@ exports.deleteManager = async (req, res) => {
             return res.send({ status: 200, message: 'Manager deleted successfully.', deletedManager })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while removing manager:", error);
+        res.send({ message: "Something went wrong while removing manager!" })
     }
 }

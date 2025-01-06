@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
                     return res.send({ status: 500, message: "Internal server error" });
                 }
                 if (!result) {
-                    return res.send({ status: 404,message: "Password does not match" });
+                    return res.send({ status: 404,message: "Invalid credential" });
                 }
                 return res.send({
                     status: 200,
@@ -50,7 +50,7 @@ exports.login = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while logging in:", error);
-        return res.send({ message: error.message })
+        res.send({ message: "Something went wrong while login!" })
     }
 };
 
@@ -107,8 +107,8 @@ exports.emailVerification = async (req, res) => {
             return res.send({ status: 400, message: "OTP not generated." })
         }
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while email verification:", error);
+        res.send({ message: "Something went wrong while email verification!" })
     }
 }
 
@@ -126,8 +126,8 @@ exports.otpVerification = async (req, res) => {
             return res.send({ status: 404, message: "User not found." })
         }
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while OTP verification:", error);
+        res.send({ message: "Something went wrong while OTP verification!" })
     }
 }
 
@@ -160,8 +160,8 @@ exports.forgotPassword = async (req, res) => {
         await user.save()
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while forgot password:", error);
+        res.send({ message: "Something went wrong while forgot password!" })
     }
 }
 
@@ -198,8 +198,27 @@ exports.updatePassword = async (req, res) => {
 
         return res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
-        console.error("Error updating password:", error);
-        return res.send({ message: "An error when updating password, Please try again." })
+        console.error("Error occurred while updating password:", error);
+        res.send({ message: "Something went wrong while updating password!" })
+    }
+}
+
+exports.getDetails = async (req, res) => {
+    try {
+        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager' || 'Employee'){
+            const userId = req.user._id
+            const user = await User.findOne({
+                _id: userId,
+                isDeleted: { $ne: true },
+            })
+            if(!user) {
+                return res.send({ status: 404, message: 'User not found' })
+            }
+            return res.send({ status: 200, user})
+        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+    } catch (error) {
+        console.error("Error occurred while getting details:", error);
+        res.send({ message: "Something went wrong while getting details!" })
     }
 }
 
@@ -218,8 +237,8 @@ exports.getAllUsers = async (req, res) => {
             return res.send({ status: 200, message: 'Users get successfully.', users })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.log('Error:', error)
-        return res.send(error.message)
+        console.error("Error occurred while getting users:", error);
+        res.send({ message: "Something went wrong while getting users!" })
     }
 }
 
@@ -287,8 +306,8 @@ exports.clockInFunc = async (req, res) => {
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.error('Error:', error)
-        return res.send({ message: error.message })
+        console.error("Error occurred while clock in:", error);
+        res.send({ message: "Something went wrong while clock in!" })
     }
 }
 
@@ -376,7 +395,7 @@ exports.clockOutFunc = async (req, res) => {
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
-        console.error("Error:", error);
-        return res.send({ message: error.message })
+        console.error("Error occurred while clock out:", error);
+        res.send({ message: "Something went wrong while clock out!" })
     }
 }
