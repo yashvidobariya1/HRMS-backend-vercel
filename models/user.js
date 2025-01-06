@@ -70,8 +70,8 @@ const userSchema = new mongoose.Schema({
     cosNumber: String,
     restriction: String,
     shareCode: String,
-    rightToWorkCheckDate: Date,
-    rightToWorkEndDate: Date
+    rightToWorkCheckDate: String,
+    rightToWorkEndDate: String
   },
   documentDetails: [{
     documentType: String,

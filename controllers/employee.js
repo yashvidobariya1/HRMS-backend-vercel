@@ -51,6 +51,25 @@ exports.addEmployee = async (req, res) => {
                 console.log('documentDetails is not an array or is undefined');
             }
 
+            if(contractDetails.contractDocument){
+                const document = contractDetails.contractDocument
+                if(!document || typeof document !== 'string'){
+                    console.log('Invalid or missing contract document')
+                }
+                if(/^[A-Za-z0-9+/=]+$/.test(document)){
+                    if (document?.startsWith("JVBER")) {
+                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
+                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
+                    } else {
+                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
+                    }
+                } else {
+                    console.log('Invalid Base64 string for contract document')
+                }
+            }
+
             const generatePass = () => {
                 const fname = `${personalDetails.firstName}`
                 const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
