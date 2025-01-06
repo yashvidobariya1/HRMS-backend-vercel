@@ -6,13 +6,13 @@ const { upload } = require('../utils/multer')
 const employeeRoute = Router()
 
 //crud by superAdmin, administrator, manager
-employeeRoute.post('/addemployee', upload.array('documentDetials.document'), auth(['Superadmin', 'Administrator', 'Manager']), addEmployee)
-employeeRoute.post('/getemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), getEmployee)
-employeeRoute.post('/getallemployee', auth(['Superadmin', 'Administrator', 'Manager']), getAllEmployees)
-employeeRoute.post('/updateemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), updateEmployee)
-employeeRoute.post('/deleteemployee/:id', auth(['Superadmin', 'Administrator', 'Manager']), deleteEmployee)
+employeeRoute.post('/addemployee', upload.array('documentDetials.document'), auth, addEmployee)
+employeeRoute.post('/getemployee/:id', auth, getEmployee)
+employeeRoute.post('/getallemployee', auth, getAllEmployees)
+employeeRoute.post('/updateemployee/:id', auth, updateEmployee)
+employeeRoute.post('/deleteemployee/:id', auth, deleteEmployee)
 
 //get own details(employee)
-employeeRoute.post('/getdetails', auth(["Employee"]), getDetails)
+employeeRoute.post('/getdetails', auth, getDetails)
 
 module.exports = employeeRoute

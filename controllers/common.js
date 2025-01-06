@@ -15,11 +15,21 @@ exports.login = async (req, res) => {
         if (!isExist) {
             return res.send({ status: 404, message: "User not found" });
         }
+
+        const token = await isExist.generateAuthToken()
+        isExist.token = token
+        isExist.save()
+
+        const personalDetails = isExist?.personalDetails
+        const role = isExist?.role
+        const createdAt = isExist?.createdAt
+        const _id = isExist?._id
+
         if (isExist.personalDetails.password == req.body.password) {
             return res.send({
                 status: 200,
                 message: "User login successfully",
-                user: isExist.toJSON(),
+                user: { personalDetails, role, token, createdAt, _id },
             });
         } else {
             const hashedPassword = isExist.personalDetails.password;
@@ -34,7 +44,7 @@ exports.login = async (req, res) => {
                 return res.send({
                     status: 200,
                     message: "User login successfully",
-                    user: isExist.toJSON(),
+                    user: { personalDetails, role, token, createdAt, _id },
                 });
             });
         }
@@ -195,16 +205,18 @@ exports.updatePassword = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find()
-        users.forEach((e) => {
-            if(e.documentDetails.length > 0){
-                for(let i=0; i<e.documentDetails.length; i++){
-                    const doc = e.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
+        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager') {
+            const users = await User.find()
+            users.forEach((e) => {
+                if(e.documentDetails.length > 0){
+                    for(let i=0; i<e.documentDetails.length; i++){
+                        const doc = e.documentDetails[i];
+                        doc.document = 'documentFile.pdf'
+                    }
                 }
-            }
-        })
-        return res.send({ status: 200, message: 'Users get successfully.', users })
+            })
+            return res.send({ status: 200, message: 'Users get successfully.', users })
+        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
         console.log('Error:', error)
         return res.send(error.message)
@@ -213,65 +225,67 @@ exports.getAllUsers = async (req, res) => {
 
 exports.clockInFunc = async (req, res) => {
     try {
-        const { userId, location } = req.body
+        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+            const { userId, location } = req.body
 
-        const existUser = await User.findById(userId)
-        if (!existUser) {
-            return res.send({ status: 404, message: "User not found" })
-        }
+            const existUser = await User.findById(userId)
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
 
-        if (!location || !location.latitude || !location.longitude) {
-            return res.send({ status: 400, message: "Something went wrong, Please try again!" })
-        }
+            if (!location || !location.latitude || !location.longitude) {
+                return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+            }
 
-        await User.updateOne(
-            { _id: existUser._id },
-            { $set: { lastKnownLocation: location } }
-        )
+            await User.updateOne(
+                { _id: existUser._id },
+                { $set: { lastKnownLocation: location } }
+            )
 
-        const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
-        const GEOFENCE_RADIUS = 5000 // meters
+            const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
+            const GEOFENCE_RADIUS = 5000 // meters
 
-        if (!geolib.isPointWithinRadius(
-            { latitude: location.latitude, longitude: location.longitude },
-            GEOFENCE_CENTER,
-            GEOFENCE_RADIUS
-        )) {
-            return res.send({ status: 403, message: 'You are outside the geofence area.' })
-        }
+            if (!geolib.isPointWithinRadius(
+                { latitude: location.latitude, longitude: location.longitude },
+                GEOFENCE_CENTER,
+                GEOFENCE_RADIUS
+            )) {
+                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+            }
 
-        const currentDate = new Date().toISOString().slice(0, 10)
-        let timesheet = await Timesheet.findOne({ userId, date: currentDate })
+            const currentDate = new Date().toISOString().slice(0, 10)
+            let timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-        if (!timesheet) {
-            timesheet = new Timesheet({
-                userId,
-                date: currentDate,
-                clockingTime: [],
-                totalHours: 0
+            if (!timesheet) {
+                timesheet = new Timesheet({
+                    userId,
+                    date: currentDate,
+                    clockingTime: [],
+                    totalHours: 0
+                })
+            }
+
+            const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
+            if (clockInsToday >= 2) {
+                return res.send({ status: 400, message: "You can only clock in two times per day." })
+            }
+
+            const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
+
+            if (lastClocking && !lastClocking.clockOut) {
+                return res.send({ status: 400, message: "Please clock out before clocking in again." })
+            }
+
+            timesheet.clockingTime.push({
+                clockIn: new Date(),
+                clockOut: ""
             })
-        }
 
-        const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
-        if (clockInsToday >= 2) {
-            return res.send({ status: 400, message: "You can only clock in two times per day." })
-        }
+            timesheet.isTimerOn = true
+            await timesheet.save()
 
-        const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
-
-        if (lastClocking && !lastClocking.clockOut) {
-            return res.send({ status: 400, message: "Please clock out before clocking in again." })
-        }
-
-        timesheet.clockingTime.push({
-            clockIn: new Date(),
-            clockOut: ""
-        })
-
-        timesheet.isTimerOn = true
-        await timesheet.save()
-
-        return res.send({ status: 200, timesheet })
+            return res.send({ status: 200, timesheet })
+        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
         console.error('Error:', error)
         return res.send({ message: error.message })
@@ -280,85 +294,87 @@ exports.clockInFunc = async (req, res) => {
 
 exports.clockOutFunc = async (req, res) => {
     try {
-        const { userId, location } = req.body
+        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+            const { userId, location } = req.body
 
-        const existUser = await User.findById(userId)
-        if (!existUser) {
-            return res.send({ status: 404, message: "User not found" })
-        }
-
-        if (!location || !location.latitude || !location.longitude) {
-            return res.send({ status: 400, message: "Something went wrong, Please try again!" })
-        }
-
-        const currentDate = new Date().toISOString().slice(0, 10);
-        const timesheet = await Timesheet.findOne({ userId, date: currentDate })
-
-        if (!timesheet) {
-            return res.send({ status: 404, message: "No timesheet found for today." })
-        }
-
-        const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
-        if (!lastClocking || lastClocking.clockOut) {
-            return res.send({ status: 400, message: "No active clock-in to clock out from." })
-        }
-
-        lastClocking.clockOut = new Date()
-
-        const clockInTime = new Date(lastClocking.clockIn)
-        const clockOutTime = new Date(lastClocking.clockOut)
-
-        const formatDuration = (clockInTime, clockOutTime) => {
-            let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
-            const hours = Math.floor(diffInSeconds / 3600)
-            diffInSeconds %= 3600
-            const minutes = Math.floor(diffInSeconds / 60)
-            const seconds = diffInSeconds % 60
-
-            return `${hours}h ${minutes}m ${seconds}s`
-        }
-
-        const duration = formatDuration(clockInTime, clockOutTime)
-        lastClocking.totalTiming = duration
-
-        if(timesheet.totalHours == 0){
-            timesheet.totalHours = duration
-        } else {
-            const parseTime = (duration) => {
-                const regex = /(\d+)h|(\d+)m|(\d+)s/g
-                let hours = 0, minutes = 0, seconds = 0
-                let match
-              
-                while ((match = regex.exec(duration)) !== null) {
-                  if (match[1]) hours = parseInt(match[1], 10)
-                  if (match[2]) minutes = parseInt(match[2], 10)
-                  if (match[3]) seconds = parseInt(match[3], 10)
-                }
-              
-                return { hours, minutes, seconds }
-            }            
-            const addDurations = (duration1, duration2) => {
-                const time1 = parseTime(duration1)
-                const time2 = parseTime(duration2)
-                
-                let totalSeconds = time1.seconds + time2.seconds
-                let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
-                let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
-                
-                totalSeconds %= 60
-                totalMinutes %= 60
-                
-                return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+            const existUser = await User.findById(userId)
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
             }
 
-            const result = addDurations(timesheet.totalHours, duration)
-            timesheet.totalHours = result
-        }
+            if (!location || !location.latitude || !location.longitude) {
+                return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+            }
 
-        timesheet.isTimerOn = false
-        await timesheet.save()
+            const currentDate = new Date().toISOString().slice(0, 10);
+            const timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-        return res.send({ status: 200, timesheet })
+            if (!timesheet) {
+                return res.send({ status: 404, message: "No timesheet found for today." })
+            }
+
+            const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
+            if (!lastClocking || lastClocking.clockOut) {
+                return res.send({ status: 400, message: "No active clock-in to clock out from." })
+            }
+
+            lastClocking.clockOut = new Date()
+
+            const clockInTime = new Date(lastClocking.clockIn)
+            const clockOutTime = new Date(lastClocking.clockOut)
+
+            const formatDuration = (clockInTime, clockOutTime) => {
+                let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
+                const hours = Math.floor(diffInSeconds / 3600)
+                diffInSeconds %= 3600
+                const minutes = Math.floor(diffInSeconds / 60)
+                const seconds = diffInSeconds % 60
+
+                return `${hours}h ${minutes}m ${seconds}s`
+            }
+
+            const duration = formatDuration(clockInTime, clockOutTime)
+            lastClocking.totalTiming = duration
+
+            if(timesheet.totalHours == 0){
+                timesheet.totalHours = duration
+            } else {
+                const parseTime = (duration) => {
+                    const regex = /(\d+)h|(\d+)m|(\d+)s/g
+                    let hours = 0, minutes = 0, seconds = 0
+                    let match
+                
+                    while ((match = regex.exec(duration)) !== null) {
+                    if (match[1]) hours = parseInt(match[1], 10)
+                    if (match[2]) minutes = parseInt(match[2], 10)
+                    if (match[3]) seconds = parseInt(match[3], 10)
+                    }
+                
+                    return { hours, minutes, seconds }
+                }            
+                const addDurations = (duration1, duration2) => {
+                    const time1 = parseTime(duration1)
+                    const time2 = parseTime(duration2)
+                    
+                    let totalSeconds = time1.seconds + time2.seconds
+                    let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+                    let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
+                    
+                    totalSeconds %= 60
+                    totalMinutes %= 60
+                    
+                    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+                }
+
+                const result = addDurations(timesheet.totalHours, duration)
+                timesheet.totalHours = result
+            }
+
+            timesheet.isTimerOn = false
+            await timesheet.save()
+
+            return res.send({ status: 200, timesheet })
+        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
     } catch (error) {
         console.error("Error:", error);
         return res.send({ message: error.message })

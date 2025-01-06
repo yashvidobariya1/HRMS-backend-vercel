@@ -6,16 +6,16 @@ const { addLocation, getLocation, getAllLocation, updateLocationDetails, deleteL
 const superAdminRoute = Router()
 
 //company
-superAdminRoute.post('/addcompany', auth(['Superadmin', 'Administrator', 'Manager']), addCompany)
-superAdminRoute.post('/getcompany/:id', auth(['Superadmin', 'Administrator', 'Manager']), getCompany)
-superAdminRoute.post('/getallcompany', auth(['Superadmin', 'Administrator', 'Manager']), getAllCompany)
-superAdminRoute.post('/updatecompany/:id', auth(['Superadmin', 'Administrator', 'Manager']), updateCompanyDetails)
-superAdminRoute.post('/deletecompany/:id', auth(['Superadmin', 'Administrator', 'Manager']), deleteCompany)
+superAdminRoute.post('/addcompany', auth, addCompany)
+superAdminRoute.post('/getcompany/:id', auth, getCompany)
+superAdminRoute.post('/getallcompany', auth, getAllCompany)
+superAdminRoute.post('/updatecompany/:id', auth, updateCompanyDetails)
+superAdminRoute.post('/deletecompany/:id', auth, deleteCompany)
 //location
-superAdminRoute.post('/addlocation', auth(['Superadmin', 'Administrator', 'Manager']), addLocation)
-superAdminRoute.post('/getlocation/:id', auth(['Superadmin', 'Administrator', 'Manager']), getLocation)
-superAdminRoute.post('/getalllocation', auth(['Superadmin', 'Administrator', 'Manager']), getAllLocation)
-superAdminRoute.post('/updatelocation/:id', auth(['Superadmin', 'Administrator', 'Manager']), updateLocationDetails)
-superAdminRoute.post('/deletelocation/:id', auth(['Superadmin', 'Administrator', 'Manager']), deleteLocation)
+superAdminRoute.post('/addlocation', auth, addLocation)
+superAdminRoute.post('/getlocation/:id', auth, getLocation)
+superAdminRoute.post('/getalllocation', auth, getAllLocation)
+superAdminRoute.post('/updatelocation/:id', auth, updateLocationDetails)
+superAdminRoute.post('/deletelocation/:id', auth, deleteLocation)
 
 module.exports = superAdminRoute
