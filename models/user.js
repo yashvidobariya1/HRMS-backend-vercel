@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken')
 
 const userSchema = new mongoose.Schema({
   isDeleted: {
@@ -9,14 +10,14 @@ const userSchema = new mongoose.Schema({
     middleName: String,
     lastName: String,
     dateOfBirth: String,
-    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
-    maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
+    gender: String,
+    maritalStatus: String,
     phone: String,
     homeTelephone: String,
     email: String,
     password: String,
     niNumber: String,
-    sendRegistrationLink: { type: Boolean, default: false },
+    sendRegistrationLink: Boolean,
   },
   addressDetails: {
     address: String,
@@ -35,8 +36,8 @@ const userSchema = new mongoose.Schema({
   financialDetails: {
     bankName: String,
     holderName: String,
-    sortCode: String,
-    accountNumber: String,
+    sortCode: Number, // only 6 digit
+    accountNumber: Number, // only 8 digit
     payrollFrequency: String,
     pension: String,
   },
@@ -49,10 +50,10 @@ const userSchema = new mongoose.Schema({
     weeklyWorkingHoursPattern: String,
     weeklySalary: Number,
     joiningDate: String,
-    socCode: String,
+    socCode: Number, // only four digit
     modeOfTransfer: String,
-    sickLeavesAllow: String,
-    leavesAllow: String,
+    sickLeavesAllow: Number,
+    leavesAllow: Number,
     location: String,
     assignManager: String,
     role: String
@@ -69,8 +70,8 @@ const userSchema = new mongoose.Schema({
     cosNumber: String,
     restriction: String,
     shareCode: String,
-    rightToWorkCheckDate: Date,
-    rightToWorkEndDate: Date
+    rightToWorkCheckDate: String,
+    rightToWorkEndDate: String
   },
   documentDetails: [{
     documentType: String,
@@ -81,7 +82,7 @@ const userSchema = new mongoose.Schema({
     contractDocument: String,
   },
   role: {
-    type: String, enum: ['Administrator', 'Manager', 'Employee']
+    type: String
   },
   lastKnownLocation: {
     latitude: String,
@@ -95,13 +96,23 @@ const userSchema = new mongoose.Schema({
     default: ""
   },
   createdBy: {
-    type: String, enum: ['Superadmin', 'Administrator', 'Manager']
+    type: String
   },
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
   canceledAt: Date,
 }, { timestamps: true });
+
+userSchema.methods.generateAuthToken = async function() {
+  const user = this
+  const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
+
+  user.token = user.token
+  await user.save()
+
+  return token
+}
 
 const User = mongoose.model('User', userSchema);
 

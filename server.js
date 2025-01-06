@@ -13,7 +13,6 @@ let port = process.env.PORT || 3001;
 
 const managerRoute = require('./routes/managerRoute');
 const superAdminRoute = require('./routes/superAdminRoute');
-const { auth } = require('./middleware/authenticate');
 const administratorRoute = require('./routes/administratorRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const commonRoute = require('./routes/commonRoute');

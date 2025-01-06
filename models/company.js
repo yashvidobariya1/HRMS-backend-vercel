@@ -27,24 +27,20 @@ const companySchema = new mongoose.Schema({
     },
     employeeSettings: {
         payrollFrequency: String,
-        immigrationReminders: {
-            day1st: String,
-            day2nd: String,
-            day3rd: String
-        },
+        immigrationReminderDay1st: Number,
+        immigrationReminderDay2nd: Number,
+        immigrationReminderDay3rd: Number,
         holidayYear: String,
-        noticePeriodDays: String,
-        contactConfirmationDays: String,
-        rightToWorkCheckReminder: String,
-        leaveEntitlements: {
-            holidaysExcludingBank: String,
-            sickLeaves: String
-        },
+        noticePeriodDays: Number,
+        contactConfirmationDays: Number,
+        rightToWorkCheckReminder: Number,
+        holidaysExcludingBank: Number,
+        sickLeaves: Number
     },
     contractDetails: {
         startDate: String,
         endDate: String,
-        maxEmployeesAllowed: String,
+        maxEmployeesAllowed: Number,
     },
     canceledAt: Date
 }, { timestamps: true });
