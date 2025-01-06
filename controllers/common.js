@@ -205,7 +205,7 @@ exports.updatePassword = async (req, res) => {
 
 exports.getDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager' || 'Employee'){
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
             const userId = req.user._id
             const user = await User.findOne({
                 _id: userId,
@@ -224,7 +224,7 @@ exports.getDetails = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager') {
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const users = await User.find()
             users.forEach((e) => {
                 if(e.documentDetails.length > 0){
@@ -244,7 +244,9 @@ exports.getAllUsers = async (req, res) => {
 
 exports.clockInFunc = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+        // console.log('req.user', req.user)
+        if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
+            console.log('req.user.role/...', req.user.role)
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)
@@ -261,8 +263,10 @@ exports.clockInFunc = async (req, res) => {
                 { $set: { lastKnownLocation: location } }
             )
 
-            const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
-            const GEOFENCE_RADIUS = 5000 // meters
+            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
+            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+            const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // for successfully clocking ( office location )
+            const GEOFENCE_RADIUS = 1000 // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -313,7 +317,7 @@ exports.clockInFunc = async (req, res) => {
 
 exports.clockOutFunc = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+        if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)

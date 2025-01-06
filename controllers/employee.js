@@ -4,7 +4,7 @@ const { transporter } = require("../utils/nodeMailer");
 
 exports.addEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
             let {
                 personalDetails,
                 addressDetails,
@@ -155,7 +155,7 @@ exports.addEmployee = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
@@ -188,7 +188,7 @@ exports.getEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             if (!employees) {
                 return res.send('Employees not found')
@@ -209,7 +209,7 @@ exports.getAllEmployees = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -332,7 +332,7 @@ exports.updateEmployee = async (req, res) => {
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({

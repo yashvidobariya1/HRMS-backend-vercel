@@ -4,7 +4,7 @@ const { transporter } = require('../utils/nodeMailer')
 
 exports.addManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator') {
             let {
                 personalDetails,
                 addressDetails,
@@ -134,7 +134,7 @@ exports.addManager = async (req, res) => {
 
 exports.getManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator') {
             const managerId = req.params.id
             if (!managerId || managerId == 'undefined' || managerId == 'null') {
                 return res.send({ status: 404, message: 'Manager not found' })
@@ -165,7 +165,7 @@ exports.getManager = async (req, res) => {
 
 exports.getAllManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator'){
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator'){
             const managers = await User.find({
                 role: "Manager",
                 isDeleted: { $ne: true }
@@ -191,7 +191,7 @@ exports.getAllManager = async (req, res) => {
 
 exports.updateManagerDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator') {
             const managerId = req.params.id
 
             const manager = await User.findById({
@@ -314,7 +314,7 @@ exports.updateManagerDetails = async (req, res) => {
 
 exports.deleteManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator') {
             const managerId = req.params.id
 
             const manager = await User.findOne({
