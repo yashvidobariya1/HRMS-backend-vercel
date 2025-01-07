@@ -36,8 +36,8 @@ const userSchema = new mongoose.Schema({
   financialDetails: {
     bankName: String,
     holderName: String,
-    sortCode: Number, // only 6 digit
-    accountNumber: Number, // only 8 digit
+    sortCode: String, // only 6 digit
+    accountNumber: String, // only 8 digit
     payrollFrequency: String,
     pension: String,
   },
@@ -50,7 +50,7 @@ const userSchema = new mongoose.Schema({
     weeklyWorkingHoursPattern: String,
     weeklySalary: Number,
     joiningDate: String,
-    socCode: Number, // only four digit
+    socCode: String, // only four digit
     modeOfTransfer: String,
     sickLeavesAllow: Number,
     leavesAllow: Number,
@@ -89,7 +89,8 @@ const userSchema = new mongoose.Schema({
     longitude: String
   },
   otp: {
-    type: Number
+    type: Number,
+    default: null
   },
   token: {
     type: String,

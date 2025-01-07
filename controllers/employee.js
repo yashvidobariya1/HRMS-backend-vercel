@@ -4,7 +4,7 @@ const { transporter } = require("../utils/nodeMailer");
 
 exports.addEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             let {
                 personalDetails,
                 addressDetails,
@@ -146,7 +146,7 @@ exports.addEmployee = async (req, res) => {
             const employee = await User.create(newEmployee)
 
             return res.send({ status: 200, message: 'Employee created successfully.', employee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding employee:", error);
         res.send({ message: "Something went wrong while adding employee!" })
@@ -155,7 +155,7 @@ exports.addEmployee = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
@@ -179,7 +179,7 @@ exports.getEmployee = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Employee get successfully.', employee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting employee:", error);
         res.send({ message: "Something went wrong while getting employee!" })
@@ -188,7 +188,7 @@ exports.getEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             if (!employees) {
                 return res.send('Employees not found')
@@ -200,7 +200,7 @@ exports.getAllEmployees = async (req, res) => {
                 }
             }
             res.send({ status: 200, message: 'Employee all get successfully.', employees })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting employees:", error);
         res.send({ message: "Something went wrong while getting employees!" })
@@ -209,7 +209,7 @@ exports.getAllEmployees = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -323,7 +323,7 @@ exports.updateEmployee = async (req, res) => {
 
             return res.send({ status: 200, message: 'Employee details updated successfully.', updatedEmployee })
 
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating employee details:", error);
         res.send({ message: "Something went wrong while updating employee details!" })
@@ -332,7 +332,7 @@ exports.updateEmployee = async (req, res) => {
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administratoe' || req.user.role == 'Manager') {
+        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -351,7 +351,7 @@ exports.deleteEmployee = async (req, res) => {
             })
 
             return res.send({ status: 200, message: 'Employee deleted successfully.', deletedEmployee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing employee:", error);
         res.send({ message: "Something went wrong while removing employee!" })

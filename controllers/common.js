@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
             });
         } else {
             const hashedPassword = isExist.personalDetails.password;
-            await bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
+            bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
                 if (err) {
                     console.error("Error comparing passwords:", err);
                     return res.send({ status: 500, message: "Internal server error" });
@@ -215,7 +215,7 @@ exports.getDetails = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
             return res.send({ status: 200, user})
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
         res.send({ message: "Something went wrong while getting details!" })
@@ -235,7 +235,7 @@ exports.getAllUsers = async (req, res) => {
                 }
             })
             return res.send({ status: 200, message: 'Users get successfully.', users })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting users:", error);
         res.send({ message: "Something went wrong while getting users!" })
@@ -246,7 +246,7 @@ exports.clockInFunc = async (req, res) => {
     try {
         // console.log('req.user', req.user)
         if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
-            console.log('req.user.role/...', req.user.role)
+            // console.log('req.user.role/...', req.user.role)
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)
@@ -265,6 +265,7 @@ exports.clockInFunc = async (req, res) => {
 
             // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
             // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
             const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // for successfully clocking ( office location )
             const GEOFENCE_RADIUS = 1000 // meters
 
@@ -308,7 +309,7 @@ exports.clockInFunc = async (req, res) => {
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock in:", error);
         res.send({ message: "Something went wrong while clock in!" })
@@ -397,7 +398,7 @@ exports.clockOutFunc = async (req, res) => {
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock out:", error);
         res.send({ message: "Something went wrong while clock out!" })

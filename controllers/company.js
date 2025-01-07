@@ -19,7 +19,7 @@ exports.addCompany = async (req, res) => {
             const company = await Company.create(newCompany)
 
             return res.send({ status: 200, message: 'Company created successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding company:", error);
         res.send({ message: "Something went wrong while adding company!" })
@@ -43,7 +43,7 @@ exports.getCompany = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Company get successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting company:", error);
         res.send({ message: "Something went wrong while getting company!" })
@@ -61,10 +61,10 @@ exports.getAllCompany = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Company all get successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting companys:", error);
-        res.send({ message: "Something went wrong while getting companys!" })
+        console.error("Error occurred while getting companies:", error);
+        res.send({ message: "Something went wrong while getting companies!" })
     }
 }
 
@@ -147,7 +147,7 @@ exports.updateCompanyDetails = async (req, res) => {
             // await updatedCompany.save()
 
             return res.send({ status: 200, message: 'Company details updated successfully.', updatedCompany })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating company details:", error);
         res.send({ message: "Something went wrong while updating company details!" })
@@ -176,7 +176,7 @@ exports.deleteCompany = async (req, res) => {
             })
 
             return res.send({ status: 404, message: 'Company deleted successfully.', deletedCompany })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing company:", error);
         res.send({ message: "Something went wrong while removing company!" })

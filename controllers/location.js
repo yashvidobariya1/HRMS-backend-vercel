@@ -19,7 +19,7 @@ exports.addLocation = async (req, res) => {
             const location = await Location.create(newLocation)
 
             return res.send({ status: 200, message: 'Location created successfully.', location })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding location:", error);
         res.send({ message: "Something went wrong while adding location!" })
@@ -43,7 +43,7 @@ exports.getLocation = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Location get successfully.', location })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting location:", error);
         res.send({ message: "Something went wrong while getting location!" })
@@ -61,7 +61,7 @@ exports.getAllLocation = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Location all get successfully.', location })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting locations:", error);
         res.send({ message: "Something went wrong while getting locations!" })
@@ -101,7 +101,7 @@ exports.updateLocationDetails = async (req, res) => {
             )
 
             return res.send({ status: 200, message: 'Location details updated successfully.', updatedLocation })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating location details:", error);
         res.send({ message: "Something went wrong while updating location details!" })
@@ -132,7 +132,7 @@ exports.deleteLocation = async (req, res) => {
                 })
 
             return res.send({ status: 200, message: 'Location deleted successfully.', deletedLocation })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing location:", error);
         res.send({ message: "Something went wrong while removing location!" })
