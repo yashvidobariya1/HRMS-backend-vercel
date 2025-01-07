@@ -86,15 +86,15 @@ exports.updateLocationDetails = async (req, res) => {
                 { _id: locationId },
                 {
                     $set: {
-                        companyName: req.body.companyName || location?.companyName,
-                        payeReferenceNumber: req.body.payeReferenceNumber || location?.payeReferenceNumber,
-                        locationName: req.body.locationName || location?.locationName,
-                        address: req.body.address || location?.address,
-                        addressLine2: req.body.addressLine2 || location?.addressLine2,
-                        city: req.body.city || location?.city,
-                        postcode: req.body.postcode || location?.postcode,
-                        country: req.body.country || location?.country,
-                        ukviApproved: req.body.ukviApproved || location?.ukviApproved,
+                        companyName: req.body.companyName,
+                        payeReferenceNumber: req.body.payeReferenceNumber,
+                        locationName: req.body.locationName,
+                        address: req.body.address,
+                        addressLine2: req.body.addressLine2,
+                        city: req.body.city,
+                        postcode: req.body.postcode,
+                        country: req.body.country,
+                        ukviApproved: req.body.ukviApproved,
                         updatedAt: new Date()
                     }
                 }, { new: true }
