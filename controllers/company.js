@@ -89,48 +89,44 @@ exports.updateCompanyDetails = async (req, res) => {
             } = req.body
 
             const updatedCompanyDetails = {
-                companyCode: companyDetails?.companyCode,
-                businessName: companyDetails?.businessName,
-                companyLogo: companyDetails?.companyLogo,
-                companyRegistrationNumber: companyDetails?.companyRegistrationNumber,
-                payeReferenceNumber: companyDetails?.payeReferenceNumber,
-                address: companyDetails?.address,
-                addressLine2: companyDetails?.addressLine2,
-                city: companyDetails?.city,
-                postCode: companyDetails?.postCode,
-                country: companyDetails?.country,
-                timeZone: companyDetails?.timeZone,
-                contactPersonFirstname: companyDetails?.contactPersonFirstname,
-                contactPersonMiddlename: companyDetails?.contactPersonMiddlename,
-                contactPersonLastname: companyDetails?.contactPersonLastname,
-                contactPersonEmail: companyDetails?.contactPersonEmail,
-                contactPhone: companyDetails?.contactPhone,
-                adminToReceiveNotification: companyDetails?.adminToReceiveNotification,
-                additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance,
-                pensionProvider: companyDetails?.pensionProvider,
+                companyCode: companyDetails?.companyCode || company?.companyDetails?.companyCode,
+                businessName: companyDetails?.businessName || company?.companyDetails?.businessName,
+                companyLogo: companyDetails?.companyLogo || company?.companyDetails?.companyLogo,
+                companyRegistrationNumber: companyDetails?.companyRegistrationNumber || company?.companyDetails?.companyRegistrationNumber,
+                payeReferenceNumber: companyDetails?.payeReferenceNumber || company?.companyDetails?.payeReferenceNumber,
+                address: companyDetails?.address || company?.companyDetails?.address,
+                addressLine2: companyDetails?.addressLine2 || company?.companyDetails?.addressLine2,
+                city: companyDetails?.city || company?.companyDetails?.city,
+                postCode: companyDetails?.postCode || company?.companyDetails?.postCode,
+                country: companyDetails?.country || company?.companyDetails?.country,
+                timeZone: companyDetails?.timeZone || company?.companyDetails?.timeZone,
+                contactPersonFirstname: companyDetails?.contactPersonFirstname || company?.companyDetails?.contactPersonFirstname,
+                contactPersonMiddlename: companyDetails?.contactPersonMiddlename || company?.companyDetails?.contactPersonMiddlename,
+                contactPersonLastname: companyDetails?.contactPersonLastname || company?.companyDetails?.contactPersonLastname,
+                contactPersonEmail: companyDetails?.contactPersonEmail || company?.companyDetails?.contactPersonEmail,
+                contactPhone: companyDetails?.contactPhone || company?.companyDetails?.contactPhone,
+                adminToReceiveNotification: companyDetails?.adminToReceiveNotification || company?.companyDetails?.adminToReceiveNotification,
+                additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance || company?.companyDetails?.additionalEmailsForCompliance,
+                pensionProvider: companyDetails?.pensionProvider || company?.companyDetails?.pensionProvider,
             }
 
             const updatedEmployeeSettinf = {
-                payrollFrequency: employeeSettings?.payrollFrequency,
-                immigrationReminders: {
-                    day1st: employeeSettings?.immigrationReminders?.day1st,
-                    day2nd: employeeSettings?.immigrationReminders?.day2nd,
-                    day3rd: employeeSettings?.immigrationReminders?.day3rdd
-                },
-                holidayYear: employeeSettings?.holidayYear,
-                noticePeriodDays: employeeSettings?.noticePeriodDays,
-                contactConfirmationDays: employeeSettings?.contactConfirmationDays,
-                rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder,
-                leaveEntitlements: {
-                    holidaysExcludingBank: employeeSettings?.leaveEntitlements?.holidaysExcludingBank,
-                    sickLeaves: employeeSettings?.leaveEntitlements?.sickLeavess
-                },
+                payrollFrequency: employeeSettings?.payrollFrequency || company?.employeeSettings?.payrollFrequency,
+                immigrationReminderDay1st: employeeSettings?.immigrationReminderDay1st || company?.employeeSettings?.immigrationReminderDay1st,
+                immigrationReminderDay2nd: employeeSettings?.immigrationReminderDay2nd || company?.employeeSettings?.immigrationReminderDay2nd,
+                immigrationReminderDay3rd: employeeSettings?.immigrationReminderDay3rd || company?.employeeSettings?.immigrationReminderDay3rd,
+                holidayYear: employeeSettings?.holidayYear || company?.employeeSettings?.holidayYear,
+                noticePeriodDays: employeeSettings?.noticePeriodDays || company?.employeeSettings?.noticePeriodDays,
+                contactConfirmationDays: employeeSettings?.contactConfirmationDays || company?.employeeSettings?.contactConfirmationDays,
+                rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder || company?.employeeSettings?.rightToWorkCheckReminder,
+                holidaysExcludingBank: employeeSettings?.holidaysExcludingBank || company?.employeeSettings?.holidaysExcludingBank,
+                sickLeaves: employeeSettings?.sickLeaves || company?.employeeSettings?.sickLeaves,
             }
 
             const updateContractDetails = {
-                startDate: contractDetails?.startDate,
-                endDate: contractDetails?.endDate,
-                maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed,
+                startDate: contractDetails?.startDate || company?.contractDetails?.startDate,
+                endDate: contractDetails?.endDate || company?.contractDetails?.endDate,
+                maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed || company?.contractDetails?.maxEmployeesAllowed,
             }
 
             let updatedCompany = await Company.findByIdAndUpdate(
