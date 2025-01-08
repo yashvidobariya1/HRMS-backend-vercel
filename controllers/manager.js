@@ -4,7 +4,8 @@ const { transporter } = require('../utils/nodeMailer')
 
 exports.addManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        const allowedRoles = ['Superadmin', 'Administrator'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 personalDetails,
                 addressDetails,
@@ -15,22 +16,22 @@ exports.addManager = async (req, res) => {
                 documentDetails,
                 contractDetails
             } = req.body
-    
+
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
-    
-            if(personalDetails && personalDetails.email){
+
+            if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
-                if(user){
+                if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
-            }         
-    
+            }
+
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
-    
+
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
@@ -50,7 +51,7 @@ exports.addManager = async (req, res) => {
             } else {
                 console.log('documentDetails is not an array or is undefined');
             }
-    
+
             const generatePass = () => {
                 const fname = `${personalDetails.firstName}`
                 const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -63,10 +64,10 @@ exports.addManager = async (req, res) => {
                 // console.log('pass', pass)
                 return pass
             }
-    
+
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
-    
+
             if (personalDetails.sendRegistrationLink == true) {
                 let mailOptions = {
                     from: process.env.NODEMAILER_EMAIL,
@@ -103,9 +104,9 @@ exports.addManager = async (req, res) => {
                 }
                 transporter.sendMail(mailOptions);
             }
-    
+
             const newManager = {
-                personalDetails :{
+                personalDetails: {
                     ...personalDetails,
                     password: hashedPassword
                 },
@@ -120,12 +121,12 @@ exports.addManager = async (req, res) => {
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
-    
+
             // console.log('new manager', newManager)
             const manager = await User.create(newManager)
-    
+
             return res.send({ status: 200, message: 'Manager created successfully.', manager })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding manager:", error);
         res.send({ message: "Something went wrong while adding manager!" })
@@ -134,7 +135,8 @@ exports.addManager = async (req, res) => {
 
 exports.getManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        const allowedRoles = ['Superadmin', 'Administrator'];
+        if (allowedRoles.includes(req.user.role)) {
             const managerId = req.params.id
             if (!managerId || managerId == 'undefined' || managerId == 'null') {
                 return res.send({ status: 404, message: 'Manager not found' })
@@ -145,18 +147,18 @@ exports.getManager = async (req, res) => {
             })
 
             if (!manager) {
-                return res.send({ status: 404, message: 'Manager not found.' })
+                return res.send({ status: 404, message: 'Manager not found' })
             }
 
-            if(manager.documentDetails){
-                for(let i=0; i<manager.documentDetails.length; i++){
+            if (manager.documentDetails) {
+                for (let i = 0; i < manager.documentDetails.length; i++) {
                     const doc = manager.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
             }
 
             return res.send({ status: 200, message: 'Manager get successfully.', manager })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting manager:", error);
         res.send({ message: "Something went wrong while getting manager!" })
@@ -165,24 +167,21 @@ exports.getManager = async (req, res) => {
 
 exports.getAllManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator'){
+        const allowedRoles = ['Superadmin', 'Administrator'];
+        if (allowedRoles.includes(req.user.role)) {
             const managers = await User.find({
                 role: "Manager",
                 isDeleted: { $ne: true }
             })
-    
-            if (!managers) {
-                return res.send('Managers not found')
-            }
-    
-            if(managers.documentDetails){
-                for(let i=0; i<managers.documentDetails.length; i++){
+
+            if (managers.documentDetails) {
+                for (let i = 0; i < managers.documentDetails.length; i++) {
                     const doc = managers.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
             }
             return res.send({ status: 200, message: 'Manager all get successfully.', managers })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting managers:", error);
         res.send({ message: "Something went wrong while getting managers!" })
@@ -191,7 +190,8 @@ exports.getAllManager = async (req, res) => {
 
 exports.updateManagerDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        const allowedRoles = ['Superadmin', 'Administrator'];
+        if (allowedRoles.includes(req.user.role)) {
             const managerId = req.params.id
 
             const manager = await User.findById({
@@ -305,7 +305,7 @@ exports.updateManagerDetails = async (req, res) => {
             )
 
             return res.send({ status: 200, message: 'Manager details updated successfully.', updateManager })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating manager details:", error);
         res.send({ message: "Something went wrong while updating manager details!" })
@@ -314,7 +314,8 @@ exports.updateManagerDetails = async (req, res) => {
 
 exports.deleteManager = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator') {
+        const allowedRoles = ['Superadmin', 'Administrator'];
+        if (allowedRoles.includes(req.user.role)) {
             const managerId = req.params.id
 
             const manager = await User.findOne({
@@ -334,7 +335,7 @@ exports.deleteManager = async (req, res) => {
             })
 
             return res.send({ status: 200, message: 'Manager deleted successfully.', deletedManager })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing manager:", error);
         res.send({ message: "Something went wrong while removing manager!" })

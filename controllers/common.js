@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
                     return res.send({ status: 500, message: "Internal server error" });
                 }
                 if (!result) {
-                    return res.send({ status: 404,message: "Invalid credential" });
+                    return res.send({ status: 404, message: "Invalid credential" });
                 }
                 return res.send({
                     status: 200,
@@ -58,12 +58,12 @@ exports.emailVerification = async (req, res) => {
     try {
         const { email } = req.body
 
-        if(!email){
+        if (!email) {
             return res.send({ status: 400, message: "Please enter valid email address." })
         }
 
         const findUser = await User.findOne({ "personalDetails.email": email })
-        if(!findUser){
+        if (!findUser) {
             return res.send({ status: 404, message: "User not found." })
         }
 
@@ -71,7 +71,7 @@ exports.emailVerification = async (req, res) => {
         findUser.otp = otp
         await findUser.save()
 
-        if(otp){
+        if (otp) {
             let mailOptions = {
                 from: process.env.NODEMAILER_EMAIL,
                 to: findUser.personalDetails.email,
@@ -97,7 +97,7 @@ exports.emailVerification = async (req, res) => {
             }
 
             await transporter.sendMail(mailOptions, (error, info) => {
-                if(info){
+                if (info) {
                     console.log("Email sent successfully:", info.response);
                 }
             });
@@ -116,8 +116,8 @@ exports.otpVerification = async (req, res) => {
     try {
         const { email, otp } = req.body
         const findUser = await User.findOne({ "personalDetails.email": email, isDeleted: false })
-        if(findUser){
-            if(findUser.otp === otp){
+        if (findUser) {
+            if (findUser.otp === otp) {
                 return res.send({ status: 200, message: "OTP verified successfully." })
             } else {
                 return res.send({ status: 409, message: "Invalid OTP." })
@@ -144,7 +144,7 @@ exports.forgotPassword = async (req, res) => {
         }
 
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
-        if(!passwordRegex.test(newPassword)){
+        if (!passwordRegex.test(newPassword)) {
             return res.send({
                 "status": 401,
                 "message": "Password must one capital letter, contain at least one symbol and one numeric, and be at least 8 characters long."
@@ -180,7 +180,7 @@ exports.updatePassword = async (req, res) => {
         }
 
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
-        if(!passwordRegex.test(newPassword)){
+        if (!passwordRegex.test(newPassword)) {
             return res.send({
                 "status": 401,
                 "message": "Password must one capital letter, contain at least one symbol and one numeric, and be at least 8 characters long."
@@ -189,7 +189,7 @@ exports.updatePassword = async (req, res) => {
 
         if (newPassword !== confirmPassword) {
             return res.send({ status: 400, message: "New password and confirm password do not match." })
-        }        
+        }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
 
@@ -205,17 +205,18 @@ exports.updatePassword = async (req, res) => {
 
 exports.getDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager' || 'Employee'){
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.user._id
             const user = await User.findOne({
                 _id: userId,
                 isDeleted: { $ne: true },
             })
-            if(!user) {
+            if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            return res.send({ status: 200, user})
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+            return res.send({ status: 200, user })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
         res.send({ message: "Something went wrong while getting details!" })
@@ -224,18 +225,19 @@ exports.getDetails = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin' || 'Administrator' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const users = await User.find()
             users.forEach((e) => {
-                if(e.documentDetails.length > 0){
-                    for(let i=0; i<e.documentDetails.length; i++){
+                if (e.documentDetails.length > 0) {
+                    for (let i = 0; i < e.documentDetails.length; i++) {
                         const doc = e.documentDetails[i];
                         doc.document = 'documentFile.pdf'
                     }
                 }
             })
             return res.send({ status: 200, message: 'Users get successfully.', users })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting users:", error);
         res.send({ message: "Something went wrong while getting users!" })
@@ -244,7 +246,8 @@ exports.getAllUsers = async (req, res) => {
 
 exports.clockInFunc = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)
@@ -304,7 +307,7 @@ exports.clockInFunc = async (req, res) => {
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock in:", error);
         res.send({ message: "Something went wrong while clock in!" })
@@ -313,7 +316,8 @@ exports.clockInFunc = async (req, res) => {
 
 exports.clockOutFunc = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || 'Manager' || 'Employee'){
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)
@@ -355,33 +359,33 @@ exports.clockOutFunc = async (req, res) => {
             const duration = formatDuration(clockInTime, clockOutTime)
             lastClocking.totalTiming = duration
 
-            if(timesheet.totalHours == 0){
+            if (timesheet.totalHours == 0) {
                 timesheet.totalHours = duration
             } else {
                 const parseTime = (duration) => {
                     const regex = /(\d+)h|(\d+)m|(\d+)s/g
                     let hours = 0, minutes = 0, seconds = 0
                     let match
-                
+
                     while ((match = regex.exec(duration)) !== null) {
-                    if (match[1]) hours = parseInt(match[1], 10)
-                    if (match[2]) minutes = parseInt(match[2], 10)
-                    if (match[3]) seconds = parseInt(match[3], 10)
+                        if (match[1]) hours = parseInt(match[1], 10)
+                        if (match[2]) minutes = parseInt(match[2], 10)
+                        if (match[3]) seconds = parseInt(match[3], 10)
                     }
-                
+
                     return { hours, minutes, seconds }
-                }            
+                }
                 const addDurations = (duration1, duration2) => {
                     const time1 = parseTime(duration1)
                     const time2 = parseTime(duration2)
-                    
+
                     let totalSeconds = time1.seconds + time2.seconds
                     let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
                     let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
-                    
+
                     totalSeconds %= 60
                     totalMinutes %= 60
-                    
+
                     return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
                 }
 
@@ -393,7 +397,7 @@ exports.clockOutFunc = async (req, res) => {
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock out:", error);
         res.send({ message: "Something went wrong while clock out!" })

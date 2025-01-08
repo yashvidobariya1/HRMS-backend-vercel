@@ -2,7 +2,8 @@ const Company = require("../models/company")
 
 exports.addCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 companyDetails,
                 employeeSettings,
@@ -19,7 +20,7 @@ exports.addCompany = async (req, res) => {
             const company = await Company.create(newCompany)
 
             return res.send({ status: 200, message: 'Company created successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding company:", error);
         res.send({ message: "Something went wrong while adding company!" })
@@ -28,7 +29,8 @@ exports.addCompany = async (req, res) => {
 
 exports.getCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
             if (!companyId || companyId == 'undefined' || companyId == 'null') {
                 return res.send({ status: 404, message: 'Company not found' })
@@ -43,7 +45,7 @@ exports.getCompany = async (req, res) => {
             }
 
             return res.send({ status: 200, message: 'Company get successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting company:", error);
         res.send({ message: "Something went wrong while getting company!" })
@@ -52,16 +54,13 @@ exports.getCompany = async (req, res) => {
 
 exports.getAllCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
 
             const company = await Company.find({ isDeleted: { $ne: true } })
 
-            if (!company) {
-                return res.send({ status: 404, message: 'Company not found' })
-            }
-
             return res.send({ status: 200, message: 'Company all get successfully.', company })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting companys:", error);
         res.send({ message: "Something went wrong while getting companys!" })
@@ -70,7 +69,8 @@ exports.getAllCompany = async (req, res) => {
 
 exports.updateCompanyDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
 
             const company = await Company.findOne({
@@ -147,7 +147,7 @@ exports.updateCompanyDetails = async (req, res) => {
             // await updatedCompany.save()
 
             return res.send({ status: 200, message: 'Company details updated successfully.', updatedCompany })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating company details:", error);
         res.send({ message: "Something went wrong while updating company details!" })
@@ -156,7 +156,8 @@ exports.updateCompanyDetails = async (req, res) => {
 
 exports.deleteCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
 
             const company = await Company.findOne({
@@ -175,8 +176,8 @@ exports.deleteCompany = async (req, res) => {
                 }
             })
 
-            return res.send({ status: 404, message: 'Company deleted successfully.', deletedCompany })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+            return res.send({ status: 200, message: 'Company deleted successfully.', deletedCompany })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing company:", error);
         res.send({ message: "Something went wrong while removing company!" })

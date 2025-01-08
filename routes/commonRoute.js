@@ -14,6 +14,6 @@ commonRoute.post('/clockin', auth, clockInFunc)
 commonRoute.post('/clockout', auth, clockOutFunc)
 
 // get own details
-commonRoute.get('/getdetails', getDetails)
+commonRoute.get('/getdetails', auth, getDetails)
 
 module.exports = commonRoute

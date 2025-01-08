@@ -4,7 +4,8 @@ const { transporter } = require("../utils/nodeMailer");
 
 exports.addEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 personalDetails,
                 addressDetails,
@@ -20,9 +21,9 @@ exports.addEmployee = async (req, res) => {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
 
-            if(personalDetails && personalDetails.email){
+            if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
-                if(user){
+                if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
             }
@@ -51,12 +52,12 @@ exports.addEmployee = async (req, res) => {
                 console.log('documentDetails is not an array or is undefined');
             }
 
-            if(contractDetails.contractDocument){
+            if (contractDetails.contractDocument) {
                 const document = contractDetails.contractDocument
-                if(!document || typeof document !== 'string'){
+                if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if(/^[A-Za-z0-9+/=]+$/.test(document)){
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
                     if (document?.startsWith("JVBER")) {
                         contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
                     } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
@@ -134,8 +135,8 @@ exports.addEmployee = async (req, res) => {
 
                             <p>Best regards,<br>HRMS Team</p>
                         `,
-                    };                   
-                    
+                    };
+
                     await transporter.sendMail(mailOptions);
                     console.log('Email sent successfully');
                 } catch (error) {
@@ -146,7 +147,7 @@ exports.addEmployee = async (req, res) => {
             const employee = await User.create(newEmployee)
 
             return res.send({ status: 200, message: 'Employee created successfully.', employee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding employee:", error);
         res.send({ message: "Something went wrong while adding employee!" })
@@ -155,7 +156,8 @@ exports.addEmployee = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
@@ -171,15 +173,15 @@ exports.getEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'Employee not found' })
             }
 
-            if(employee.documentDetails){
-                for(let i=0; i<employee.documentDetails.length; i++){
+            if (employee.documentDetails) {
+                for (let i = 0; i < employee.documentDetails.length; i++) {
                     const doc = employee.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
             }
 
             return res.send({ status: 200, message: 'Employee get successfully.', employee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting employee:", error);
         res.send({ message: "Something went wrong while getting employee!" })
@@ -188,19 +190,17 @@ exports.getEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
-            if (!employees) {
-                return res.send('Employees not found')
-            }
-            if(employees.documentDetails){
-                for(let i=0; i<employees.documentDetails.length; i++){
+            if (employees.documentDetails) {
+                for (let i = 0; i < employees.documentDetails.length; i++) {
                     const doc = employees.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
             }
             res.send({ status: 200, message: 'Employee all get successfully.', employees })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting employees:", error);
         res.send({ message: "Something went wrong while getting employees!" })
@@ -209,7 +209,8 @@ exports.getAllEmployees = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -323,7 +324,7 @@ exports.updateEmployee = async (req, res) => {
 
             return res.send({ status: 200, message: 'Employee details updated successfully.', updatedEmployee })
 
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating employee details:", error);
         res.send({ message: "Something went wrong while updating employee details!" })
@@ -332,7 +333,8 @@ exports.updateEmployee = async (req, res) => {
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || 'Administratoe' || 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -351,7 +353,7 @@ exports.deleteEmployee = async (req, res) => {
             })
 
             return res.send({ status: 200, message: 'Employee deleted successfully.', deletedEmployee })
-        } else return res.send({ status: 403, message: "Forbidden: Access denied" })
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing employee:", error);
         res.send({ message: "Something went wrong while removing employee!" })
