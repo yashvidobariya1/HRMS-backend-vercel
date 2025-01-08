@@ -90,7 +90,7 @@ exports.addEmployee = async (req, res) => {
             const newEmployee = {
                 personalDetails: {
                     ...personalDetails,
-                    password: hashedPassword,
+                    // password: hashedPassword,
                 },
                 addressDetails,
                 kinDetails,
@@ -98,6 +98,7 @@ exports.addEmployee = async (req, res) => {
                 jobDetails,
                 immigrationDetails,
                 role: jobDetails?.role,
+                password: hashedPassword,
                 documentDetails,
                 contractDetails,
                 createdBy: req.user.role,
@@ -233,6 +234,13 @@ exports.updateEmployee = async (req, res) => {
                 contractDetails,
             } = req.body
 
+            if (personalDetails.email && employee.personalDetails.email != personalDetails.email) {
+                const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
+                if (existingEmail) {
+                    return res.send({ status: 409, message: "Email already exists." });
+                }
+            }
+
             const updatedPersonalDetails = {
                 firstName: personalDetails?.firstName,
                 middleName: personalDetails?.middleName,
@@ -244,6 +252,7 @@ exports.updateEmployee = async (req, res) => {
                 homeTelephone: personalDetails?.homeTelephone,
                 email: personalDetails?.email,
                 niNumber: personalDetails?.niNumber,
+                sendRegistrationLink: personalDetails?.sendRegistrationLink
             }
 
             const updatedAddressDetails = {
@@ -257,7 +266,7 @@ exports.updateEmployee = async (req, res) => {
                 kinName: kinDetails?.kinName,
                 relationshipToYou: kinDetails?.relationshipToYou,
                 address: kinDetails?.address,
-                postCode: kinDetails?.kinName,
+                postCode: kinDetails?.postCode,
                 emergencyContactNumber: kinDetails?.emergencyContactNumber,
                 email: kinDetails?.email,
             }

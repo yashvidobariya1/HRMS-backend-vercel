@@ -42,8 +42,8 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             await User.create({
                 personalDetails: {
                     email: 'manager@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Manager'
             });
@@ -160,8 +160,8 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -217,8 +217,8 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -256,8 +256,8 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -307,18 +307,39 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             expect(updateResponse.body.message).toBe('Employee details updated successfully.');
             expect(updateResponse.body.updatedEmployee.personalDetails.email).toBe('update@example.com');
         })
-        test('should return 409 for employee not found', async () => {
+        test('should return 404 for employee not found', async () => {
             const getResponse = await request(app).post(`/updateemployee/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getResponse.text).status).toBe(404)
             expect(getResponse.body.message).toBe('Employee not found')
         })
+        test('should return 409 for email already in use', async () => {
+            await User.create({
+                personalDetails: {
+                    firstName: "Existing",
+                    lastName: "User",
+                    email: "existing@example.com"
+                },
+                isDeleted: false
+            });
+            const updateResponse = await request(app)
+                .post(`/updateemployee/${createdEmployeeId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    personalDetails: {
+                        email: "existing@example.com",
+                    }
+                });
+
+            expect(updateResponse.body.status).toBe(409);
+            expect(updateResponse.body.message).toBe("Email already exists.");
+        });
         test('should return 403 for forbidden roles', async () => {
             const hashedPassword = await bcrypt.hash('Test@123', 10);
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -362,8 +383,8 @@ describe('**Superadmin, Administrator and Manager Routes - Crud Employee Test**'
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });

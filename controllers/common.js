@@ -25,14 +25,14 @@ exports.login = async (req, res) => {
         const createdAt = isExist?.createdAt
         const _id = isExist?._id
 
-        if (isExist.personalDetails.password == req.body.password) {
+        if (isExist.password == req.body.password) {
             return res.send({
                 status: 200,
                 message: "User login successfully",
                 user: { personalDetails, role, token, createdAt, _id },
             });
         } else {
-            const hashedPassword = isExist.personalDetails.password;
+            const hashedPassword = isExist.password;
             await bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
                 if (err) {
                     console.error("Error comparing passwords:", err);
@@ -156,7 +156,7 @@ exports.forgotPassword = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
-        user.personalDetails.password = hashedPassword
+        user.password = hashedPassword
         await user.save()
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
@@ -174,7 +174,7 @@ exports.updatePassword = async (req, res) => {
             return res.send({ status: 404, message: "User not found." })
         }
 
-        const isMatch = await bcrypt.compare(oldPassword, user.personalDetails.password)
+        const isMatch = await bcrypt.compare(oldPassword, user.password)
         if (!isMatch) {
             return res.send({ status: 400, message: "Old password is incorrect." })
         }
@@ -193,7 +193,7 @@ exports.updatePassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
 
-        user.personalDetails.password = hashedPassword;
+        user.password = hashedPassword;
         await user.save()
 
         return res.send({ status: 200, message: "Password updated successfully." })
@@ -264,7 +264,8 @@ exports.clockInFunc = async (req, res) => {
                 { $set: { lastKnownLocation: location } }
             )
 
-            const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
+            // const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
+            const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 }
             const GEOFENCE_RADIUS = 5000 // meters
 
             if (!geolib.isPointWithinRadius(

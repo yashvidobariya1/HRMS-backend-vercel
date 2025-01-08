@@ -42,8 +42,8 @@ describe('~ Login API', () => {
         await User.create({
             personalDetails: {
                 email: 'test@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
             role: 'Superadmin'  //Superadmin, Administrator, Manager
         });
@@ -81,8 +81,8 @@ describe('~ Login API', () => {
         await User.create({
             personalDetails: {
                 email: 'test@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
         });
 
@@ -123,8 +123,8 @@ describe('~ Forgot Password process API', () => {
             await User.create({
                 personalDetails: {
                     email: 'test@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
             });
             const res = await request(app)
@@ -141,9 +141,9 @@ describe('~ Forgot Password process API', () => {
             await User.create({
                 personalDetails: {
                     email: 'test@example.com',
-                    password: hashedPassword,
-                    otp: '987654'
                 },
+                password: hashedPassword,
+                otp: '987654',
                 isDeleted: false,
             });
             const res = await request(app)
@@ -169,8 +169,8 @@ describe('~ Forgot Password process API', () => {
             await User.create({
                 personalDetails: {
                     email: 'test@example.com',
-                    password: hashedPassword
                 },
+                password: hashedPassword,
                 isDeleted: false,
             });
             const res = await request(app)
@@ -250,8 +250,8 @@ describe('~ Update password API', () => {
         const user = await User.create({
             personalDetails: {
                 email: 'abcd@example.com',
-                password: hashedPassword
-            }
+            },
+            password: hashedPassword
         })
         userId = await (user._id).toString()
         const res1 = await request(app)
@@ -311,8 +311,8 @@ describe('~ Get Users Details', () => {
         let user = await User.create({
             personalDetails: {
                 email: 'dimple@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
             role: 'Superadmin'
         });
@@ -351,8 +351,8 @@ describe('~ Get Users Details', () => {
         await User.create({
             personalDetails: {
                 email: 'harry@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
             role: 'User'
         });
@@ -379,8 +379,8 @@ describe('~ Get all Users', () => {
         await User.create({
             personalDetails: {
                 email: 'super@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
             role: 'Superadmin'
         });
@@ -410,8 +410,8 @@ describe('~ Get all Users', () => {
         await User.create({
             personalDetails: {
                 email: 'test123@example.com',
-                password: hashedPassword,
             },
+            password: hashedPassword,
             isDeleted: false,
             role: 'Employee'
         });
@@ -440,8 +440,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             const user = await User.create({
                 personalDetails: {
                     email: 'abcd@example.com',
-                    password: hashedPassword
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Administrator'
             })
@@ -498,8 +498,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         //     const user = await User.create({
         //         personalDetails: {
         //             email: 'rishi@example.com',
-        //             password: hashedPassword,
         //         },
+        //         password: hashedPassword,
         //         isDeleted: false,
         //         role: 'Employee'
         //     });
@@ -556,8 +556,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             const user = await User.create({
                 personalDetails: {
                     email: 'xyz@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Superadmin'
             });
@@ -591,8 +591,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             const user = await User.create({
                 personalDetails: {
                     email: 'abcd@example.com',
-                    password: hashedPassword
-                }
+                },
+                password: hashedPassword
             })
             userId = await (user._id).toString()
             const userRes = await request(app)
@@ -640,8 +640,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         //     const user = await User.create({
         //         personalDetails: {
         //             email: 'harry@example.com',
-        //             password: hashedPassword
         //         },
+        //         password: hashedPassword
         //         role: "Manager"
         //     })
         //     let noclockinuserId = await (user._id).toString()
@@ -700,8 +700,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             const user = await User.create({
                 personalDetails: {
                     email: 'superadmin@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'User'
             });

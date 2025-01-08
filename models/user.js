@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     phone: String,
     homeTelephone: String,
     email: String,
-    password: String,
+    // password: String,
     niNumber: String,
     sendRegistrationLink: Boolean,
   },
@@ -84,6 +84,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String
   },
+  password: String,
   lastKnownLocation: {
     latitude: String,
     longitude: String

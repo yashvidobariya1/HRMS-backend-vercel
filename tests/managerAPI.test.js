@@ -44,8 +44,8 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             await User.create({
                 personalDetails: {
                     email: 'administrator@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Administrator'
             });
@@ -162,8 +162,8 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Manager'
             });
@@ -219,8 +219,8 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Manager'
             });
@@ -258,8 +258,8 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Manager'
             });
@@ -308,18 +308,39 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             expect(updateResponse.body.status).toBe(200);
             expect(updateResponse.body.message).toBe('Manager details updated successfully.');
         })
-        test('should return 409 for manager not found', async () => {
+        test('should return 404 for manager not found', async () => {
             const getResponse = await request(app).post(`/updatemanager/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getResponse.text).status).toBe(404)
             expect(getResponse.body.message).toBe('Manager not found')
         })
+        test('should return 409 for email already in use', async () => {
+            await User.create({
+                personalDetails: {
+                    firstName: "Existing",
+                    lastName: "User",
+                    email: "existing@example.com"
+                },
+                isDeleted: false
+            });
+            const updateResponse = await request(app)
+                .post(`/updateemployee/${createdManagerId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    personalDetails: {
+                        email: "existing@example.com",
+                    }
+                });
+
+            expect(updateResponse.body.status).toBe(409);
+            expect(updateResponse.body.message).toBe("Email already exists.");
+        });
         test('should return 403 for forbidden roles', async () => {
             const hashedPassword = await bcrypt.hash('Test@123', 10);
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Manager'
             });
@@ -363,8 +384,8 @@ describe('Superadmin and Administrator Routes - Crud Manager Test', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
