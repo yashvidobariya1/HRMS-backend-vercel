@@ -703,9 +703,10 @@ exports.clockInFunc = async (req, res) => {
             timesheet.clockingTime.push({
                 clockIn: new Date(),
                 clockOut: "",
-                isTimerOn: true
+                isClocking: true
             })
 
+            timesheet.isTimerOn = true
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })
@@ -744,7 +745,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             lastClocking.clockOut = new Date()
-            lastClocking.isTimerOn = false
+            lastClocking.isClocking = false
 
             const clockInTime = new Date(lastClocking.clockIn)
             const clockOutTime = new Date(lastClocking.clockOut)
@@ -796,6 +797,7 @@ exports.clockOutFunc = async (req, res) => {
                 timesheet.totalHours = result
             }
 
+            timesheet.isTimerOn = false
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })

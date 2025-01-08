@@ -8,6 +8,10 @@ const TimesheetSchema = new mongoose.Schema(
         date: {
             type: String,
         },
+        isTimerOn: {
+            type: Boolean,
+            default: false
+        },
         clockingTime: [{
             clockIn: Date,
             clockOut: {
@@ -18,10 +22,10 @@ const TimesheetSchema = new mongoose.Schema(
                 type: String,
                 default: 0
             },
-            isTimerOn: {
+            isClocking: {
                 type: Boolean,
                 default: false
-            },
+            }
         }],
         totalHours: {
             type: String,
