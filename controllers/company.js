@@ -62,8 +62,8 @@ exports.getAllCompany = async (req, res) => {
             return res.send({ status: 200, message: 'Company all get successfully.', company })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting companys:", error);
-        res.send({ message: "Something went wrong while getting companys!" })
+        console.error("Error occurred while getting companies:", error);
+        res.send({ message: "Something went wrong while getting companies!" })
     }
 }
 
@@ -112,19 +112,15 @@ exports.updateCompanyDetails = async (req, res) => {
 
             const updatedEmployeeSettinf = {
                 payrollFrequency: employeeSettings?.payrollFrequency,
-                immigrationReminders: {
-                    day1st: employeeSettings?.immigrationReminders?.day1st,
-                    day2nd: employeeSettings?.immigrationReminders?.day2nd,
-                    day3rd: employeeSettings?.immigrationReminders?.day3rdd
-                },
+                immigrationReminderDay1st: employeeSettings?.immigrationReminderDay1st,
+                immigrationReminderDay2nd: employeeSettings?.immigrationReminderDay2nd,
+                immigrationReminderDay3rd: employeeSettings?.immigrationReminderDay3rd,
                 holidayYear: employeeSettings?.holidayYear,
                 noticePeriodDays: employeeSettings?.noticePeriodDays,
                 contactConfirmationDays: employeeSettings?.contactConfirmationDays,
                 rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder,
-                leaveEntitlements: {
-                    holidaysExcludingBank: employeeSettings?.leaveEntitlements?.holidaysExcludingBank,
-                    sickLeaves: employeeSettings?.leaveEntitlements?.sickLeavess
-                },
+                holidaysExcludingBank: employeeSettings?.holidaysExcludingBank,
+                sickLeaves: employeeSettings?.sickLeaves,
             }
 
             const updateContractDetails = {

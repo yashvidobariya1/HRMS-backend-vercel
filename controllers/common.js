@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
             });
         } else {
             const hashedPassword = isExist.password;
-            await bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
+            bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
                 if (err) {
                     console.error("Error comparing passwords:", err);
                     return res.send({ status: 500, message: "Internal server error" });
@@ -223,6 +223,190 @@ exports.getDetails = async (req, res) => {
     }
 }
 
+exports.addUser = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            let {
+                personalDetails,
+                addressDetails,
+                kinDetails,
+                financialDetails,
+                jobDetails,
+                immigrationDetails,
+                documentDetails,
+                contractDetails
+            } = req.body
+
+            // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
+            //     return res.status(400).send({ message: "All sections of employee details are required." });
+            // }
+
+            if (personalDetails && personalDetails.email) {
+                const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+                if (user) {
+                    return res.send({ status: 409, message: "Email already exists." });
+                }
+            }
+
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const document = documentDetails[i].document;
+
+                    if (!document || typeof document !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                        if (document?.startsWith("JVBER")) {
+                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                        } else {
+                            documentDetails[i].document = `data:text/plain;base64,${document}`;
+                        }
+                    } else {
+                        console.log(`Invalid Base64 string for item ${i}`);
+                    }
+                }
+            } else {
+                console.log('documentDetails is not an array or is undefined');
+            }
+
+            if (contractDetails.contractDocument) {
+                const document = contractDetails.contractDocument
+                if (!document || typeof document !== 'string') {
+                    console.log('Invalid or missing contract document')
+                }
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                    if (document?.startsWith("JVBER")) {
+                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
+                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
+                    } else {
+                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
+                    }
+                } else {
+                    console.log('Invalid Base64 string for contract document')
+                }
+            }
+
+            const generatePass = () => {
+                const fname = `${personalDetails.firstName}`
+                const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                const formatName = capitalizeWords(fname)
+                const uname = formatName[0]
+                // console.log('uname', uname)
+                const lastFourDigits = personalDetails.phone.slice(-4)
+                // console.log('lastFourDigits', lastFourDigits)
+                const pass = `${uname}@${lastFourDigits}`
+                // console.log('pass', pass)
+                return pass
+            }
+
+            const pass = generatePass()
+            const hashedPassword = await bcrypt.hash(pass, 10)
+
+            const newEmployee = {
+                personalDetails,
+                addressDetails,
+                kinDetails,
+                financialDetails,
+                jobDetails,
+                immigrationDetails,
+                role: jobDetails?.role,
+                password: hashedPassword,
+                documentDetails,
+                contractDetails,
+                createdBy: req.user.role,
+                creatorId: req.user._id,
+            }
+            if (personalDetails.sendRegistrationLink == true) {
+                try {
+                    let mailOptions = {
+                        from: process.env.NODEMAILER_EMAIL,
+                        to: newEmployee.personalDetails.email,
+                        subject: "Welcome to [Company Name]'s HRMS Portal",
+                        html: `
+                            <p>Welcome to HRMS Portal!</p>
+
+                            <p>We are pleased to inform you that a new employee account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+
+                            <ul>
+                                <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
+                                <li><b>Email:</b> ${personalDetails.email}</li>
+                                <li><b>Position:</b> ${jobDetails.jobTitle}</li>
+                                <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
+                            </ul>
+
+                            <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+
+                            <ul>
+                                <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                                <li><b>Username/Email:</b> ${personalDetails.email}</li>
+                                <li><b>Temporary Password:</b> ${generatePass()}</li>
+                            </ul>
+
+                            <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
+
+                            <p>Looking forward to your journey with us!</p>
+
+                            <p>Best regards,<br>HRMS Team</p>
+                        `,
+                    };
+
+                    await transporter.sendMail(mailOptions);
+                    console.log('Email sent successfully');
+                } catch (error) {
+                    console.log('Error occurred:', error);
+                }
+            }
+            // console.log('new employee', newEmployee)
+            const user = await User.create(newEmployee)
+
+            return res.send({ status: 200, message: `${jobDetails.role} created successfully.`, user })
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error("Error occurred while adding user:", error);
+        res.send({ message: "Something went wrong while adding user!" })
+    }
+}
+
+exports.getUser = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            const userId = req.params.id
+
+            if (!userId || userId == 'undefined' || userId == 'null') {
+                return res.send({ status: 404, message: 'Employee not found' })
+            }
+
+            const user = await User.findOne({
+                _id: userId,
+                isDeleted: { $ne: true },
+            });
+
+            if (!user) {
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            if (user.documentDetails) {
+                for (let i = 0; i < user.documentDetails.length; i++) {
+                    const doc = user.documentDetails[i];
+                    doc.document = 'documentFile.pdf'
+                }
+            }
+
+            return res.send({ status: 200, message: 'User get successfully.', user })
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error("Error occurred while getting user:", error);
+        res.send({ message: "Something went wrong while getting user!" })
+    }
+}
+
 exports.getAllUsers = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -244,10 +428,221 @@ exports.getAllUsers = async (req, res) => {
     }
 }
 
+exports.updateUserDetails = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            const userId = req.params.id
+
+            const user = await User.findOne({
+                _id: userId,
+                isDeleted: { $ne: true }
+            });
+
+            if (!user) {
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            let {
+                personalDetails,
+                addressDetails,
+                kinDetails,
+                financialDetails,
+                jobDetails,
+                immigrationDetails,
+                documentDetails,
+                contractDetails,
+            } = req.body
+
+            if (personalDetails.email && user.personalDetails.email != personalDetails.email) {
+                const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
+                if (existingEmail) {
+                    return res.send({ status: 409, message: "Email already exists." });
+                }
+            }
+
+            const updatedPersonalDetails = {
+                firstName: personalDetails?.firstName,
+                middleName: personalDetails?.middleName,
+                lastName: personalDetails?.lastName,
+                dateOfBirth: personalDetails?.dateOfBirth,
+                gender: personalDetails?.gender,
+                maritalStatus: personalDetails?.maritalStatus,
+                phone: personalDetails?.phone,
+                homeTelephone: personalDetails?.homeTelephone,
+                email: personalDetails?.email,
+                niNumber: personalDetails?.niNumber,
+                sendRegistrationLink: personalDetails?.sendRegistrationLink
+            }
+
+            const updatedAddressDetails = {
+                address: addressDetails?.address,
+                addressLine2: addressDetails?.addressLine2,
+                city: addressDetails?.city,
+                postCode: addressDetails?.postCode,
+            }
+
+            const updatedKinDetails = {
+                kinName: kinDetails?.kinName,
+                relationshipToYou: kinDetails?.relationshipToYou,
+                address: kinDetails?.address,
+                postCode: kinDetails?.postCode,
+                emergencyContactNumber: kinDetails?.emergencyContactNumber,
+                email: kinDetails?.email,
+            }
+
+            const updatedFinancialDetails = {
+                bankName: financialDetails?.bankName,
+                holderName: financialDetails?.holderName,
+                sortCode: financialDetails?.sortCode,
+                accountNumber: financialDetails?.accountNumber,
+                payrollFrequency: financialDetails?.payrollFrequency,
+                pension: financialDetails?.pension,
+            }
+
+            const updatedJobDetails = {
+                jobTitle: jobDetails?.jobTitle,
+                jobDescription: jobDetails?.jobDescription,
+                annualSalary: jobDetails?.annualSalary,
+                hourlyRate: jobDetails?.hourlyRate,
+                weeklyWorkingHours: jobDetails?.weeklyWorkingHours,
+                weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern,
+                weeklySalary: jobDetails?.weeklySalary,
+                joiningDate: jobDetails?.joiningDate,
+                socCode: jobDetails?.socCode,
+                modeOfTransfer: jobDetails?.modeOfTransfer,
+                sickLeavesAllow: jobDetails?.sickLeavesAllow,
+                leavesAllow: jobDetails?.leavesAllow,
+                location: jobDetails?.location,
+                assignManager: jobDetails?.assignManager,
+                role: jobDetails?.role,
+            }
+
+            const updatedImmigrationDetails = {
+                passportNumber: immigrationDetails?.passportNumber,
+                countryOfIssue: immigrationDetails?.countryOfIssue,
+                passportExpiry: immigrationDetails?.passportExpiry,
+                nationality: immigrationDetails?.nationality,
+                visaCategory: immigrationDetails?.visaCategory,
+                visaValidFrom: immigrationDetails?.visaValidFrom,
+                visaValidTo: immigrationDetails?.visaValidTo,
+                brpNumber: immigrationDetails?.brpNumber,
+                cosNumber: immigrationDetails?.cosNumber,
+                restriction: immigrationDetails?.restriction,
+                shareCode: immigrationDetails?.shareCode,
+                rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
+                rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
+            }
+
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const document = documentDetails[i].document;
+
+                    if (!document || typeof document !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                        if (document?.startsWith("JVBER")) {
+                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                        } else {
+                            documentDetails[i].document = `data:text/plain;base64,${document}`;
+                        }
+                    } else {
+                        console.log(`Invalid Base64 string for item ${i}`);
+                    }
+                }
+            }
+
+            let updatedUser = await User.findByIdAndUpdate(
+                { _id: userId },
+                {
+                    $set: {
+                        personalDetails: updatedPersonalDetails,
+                        addressDetails: updatedAddressDetails,
+                        kinDetails: updatedKinDetails,
+                        financialDetails: updatedFinancialDetails,
+                        jobDetails: updatedJobDetails,
+                        immigrationDetails: updatedImmigrationDetails,
+                        documentDetails,
+                        contractDetails,
+                        updatedAt: new Date()
+                    }
+                }, { new: true }
+            )
+
+            return res.send({ status: 200, message: `${jobDetails.role} details updated successfully.`, updatedUser })
+
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error("Error occurred while updating user details:", error);
+        res.send({ message: "Something went wrong while updating user details!" })
+    }
+}
+
+exports.deleteUserDetails = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            const userId = req.params.id
+
+            const user = await User.findOne({
+                _id: userId,
+                isDeleted: { $ne: true },
+            });
+            if (!user) {
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            let deletedUser = await User.findByIdAndUpdate(userId, {
+                $set: {
+                    isDeleted: true,
+                    canceledAt: new Date()
+                }
+            })
+
+            return res.send({ status: 200, message: 'User deleted successfully.', deletedUser })
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error("Error occurred while removing user:", error);
+        res.send({ message: "Something went wrong while removing user!" })
+    }
+}
+
+exports.getOwnTimeSheet = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
+            const userId = req.user._id
+            const user = await User.findOne({
+                _id: userId,
+                isDeleted: { $ne: true },
+            })
+            if (!user) {
+                return res.send({ status: 404, message: 'User not found' })
+            }
+            const currentDate = new Date().toISOString().slice(0, 10)
+            const timesheet = await Timesheet.findOne({ userId, date: currentDate })
+            if (timesheet) {
+                return res.send({ status: 200, message: 'Time sheet get successfully.', timesheet })
+            } else {
+                return res.send({ status: 404, message: 'Record is not found!', timesheet: [] })
+            }
+
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error('Error occurred while getting time sheet:', error)
+        res.send({ message: "Something went wrong while getting time sheet!" })
+    }
+}
+
 exports.clockInFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
+            // console.log('req.user.role/...', req.user.role)
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)
@@ -264,9 +659,16 @@ exports.clockInFunc = async (req, res) => {
                 { $set: { lastKnownLocation: location } }
             )
 
-            // const GEOFENCE_CENTER = { latitude: 21.1959, longitude: 72.8302 }
-            const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 }
-            const GEOFENCE_RADIUS = 5000 // meters
+            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
+
+            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+
+            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
+
+            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
+
+            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clocking ( getted location for clocking )
+            const GEOFENCE_RADIUS = 1000 // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -284,7 +686,7 @@ exports.clockInFunc = async (req, res) => {
                     userId,
                     date: currentDate,
                     clockingTime: [],
-                    totalHours: 0
+                    totalHours: '0h 0m 0s'
                 })
             }
 
@@ -301,7 +703,8 @@ exports.clockInFunc = async (req, res) => {
 
             timesheet.clockingTime.push({
                 clockIn: new Date(),
-                clockOut: ""
+                clockOut: "",
+                isClocking: true
             })
 
             timesheet.isTimerOn = true
@@ -343,6 +746,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             lastClocking.clockOut = new Date()
+            lastClocking.isClocking = false
 
             const clockInTime = new Date(lastClocking.clockIn)
             const clockOutTime = new Date(lastClocking.clockOut)
@@ -360,7 +764,7 @@ exports.clockOutFunc = async (req, res) => {
             const duration = formatDuration(clockInTime, clockOutTime)
             lastClocking.totalTiming = duration
 
-            if (timesheet.totalHours == 0) {
+            if (timesheet.totalHours == '0h 0m 0s') {
                 timesheet.totalHours = duration
             } else {
                 const parseTime = (duration) => {

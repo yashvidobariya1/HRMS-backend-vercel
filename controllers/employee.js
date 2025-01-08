@@ -88,10 +88,7 @@ exports.addEmployee = async (req, res) => {
             const hashedPassword = await bcrypt.hash(pass, 10)
 
             const newEmployee = {
-                personalDetails: {
-                    ...personalDetails,
-                    // password: hashedPassword,
-                },
+                personalDetails,
                 addressDetails,
                 kinDetails,
                 financialDetails,
@@ -312,6 +309,28 @@ exports.updateEmployee = async (req, res) => {
                 shareCode: immigrationDetails?.shareCode,
                 rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
                 rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
+            }
+
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const document = documentDetails[i].document;
+
+                    if (!document || typeof document !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                        if (document?.startsWith("JVBER")) {
+                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                        } else {
+                            documentDetails[i].document = `data:text/plain;base64,${document}`;
+                        }
+                    } else {
+                        console.log(`Invalid Base64 string for item ${i}`);
+                    }
+                }
             }
 
             let updatedEmployee = await User.findByIdAndUpdate(

@@ -433,7 +433,7 @@
 //             expect(JSON.parse(res.text).message).toBe('Something went wrong, Please try again!');
 //         })
 //         test('should return 404 for time sheet not found', async () => {
-            
+
 //             const res = await request(app)
 //             .post('/clockout')
 //             .send({ userId, location: { latitude: "72.8302", longitude: "21.1959" } })
@@ -1113,10 +1113,10 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         //     expect(JSON.parse(userRes.text).status).toBe(200);
         //     expect(JSON.parse(userRes.text).message).toBe('User login successfully');
         //     const usertoken = JSON.parse(userRes.text).user.token;
-            // const currentDate = new Date().toISOString().slice(0, 10);
-            // const existingTimesheet = await Timesheet.findOne({ userId: noclockinuserId, date: currentDate });
-            // console.log("existingTimesheet122344", existingTimesheet);
-            // expect(existingTimesheet).toBeNull();
+        // const currentDate = new Date().toISOString().slice(0, 10);
+        // const existingTimesheet = await Timesheet.findOne({ userId: noclockinuserId, date: currentDate });
+        // console.log("existingTimesheet122344", existingTimesheet);
+        // expect(existingTimesheet).toBeNull();
         //     console.log("existingTimesheet", existingTimesheet);
         //     if (existingTimesheet) {
         //         const resclockout = await request(app)
