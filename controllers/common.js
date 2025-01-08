@@ -204,9 +204,9 @@ exports.updatePassword = async (req, res) => {
 }
 
 exports.getDetails = async (req, res) => {
-    try {
-        console.log('res.user/...', res.user)
-        if(req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
+    try {        
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.user._id
             const user = await User.findOne({
                 _id: userId,
@@ -225,7 +225,8 @@ exports.getDetails = async (req, res) => {
 
 exports.addUser = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 personalDetails,
                 addressDetails,
@@ -376,7 +377,8 @@ exports.addUser = async (req, res) => {
 
 exports.getUser = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.params.id
 
             if (!userId || userId == 'undefined' || userId == 'null') {
@@ -409,7 +411,8 @@ exports.getUser = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const users = await User.find()
             users.forEach((e) => {
                 if (e.documentDetails.length > 0) {
@@ -429,7 +432,8 @@ exports.getAllUsers = async (req, res) => {
 
 exports.updateUserDetails = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.params.id
 
             const user = await User.findOne({
@@ -553,7 +557,8 @@ exports.updateUserDetails = async (req, res) => {
 
 exports.deleteUserDetails = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.params.id
 
             const user = await User.findOne({
@@ -581,7 +586,8 @@ exports.deleteUserDetails = async (req, res) => {
 
 exports.getOwnTimeSheet = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const userId = req.user._id
             const user = await User.findOne({
                 _id: userId,
@@ -607,8 +613,8 @@ exports.getOwnTimeSheet = async (req, res) => {
 
 exports.clockInFunc = async (req, res) => {
     try {
-        // console.log('req.user', req.user)
-        if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             // console.log('req.user.role/...', req.user.role)
             const { userId, location } = req.body
 
@@ -686,7 +692,8 @@ exports.clockInFunc = async (req, res) => {
 
 exports.clockOutFunc = async (req, res) => {
     try {
-        if(req.user.role == 'Administrator' || req.user.role == 'Manager' || req.user.role == 'Employee'){
+        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        if (allowedRoles.includes(req.user.role)) {
             const { userId, location } = req.body
 
             const existUser = await User.findById(userId)

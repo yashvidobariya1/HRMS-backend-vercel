@@ -4,7 +4,8 @@ const { transporter } = require("../utils/nodeMailer");
 
 exports.addEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 personalDetails,
                 addressDetails,
@@ -155,7 +156,8 @@ exports.addEmployee = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             if (!employeeId || employeeId == 'undefined' || employeeId == 'null') {
@@ -188,7 +190,8 @@ exports.getEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
             if (employees.documentDetails) {
                 for (let i = 0; i < employees.documentDetails.length; i++) {
@@ -206,7 +209,8 @@ exports.getAllEmployees = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
@@ -330,7 +334,8 @@ exports.updateEmployee = async (req, res) => {
 
 exports.deleteEmployee = async (req, res) => {
     try {
-        if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
             const employeeId = req.params.id
 
             const employee = await User.findOne({
