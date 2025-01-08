@@ -15,7 +15,6 @@ const userSchema = new mongoose.Schema({
     phone: String,
     homeTelephone: String,
     email: String,
-    password: String,
     niNumber: String,
     sendRegistrationLink: Boolean,
   },
@@ -81,6 +80,7 @@ const userSchema = new mongoose.Schema({
     contractType: String,
     contractDocument: String,
   },
+  password: String,
   role: {
     type: String
   },

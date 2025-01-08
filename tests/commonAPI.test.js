@@ -923,7 +923,7 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         test('should return 200 for clock-In', async () => {
             const res = await request(app)
                 .post('/clockin')
-                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(200);
         })
@@ -1004,7 +1004,7 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             })
             const res = await request(app)
                 .post('/clockin')
-                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(400);
             expect(JSON.parse(res.text).message).toBe('Please clock out before clocking in again.')
@@ -1136,19 +1136,19 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         test('should return 200 for clock-Out', async () => {
             const resclockin = await request(app)
                 .post('/clockin')
-                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(resclockin.text).status).toBe(200);
             const resclockout = await request(app)
                 .post('/clockout')
-                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(resclockout.text).status).toBe(200);
         })
         test('should return 400 for No active clock-in to clock out from.', async () => {
             const res = await request(app)
                 .post('/clockout')
-                .send({ userId, location: { latitude: "72.8302", longitude: "21.1959" } })
+                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(400);
             expect(JSON.parse(res.text).message).toBe('No active clock-in to clock out from.');

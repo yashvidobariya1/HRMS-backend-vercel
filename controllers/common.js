@@ -25,14 +25,14 @@ exports.login = async (req, res) => {
         const createdAt = isExist?.createdAt
         const _id = isExist?._id
 
-        if (isExist.personalDetails.password == req.body.password) {
+        if (isExist.password == req.body.password) {
             return res.send({
                 status: 200,
                 message: "User login successfully",
                 user: { personalDetails, role, token, createdAt, _id },
             });
         } else {
-            const hashedPassword = isExist.personalDetails.password;
+            const hashedPassword = isExist.password;
             bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
                 if (err) {
                     console.error("Error comparing passwords:", err);
@@ -156,7 +156,7 @@ exports.forgotPassword = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
-        user.personalDetails.password = hashedPassword
+        user.password = hashedPassword
         await user.save()
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
@@ -174,7 +174,7 @@ exports.updatePassword = async (req, res) => {
             return res.send({ status: 404, message: "User not found." })
         }
 
-        const isMatch = await bcrypt.compare(oldPassword, user.personalDetails.password)
+        const isMatch = await bcrypt.compare(oldPassword, user.password)
         if (!isMatch) {
             return res.send({ status: 400, message: "Old password is incorrect." })
         }
@@ -193,7 +193,7 @@ exports.updatePassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
 
-        user.personalDetails.password = hashedPassword;
+        user.password = hashedPassword;
         await user.save()
 
         return res.send({ status: 200, message: "Password updated successfully." })
@@ -309,10 +309,7 @@ exports.addUser = async (req, res) => {
             const hashedPassword = await bcrypt.hash(pass, 10)
 
             const newEmployee = {
-                personalDetails: {
-                    ...personalDetails,
-                    password: hashedPassword,
-                },
+                personalDetails,
                 addressDetails,
                 kinDetails,
                 financialDetails,
@@ -456,6 +453,13 @@ exports.updateUserDetails = async (req, res) => {
                 contractDetails,
             } = req.body
 
+            if (personalDetails.email && employee.personalDetails.email != personalDetails.email) {
+                const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
+                if (existingEmail) {
+                    return res.send({ status: 409, message: "Email already exists." });
+                }
+            }
+
             const updatedPersonalDetails = {
                 firstName: personalDetails?.firstName,
                 middleName: personalDetails?.middleName,
@@ -527,6 +531,28 @@ exports.updateUserDetails = async (req, res) => {
                 shareCode: immigrationDetails?.shareCode,
                 rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
                 rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
+            }
+
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const document = documentDetails[i].document;
+
+                    if (!document || typeof document !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                        if (document?.startsWith("JVBER")) {
+                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
+                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
+                        } else {
+                            documentDetails[i].document = `data:text/plain;base64,${document}`;
+                        }
+                    } else {
+                        console.log(`Invalid Base64 string for item ${i}`);
+                    }
+                }
             }
 
             let updatedUser = await User.findByIdAndUpdate(
