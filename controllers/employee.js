@@ -243,6 +243,7 @@ exports.updateEmployee = async (req, res) => {
                 homeTelephone: personalDetails?.homeTelephone,
                 email: personalDetails?.email,
                 niNumber: personalDetails?.niNumber,
+                sendRegistrationLink: personalDetails?.sendRegistrationLink
             }
 
             const updatedAddressDetails = {

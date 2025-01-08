@@ -5,10 +5,6 @@ const TimesheetSchema = new mongoose.Schema(
         userId: {
             type: mongoose.Schema.Types.ObjectId,
         },
-        isTimerOn: {
-            type: Boolean,
-            default: false
-        },
         date: {
             type: String,
         },
@@ -21,11 +17,15 @@ const TimesheetSchema = new mongoose.Schema(
             totalTiming: {
                 type: String,
                 default: 0
-            }
+            },
+            isTimerOn: {
+                type: Boolean,
+                default: false
+            },
         }],
         totalHours: {
             type: String,
-            default: 0
+            default: "0h 0m 0s"
         },
         overTime: {
             type: Number,

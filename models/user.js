@@ -89,8 +89,7 @@ const userSchema = new mongoose.Schema({
     longitude: String
   },
   otp: {
-    type: Number,
-    default: null
+    type: Number
   },
   token: {
     type: String,
