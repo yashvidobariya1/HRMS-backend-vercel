@@ -2,7 +2,7 @@ const Location = require("../models/location")
 
 exports.addLocation = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        if (req.user.role == 'Superadmin') {
             const newLocation = {
                 companyName: req.body.companyName,
                 payeReferenceNumber: req.body.payeReferenceNumber,
@@ -28,7 +28,7 @@ exports.addLocation = async (req, res) => {
 
 exports.getLocation = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        if (req.user.role == 'Superadmin') {
             const locationId = req.params.id
             if (!locationId || locationId == 'undefined' || locationId == 'null') {
                 return res.send({ status: 404, message: 'Location not found' })
@@ -52,7 +52,7 @@ exports.getLocation = async (req, res) => {
 
 exports.getAllLocation = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        if (req.user.role == 'Superadmin') {
 
             const location = await Location.find({ isDeleted: { $ne: true } })
 
@@ -70,7 +70,7 @@ exports.getAllLocation = async (req, res) => {
 
 exports.updateLocationDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        if (req.user.role == 'Superadmin') {
             const locationId = req.params.id
 
             const location = await Location.findOne({
@@ -110,7 +110,7 @@ exports.updateLocationDetails = async (req, res) => {
 
 exports.deleteLocation = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        if (req.user.role == 'Superadmin') {
             const locationId = req.params.id
 
             const location = await Location.findOne({

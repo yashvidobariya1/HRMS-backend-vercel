@@ -496,7 +496,7 @@ beforeEach(async () => {
 
 describe('~ Login API', () => {
     let usertoken;
-    test('should log in a user with valid credentials', async () => {
+    test('should return 200 for log in a user with valid credentials', async () => {
         const hashedPassword = await bcrypt.hash('Password@123', 10);
         await User.create({
             personalDetails: {
@@ -923,7 +923,7 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         test('should return 200 for clock-In', async () => {
             const res = await request(app)
                 .post('/clockin')
-                .send({ userId, location: { latitude: "21.2242", longitude: "72.8068" } })
+                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(200);
         })
@@ -951,6 +951,51 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             expect(JSON.parse(res.text).status).toBe(403);
             expect(JSON.parse(res.text).message).toBe('You are outside the geofence area.');
         })
+        // test('should return 400 for You can only clock in two times per day', async () => {
+        //     const hashedPassword = await bcrypt.hash('Rishi@1234', 10);
+        //     const user = await User.create({
+        //         personalDetails: {
+        //             email: 'rishi@example.com',
+        //             password: hashedPassword,
+        //         },
+        //         isDeleted: false,
+        //         role: 'Employee'
+        //     });
+
+        //     const userRes = await request(app)
+        //         .post('/login')
+        //         .send({
+        //             email: 'rishi@example.com',
+        //             password: 'Rishi@1234',
+        //         });
+
+        //     expect(JSON.parse(userRes.text).status).toBe(200);
+        //     expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+        //     expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+
+        //     const token = JSON.parse(userRes.text).user.token;
+
+        //     // Clock in the first time
+        //     await request(app)
+        //         .post('/clockin')
+        //         .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+        //         .set('Authorization', `Bearer ${token}`);
+
+        //     // Clock in the second time
+        //     await request(app)
+        //         .post('/clockin')
+        //         .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+        //         .set('Authorization', `Bearer ${token}`);
+
+        //     // Attempt to clock in the third time
+        //     const res = await request(app)
+        //         .post('/clockin')
+        //         .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+        //         .set('Authorization', `Bearer ${token}`);
+
+        //     expect(JSON.parse(res.text).status).toBe(400);
+        //     expect(JSON.parse(res.text).message).toBe('You can only clock in two times per day.');
+        // });
         test('should return 400 for clockIn before clockOut', async () => {
             Timesheet.create({
                 userId,
@@ -959,9 +1004,8 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             })
             const res = await request(app)
                 .post('/clockin')
-                .send({ userId, location: { latitude: "21.2242", longitude: "72.8068" } })
+                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
                 .set('Authorization', `Bearer ${token}`)
-                console.log('res/...', res.text)
             expect(JSON.parse(res.text).status).toBe(400);
             expect(JSON.parse(res.text).message).toBe('Please clock out before clocking in again.')
         })
@@ -1033,6 +1077,14 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             expect(JSON.parse(res.text).status).toBe(404);
             expect(JSON.parse(res.text).message).toBe('User not found');
         })
+        test('should return 404 for time sheet not found', async () => {
+            const res = await request(app)
+                .post('/clockout')
+                .send({ userId, location: { latitude: "72.8302", longitude: "21.1959" } })
+                .set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404);
+            expect(JSON.parse(res.text).message).toBe('No timesheet found for today.');
+        })
         test("should return 400 for, do't allow location", async () => {
             const res = await request(app)
                 .post('/clockout')
@@ -1041,35 +1093,65 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             expect(JSON.parse(res.text).status).toBe(400);
             expect(JSON.parse(res.text).message).toBe('Something went wrong, Please try again!');
         })
-        test('should return 404 for time sheet not found', async () => {
+        // test('should return 404 for time sheet not found', async () => {
+        //     const hashedPassword = await bcrypt.hash('Harry@1234', 10);
+        //     const user = await User.create({
+        //         personalDetails: {
+        //             email: 'harry@example.com',
+        //             password: hashedPassword
+        //         },
+        //         role: "Manager"
+        //     })
+        //     let noclockinuserId = await (user._id).toString()
+        //     const userRes = await request(app)
+        //         .post('/login')
+        //         .send({
+        //             email: 'harry@example.com',
+        //             password: 'Harry@123',
+        //         });
 
+        //     expect(JSON.parse(userRes.text).status).toBe(200);
+        //     expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+        //     const usertoken = JSON.parse(userRes.text).user.token;
+            // const currentDate = new Date().toISOString().slice(0, 10);
+            // const existingTimesheet = await Timesheet.findOne({ userId: noclockinuserId, date: currentDate });
+            // console.log("existingTimesheet122344", existingTimesheet);
+            // expect(existingTimesheet).toBeNull();
+        //     console.log("existingTimesheet", existingTimesheet);
+        //     if (existingTimesheet) {
+        //         const resclockout = await request(app)
+        //             .post('/clockout')
+        //             .send({ userId: noclockinuserId, location: { latitude: "21.1959", longitude: "72.8302" } })
+        //             .set('Authorization', `Bearer ${token}`);
+        //         expect(JSON.parse(resclockout.text).status).toBe(200);
+        //     } else {
+        //         const res = await request(app)
+        //             .post('/clockout')
+        //             .send({ userId: noclockinuserId, location: { latitude: "21.1959", longitude: "72.8302" } })
+        //             .set('Authorization', `Bearer ${usertoken}`);
+        //         expect(JSON.parse(res.text).status).toBe(404);
+        //         expect(JSON.parse(res.text).message).toBe('No timesheet found for today.');
+        //     }
+        // })
+        test('should return 200 for clock-Out', async () => {
+            const resclockin = await request(app)
+                .post('/clockin')
+                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(resclockin.text).status).toBe(200);
+            const resclockout = await request(app)
+                .post('/clockout')
+                .send({ userId, location: { latitude: "21.1959", longitude: "72.8302" } })
+                .set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(resclockout.text).status).toBe(200);
+        })
+        test('should return 400 for No active clock-in to clock out from.', async () => {
             const res = await request(app)
                 .post('/clockout')
                 .send({ userId, location: { latitude: "72.8302", longitude: "21.1959" } })
                 .set('Authorization', `Bearer ${token}`)
-            expect(JSON.parse(res.text).status).toBe(404);
-            expect(JSON.parse(res.text).message).toBe('No timesheet found for today.');
-        })
-        test('should return 200 for Clock out', async () => {
-            const clockIn = await request(app)
-                .post('/clockin')
-                .send({ userId, location: { latitude: "21.2242", longitude: "72.8068" } })
-                .set('Authorization', `Bearer ${token}`)
-            expect(JSON.parse(clockIn.text).status).toBe(200);
-            const clockOut = await request(app)
-                .post('/clockout')
-                .send({ userId, location: { latitude: "21.2242", longitude: "72.8068" } })
-                .set('Authorization', `Bearer ${token}`)
-            expect(JSON.parse(clockOut.text).status).toBe(200);
-        })
-        test('should return 400 for No active clock-in to clock out from.', async () => {            
-            const res1 = await request(app)
-                .post('/clockout')
-                .send({ userId, location: { latitude: "21.2242", longitude: "72.8068" } })
-                .set('Authorization', `Bearer ${token}`)
-                console.log('res/...', res1.text)
-            expect(JSON.parse(res1.text).status).toBe(400);
-            expect(JSON.parse(res1.text).message).toBe('No active clock-in to clock out from.');
+            expect(JSON.parse(res.text).status).toBe(400);
+            expect(JSON.parse(res.text).message).toBe('No active clock-in to clock out from.');
         })
         test('should return 403 for Access denied for unauthorized role', async () => {
             const hashedPassword = await bcrypt.hash('Abcd@1234', 10);

@@ -15,22 +15,22 @@ exports.addManager = async (req, res) => {
                 documentDetails,
                 contractDetails
             } = req.body
-    
+
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
-    
-            if(personalDetails && personalDetails.email){
+
+            if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
-                if(user){
+                if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
-            }         
-    
+            }
+
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
-    
+
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
@@ -50,7 +50,7 @@ exports.addManager = async (req, res) => {
             } else {
                 console.log('documentDetails is not an array or is undefined');
             }
-    
+
             const generatePass = () => {
                 const fname = `${personalDetails.firstName}`
                 const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -63,10 +63,10 @@ exports.addManager = async (req, res) => {
                 // console.log('pass', pass)
                 return pass
             }
-    
+
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
-    
+
             if (personalDetails.sendRegistrationLink == true) {
                 let mailOptions = {
                     from: process.env.NODEMAILER_EMAIL,
@@ -103,9 +103,9 @@ exports.addManager = async (req, res) => {
                 }
                 transporter.sendMail(mailOptions);
             }
-    
+
             const newManager = {
-                personalDetails :{
+                personalDetails: {
                     ...personalDetails,
                     password: hashedPassword
                 },
@@ -120,10 +120,10 @@ exports.addManager = async (req, res) => {
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
-    
+
             // console.log('new manager', newManager)
             const manager = await User.create(newManager)
-    
+
             return res.send({ status: 200, message: 'Manager created successfully.', manager })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -145,11 +145,11 @@ exports.getManager = async (req, res) => {
             })
 
             if (!manager) {
-                return res.send({ status: 404, message: 'Manager not found.' })
+                return res.send({ status: 404, message: 'Manager not found' })
             }
 
-            if(manager.documentDetails){
-                for(let i=0; i<manager.documentDetails.length; i++){
+            if (manager.documentDetails) {
+                for (let i = 0; i < manager.documentDetails.length; i++) {
                     const doc = manager.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
@@ -170,13 +170,9 @@ exports.getAllManager = async (req, res) => {
                 role: "Manager",
                 isDeleted: { $ne: true }
             })
-    
-            if (!managers) {
-                return res.send('Managers not found')
-            }
-    
-            if(managers.documentDetails){
-                for(let i=0; i<managers.documentDetails.length; i++){
+
+            if (managers.documentDetails) {
+                for (let i = 0; i < managers.documentDetails.length; i++) {
                     const doc = managers.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }

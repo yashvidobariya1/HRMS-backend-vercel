@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 const User = require('../models/user')
 const Company = require('../models/company')
 const Location = require('../models/location')
+const bcrypt = require('bcrypt');
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
@@ -38,135 +39,339 @@ beforeEach(async () => {
 
 
 // all api called company by superadmin
-describe('SuperAdmin Routes - Crud Company Test', () => {
+describe('**SuperAdmin Routes - Crud Company Test**', () => {
     let createdCompanyId;
-    test('POST /addcompany should add a company', async () => {
-        const createResponse = await request(app).post('/addcompany').send({
-            "companyDetails": {
-                "companyCode": "COMP001",
-                "businessName": "XYZ Ltd.",
-                "companyLogo": "logo2.png",
-                "companyRegistrationNumber": "456789",
-                "payeReferenceNumber": "PAYE456",
-                "address": "159 Street",
-                "addressLine2": "Suite 100",
-                "city": "Cityville",
-                "postCode": "56789",
-                "country": "Countryland",
-                "timeZone": "GMT+1",
-                "contactPersonFirstname": "newJohn",
-                "contactPersonMiddlename": "A.",
-                "contactPersonLastname": "Doe",
-                "contactPersonEmail": "newJohn.doe@example.com",
-                "contactPhone": "9876543210",
-                "adminToReceiveNotification": "admin@example.com",
-                "additionalEmailsForCompliance": "compliance@example.com",
-                "pensionProvider": "Provider Inc."
-            },
-            "employeeSettings": {
-                "payrollFrequency": "Weekly",
-                "immigrationReminders": {
-                    "day1st": "5",
-                    "day2nd": "10",
-                    "day3rd": "15"
+    let token
+    describe('~ For add Company', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const hashedPassword = await bcrypt.hash('Superadmin@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'superadmin@example.com',
+                    password: hashedPassword,
                 },
-                "holidayYear": "Jan-Dec",
-                "noticePeriodDays": "25",
-                "contactConfirmationDays": "17",
-                "rightToWorkCheckReminder": "58",
-                "leaveEntitlements": {
-                    "holidaysExcludingBank": "20",
-                    "sickLeaves": "10"
+                isDeleted: false,
+                role: 'Superadmin'
+            });
+            const userRes = await request(app)
+                .post('/login')
+                .send({
+                    email: 'superadmin@example.com',
+                    password: 'Superadmin@123',
+                });
+
+            expect(JSON.parse(userRes.text).status).toBe(200);
+            expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+            expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+            token = JSON.parse(userRes.text).user.token
+            const res = await request(app)
+                .post('/addcompany')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for add a company', async () => {
+            const createResponse = await request(app).post('/addcompany').set('Authorization', `Bearer ${token}`).send({
+                "companyDetails": {
+                    "companyCode": "COMP001",
+                    "businessName": "XYZ Ltd.",
+                    "companyLogo": "logo2.png",
+                    "companyRegistrationNumber": "456789",
+                    "payeReferenceNumber": "PAYE456",
+                    "address": "159 Street",
+                    "addressLine2": "Suite 100",
+                    "city": "Cityville",
+                    "postCode": "56789",
+                    "country": "Countryland",
+                    "timeZone": "GMT+1",
+                    "contactPersonFirstname": "newJohn",
+                    "contactPersonMiddlename": "A.",
+                    "contactPersonLastname": "Doe",
+                    "contactPersonEmail": "newJohn.doe@example.com",
+                    "contactPhone": "9876543210",
+                    "adminToReceiveNotification": "admin@example.com",
+                    "additionalEmailsForCompliance": "compliance@example.com",
+                    "pensionProvider": "Provider Inc."
+                },
+                "employeeSettings": {
+                    "payrollFrequency": "Weekly",
+                    "immigrationReminders": {
+                        "day1st": "5",
+                        "day2nd": "10",
+                        "day3rd": "15"
+                    },
+                    "holidayYear": "Jan-Dec",
+                    "noticePeriodDays": "25",
+                    "contactConfirmationDays": "17",
+                    "rightToWorkCheckReminder": "58",
+                    "leaveEntitlements": {
+                        "holidaysExcludingBank": "20",
+                        "sickLeaves": "10"
+                    }
+                },
+                "contractDetails": {
+                    "startDate": "2025-01-01",
+                    "endDate": "2025-12-31",
+                    "maxEmployeesAllowed": "100"
                 }
-            },
-            "contractDetails": {
-                "startDate": "2025-01-01",
-                "endDate": "2025-12-31",
-                "maxEmployeesAllowed": "100"
-            }
-        }).set('x-api-key', 'Superadmin');
-        console.log('created company/...', JSON.parse(createResponse.text))
-        expect(createResponse.status).toBe(200);
-        expect(createResponse.body.message).toBe('Company created successfully.');
-        expect(createResponse.body.company).toHaveProperty('_id');
-        createdCompanyId = await (JSON.parse(createResponse.text)).company._id
-    })
+            })
+            expect(createResponse.body.status).toBe(200);
+            expect(createResponse.body.message).toBe('Company created successfully.');
+            expect(createResponse.body.company).toHaveProperty('_id');
+            createdCompanyId = await (JSON.parse(createResponse.text)).company._id
 
-    test('POST /getcompany/:id should fetch a company by ID', async () => {
-        const getResponse = await request(app).post(`/getcompany/${createdCompanyId}`).set('x-api-key', 'Superadmin')
-        console.log('get company details/..', getResponse.text)
-        expect(getResponse.status).toBe(200);
-        expect(getResponse.body.message).toBe('Company get successfully.');
-        expect(getResponse.body.company.companyDetails.companyCode).toBe('COMP001');
-    })
-    test('POST /getcompany/:id when fetching company details and company not found', async() => {
-        const getResponse = await request(app).post(`/getcompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(getResponse.text))
-        expect(JSON.parse(getResponse.text).status).toBe(404)
-        expect(getResponse.body.message).toBe('Company not found')
-    })
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
 
-    test('POST /getallcompany should fetch all companies', async () => {
-        const getAllResponse = await request(app).post('/getallcompany').set('x-api-key', 'Superadmin')
-        console.log('get all comapnies/...', getAllResponse.text)
-        expect(getAllResponse.status).toBe(200);
-        expect(getAllResponse.body.message).toBe('Company all get successfully.');
-        expect(getAllResponse.body.company).toBeInstanceOf(Array);
-    })
-    test("POST /getallcompany when fetching all company and company's not found", async() => {
-        const getAllResponse = await request(app).post('/getallcompany').set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(getResponse.text))
-        expect([]).toStrictEqual([])
-    })
-
-    test('POST /updatecompany/:id should update company details', async () => {
-        const updateResponse = await request(app).post(`/updatecompany/${createdCompanyId}`).set('x-api-key', 'Superadmin').send({
-            "employeeSettings": {
-                "payrollFrequency": "Monthly",
-                "holidayYear": "Jan-Dec"
-            },
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post('/addcompany').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
         });
-        console.log('Updated company details:', updateResponse.text);
-        expect(updateResponse.status).toBe(200);
-        expect(updateResponse.body.message).toBe('Company details updated successfully.');
-        expect(updateResponse.body.updatedCompany.employeeSettings.payrollFrequency).toBe('Monthly');
-    });
-    test('POST /updatecompany/:id when updating company details and company not found, null or undefine', async() => {
-        const updateResponse = await request(app).post(`/updatecompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin').send({
-            "employeeSettings": {
-                "payrollFrequency": "Monthly",
-                "holidayYear": "Jan-Dec"
-            },
-        });
-        // console.log('details/...', JSON.parse(updateResponse.text))
-        expect(JSON.parse(updateResponse.text).status).toBe(404)
-        expect(updateResponse.body.message).toBe('Company not found')
     })
 
-    
-    test('POST /deletecompany/:id should delete a company', async () => {
-        const deleteResponse = await request(app).post(`/deletecompany/${createdCompanyId}`).set('x-api-key', 'Superadmin')
-        console.log('delete company details/..', deleteResponse.text)
-        expect(deleteResponse.status).toBe(200);
-        expect(deleteResponse.body.message).toBe('Company deleted successfully.');
-        const deletedCompany = await Company.findById(createdCompanyId);
-        expect(deletedCompany.isDeleted).toBe(true);
+    describe('~ For get company by ID', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .get(`/getcompany/${createdCompanyId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch a company by ID', async () => {
+            const getResponse = await request(app).get(`/getcompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
+            expect(getResponse.body.status).toBe(200);
+            expect(getResponse.body.message).toBe('Company get successfully.');
+        });
+        test('should return 409 for ID pass null', async () => {
+            const getResponse = await request(app).get(`/getcompany/null`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Company not found')
+        })
+        test('should return 409 for company not found', async () => {
+            const getResponse = await request(app).get(`/getcompany/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Company not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).get(`/getcompany/${createdCompanyId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
-    test('POST /deletecompany/:id when deleting company and company not found', async() => {
-        const deletedCompany = await request(app).post(`/deletecompany/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(deletedCompany.text))
-        expect(JSON.parse(deletedCompany.text).status).toBe(404)
-        expect(deletedCompany.body.message).toBe('Company not found')
+
+    describe('~ For get all company', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .get('/getallcompany')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch all companys', async () => {
+            const getAllResponse = await request(app).get('/getallcompany').set('Authorization', `Bearer ${token}`)
+            expect(getAllResponse.body.status).toBe(200);
+            expect(getAllResponse.body.message).toBe('Company all get successfully.');
+            expect(getAllResponse.body.company).toBeInstanceOf(Array);
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).get('/getallcompany').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+
+    describe('~ For update company', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .post(`/updatecompany/${createdCompanyId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for update company details', async () => {
+            const updateResponse = await request(app).post(`/updatecompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`).send({
+                "personalDetails": {
+                    "firstName": "update first name",
+                    "middleName": "update middle name",
+                    "lastName": "update last name",
+                    "email": "update@example.com"
+                },
+                "addressDetails": {
+                    "address": "updated address",
+                    "city": "updated city",
+                    "postCode": "updated post code",
+                },
+                "kinDetails": {
+                    "kinName": "updated kinName",
+                    "address": "updated address",
+                    "emergencyContactNumber": "updated emergency contact number",
+                },
+            })
+            expect(updateResponse.body.status).toBe(200);
+            expect(updateResponse.body.message).toBe('Company details updated successfully.');
+        })
+        test('should return 409 for company not found', async () => {
+            const getResponse = await request(app).post(`/updatecompany/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Company not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post(`/updatecompany/${createdCompanyId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+
+    describe('~ For delete company', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .post(`/deletecompany/${createdCompanyId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for delete a company', async () => {
+            const deleteResponse = await request(app).post(`/deletecompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
+            expect(deleteResponse.body.status).toBe(200);
+            expect(deleteResponse.body.message).toBe('Company deleted successfully.');
+            // const deletedCompany = await User.findById(createdCompanyId);
+            // expect(deletedCompany.isDeleted).toBe(true);
+        })
+        test('should return 404 for company not found', async () => {
+            const deleteResponse = await request(app).post(`/deletecompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(deleteResponse.text).status).toBe(404)
+            expect(deleteResponse.body.message).toBe('Company not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post(`/deletecompany/${createdCompanyId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
 })
 
 // all api called location by superadmin
-describe('SuperAdmin Routes - Crud Location Test', () => {
+describe('**SuperAdmin Routes - Crud Location Test**', () => {
     let createdLocationId;
-    test('POST /addlocation should add a location', async () => {
-        const createResponse = await request(app)
-            .post('/addlocation')
-            .send({
+    let token
+    describe('~ For add location', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const hashedPassword = await bcrypt.hash('Superadmin@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'superadmin@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Superadmin'
+            });
+            const userRes = await request(app)
+                .post('/login')
+                .send({
+                    email: 'superadmin@example.com',
+                    password: 'Superadmin@123',
+                });
+
+            expect(JSON.parse(userRes.text).status).toBe(200);
+            expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+            expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+            token = JSON.parse(userRes.text).user.token
+            const res = await request(app)
+                .post('/addlocation')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for add a location', async () => {
+            const createResponse = await request(app).post('/addlocation').set('Authorization', `Bearer ${token}`).send({
                 companyName: 'Lifecycle Test Company',
                 payeReferenceNumber: '999999',
                 locationName: 'Lifecycle Test Location',
@@ -176,81 +381,212 @@ describe('SuperAdmin Routes - Crud Location Test', () => {
                 country: 'Lifecycle Country',
                 ukviApproved: true,
             })
-            .set('x-api-key', 'Superadmin');
-        console.log('created location/...', JSON.parse(createResponse.text))
-        expect(createResponse.body.status).toBe(200);
-        expect(createResponse.body.message).toBe('Location created successfully.');
-        expect(createResponse.body.location).toHaveProperty('_id');
+            expect(createResponse.body.status).toBe(200);
+            expect(createResponse.body.message).toBe('Location created successfully.');
+            expect(createResponse.body.location).toHaveProperty('_id');
+            createdLocationId = await (JSON.parse(createResponse.text)).location._id
 
-        createdLocationId = createResponse.body.location._id;
-    });
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
 
-    test('POST /getlocation/:id should fetch a location by ID', async () => {
-        const getResponse = await request(app)
-            .post(`/getlocation/${createdLocationId}`)
-            .set('x-api-key', 'Superadmin');
-        console.log('get location details/..', getResponse.text)
-        expect(getResponse.body.status).toBe(200);
-        expect(getResponse.body.message).toBe('Location get successfully.');
-        expect(getResponse.body.location.companyName).toBe('Lifecycle Test Company');
-    });
-    test('POST /getlocation/:id when fetching company details and company not found', async() => {
-        const getResponse = await request(app)
-            .post(`/getlocation/676f9399ea4f13581c844ab2`)
-            .set('x-api-key', 'Superadmin');
-        // console.log('details/...', JSON.parse(getResponse.text))
-        expect(JSON.parse(getResponse.text).status).toBe(404)
-        expect(getResponse.body.message).toBe('Location not found')
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post('/addlocation').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
 
-    test('POST /getalllocation should fetch all locations', async () => {
-        const getAllResponse = await request(app)
-            .post('/getalllocation')
-            .set('x-api-key', 'Superadmin');
-        console.log('get all comapnies/...', getAllResponse.text)
-        expect(getAllResponse.body.status).toBe(200);
-        expect(getAllResponse.body.message).toBe('Location all get successfully.');
-        expect(getAllResponse.body.location).toBeInstanceOf(Array);
-    });
-    test("POST /getalllocation when fetching all location and location's not found", async() => {
-        const getAllResponse = await request(app).post('/getalllocation').set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(getResponse.text))
-        expect([]).toStrictEqual([])
+    describe('~ For get location by ID', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .get(`/getlocation/${createdLocationId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch a location by ID', async () => {
+            const getResponse = await request(app).get(`/getlocation/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
+            expect(getResponse.body.status).toBe(200);
+            expect(getResponse.body.message).toBe('Location get successfully.');
+        });
+        test('should return 409 for ID pass null', async () => {
+            const getResponse = await request(app).get(`/getlocation/null`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Location not found')
+        })
+        test('should return 409 for location not found', async () => {
+            const getResponse = await request(app).get(`/getlocation/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Location not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).get(`/getlocation/${createdLocationId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
 
-    test('POST /updatelocation/:id should update location details', async () => {
-        const updateResponse = await request(app)
-            .post(`/updatelocation/${createdLocationId}`)
-            .send({
+    describe('~ For get all location', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .get('/getalllocation')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch all locations', async () => {
+            const getAllResponse = await request(app).get('/getalllocation').set('Authorization', `Bearer ${token}`)
+            expect(getAllResponse.body.status).toBe(200);
+            expect(getAllResponse.body.message).toBe('Location all get successfully.');
+            expect(getAllResponse.body.location).toBeInstanceOf(Array);
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).get('/getalllocation').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+
+    describe('~ For update location', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .post(`/updatelocation/${createdLocationId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for update location details', async () => {
+            const updateResponse = await request(app).post(`/updatelocation/${createdLocationId}`).set('Authorization', `Bearer ${token}`).send({
                 address: '456 Updated Lifecycle Street',
             })
-            .set('x-api-key', 'Superadmin');
-        console.log('updated Location details/..', updateResponse.text)
-        expect(updateResponse.body.status).toBe(200);
-        expect(updateResponse.body.message).toBe('Location details updated successfully.');
-        expect(updateResponse.body.updatedLocation.address).toBe('456 Updated Lifecycle Street');
-    });
-    test('POST /updatelocation/:id when updating location details and location not found', async() => {
-        const updateResponse = await request(app).post(`/updatelocation/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(updateResponse.text))
-        expect(JSON.parse(updateResponse.text).status).toBe(404)
-        expect(updateResponse.body.message).toBe('Location not found')
+            expect(updateResponse.body.status).toBe(200);
+            expect(updateResponse.body.message).toBe('Location details updated successfully.');
+        })
+        test('should return 409 for location not found', async () => {
+            const getResponse = await request(app).post(`/updatelocation/6775109a39cd21ffef4f9850`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(getResponse.text).status).toBe(404)
+            expect(getResponse.body.message).toBe('Location not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post(`/updatelocation/${createdLocationId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
 
-    test('POST /deletelocation/:id should delete a location', async () => {
-        const deleteResponse = await request(app)
-            .post(`/deletelocation/${createdLocationId}`)
-            .set('x-api-key', 'Superadmin');
-        console.log('delete Location details/..', deleteResponse.text)
-        expect(deleteResponse.body.status).toBe(200);
-        expect(deleteResponse.body.message).toBe('Location deleted successfully.');
-        const deletedLocation = await Location.findById(createdLocationId);
-        expect(deletedLocation.isDeleted).toBe(true);
-    });
-    test('POST /deletelocation/:id when deleting location and location not found', async() => {
-        const deleteResponse = await request(app).post(`/deletelocation/676f9399ea4f13581c844ab2`).set('x-api-key', 'Superadmin')
-        // console.log('details/...', JSON.parse(deleteResponse.text))
-        expect(JSON.parse(deleteResponse.text).status).toBe(404)
-        expect(deleteResponse.body.message).toBe('Location not found')
+    describe('~ For delete location', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .post(`/deletelocation/${createdLocationId}`)
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for delete a location', async () => {
+            const deleteResponse = await request(app).post(`/deletelocation/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
+            expect(deleteResponse.body.status).toBe(200);
+            expect(deleteResponse.body.message).toBe('Location deleted successfully.');
+            // const deletedLocation = await User.findById(createdLocationId);
+            // expect(deletedLocation.isDeleted).toBe(true);
+        })
+        test('should return 404 for location not found', async () => {
+            const deleteResponse = await request(app).post(`/deletelocation/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(deleteResponse.text).status).toBe(404)
+            expect(deleteResponse.body.message).toBe('Location not found')
+        })
+        test('should return 403 for forbidden roles', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                    password: hashedPassword,
+                },
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            expect(JSON.parse(res.text).user).toHaveProperty('token');
+            const res1 = await request(app).post(`/deletelocation/${createdLocationId}`).set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
     })
 });

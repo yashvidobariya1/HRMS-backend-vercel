@@ -2,7 +2,8 @@ const Company = require("../models/company")
 
 exports.addCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             let {
                 companyDetails,
                 employeeSettings,
@@ -28,7 +29,8 @@ exports.addCompany = async (req, res) => {
 
 exports.getCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
             if (!companyId || companyId == 'undefined' || companyId == 'null') {
                 return res.send({ status: 404, message: 'Company not found' })
@@ -52,13 +54,10 @@ exports.getCompany = async (req, res) => {
 
 exports.getAllCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
 
             const company = await Company.find({ isDeleted: { $ne: true } })
-
-            if (!company) {
-                return res.send({ status: 404, message: 'Company not found' })
-            }
 
             return res.send({ status: 200, message: 'Company all get successfully.', company })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -70,7 +69,8 @@ exports.getAllCompany = async (req, res) => {
 
 exports.updateCompanyDetails = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
 
             const company = await Company.findOne({
@@ -152,7 +152,8 @@ exports.updateCompanyDetails = async (req, res) => {
 
 exports.deleteCompany = async (req, res) => {
     try {
-        if(req.user.role == 'Superadmin') {
+        const allowedRoles = ['Superadmin'];
+        if (allowedRoles.includes(req.user.role)) {
             const companyId = req.params.id
 
             const company = await Company.findOne({
@@ -171,7 +172,7 @@ exports.deleteCompany = async (req, res) => {
                 }
             })
 
-            return res.send({ status: 404, message: 'Company deleted successfully.', deletedCompany })
+            return res.send({ status: 200, message: 'Company deleted successfully.', deletedCompany })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing company:", error);

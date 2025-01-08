@@ -20,9 +20,9 @@ exports.addEmployee = async (req, res) => {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
 
-            if(personalDetails && personalDetails.email){
+            if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
-                if(user){
+                if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
             }
@@ -51,12 +51,12 @@ exports.addEmployee = async (req, res) => {
                 console.log('documentDetails is not an array or is undefined');
             }
 
-            if(contractDetails.contractDocument){
+            if (contractDetails.contractDocument) {
                 const document = contractDetails.contractDocument
-                if(!document || typeof document !== 'string'){
+                if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if(/^[A-Za-z0-9+/=]+$/.test(document)){
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
                     if (document?.startsWith("JVBER")) {
                         contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
                     } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
@@ -134,8 +134,8 @@ exports.addEmployee = async (req, res) => {
 
                             <p>Best regards,<br>HRMS Team</p>
                         `,
-                    };                   
-                    
+                    };
+
                     await transporter.sendMail(mailOptions);
                     console.log('Email sent successfully');
                 } catch (error) {
@@ -171,8 +171,8 @@ exports.getEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'Employee not found' })
             }
 
-            if(employee.documentDetails){
-                for(let i=0; i<employee.documentDetails.length; i++){
+            if (employee.documentDetails) {
+                for (let i = 0; i < employee.documentDetails.length; i++) {
                     const doc = employee.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
@@ -190,11 +190,8 @@ exports.getAllEmployees = async (req, res) => {
     try {
         if (req.user.role == 'Superadmin' || req.user.role == 'Administrator' || req.user.role == 'Manager') {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
-            if (!employees) {
-                return res.send('Employees not found')
-            }
-            if(employees.documentDetails){
-                for(let i=0; i<employees.documentDetails.length; i++){
+            if (employees.documentDetails) {
+                for (let i = 0; i < employees.documentDetails.length; i++) {
                     const doc = employees.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
