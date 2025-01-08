@@ -628,7 +628,7 @@ exports.getOwnTimeSheet = async (req, res) => {
             if (timesheet) {
                 return res.send({ status: 200, message: 'Time sheet get successfully.', timesheet })
             } else {
-                return res.send({ status: 404, message: 'Record is not found!', timesheet: [] })
+                return res.send({ status: 404, message: 'Record is not found!', timesheet: {} })
             }
 
         } else return res.send({ status: 403, message: "Access denied" })
