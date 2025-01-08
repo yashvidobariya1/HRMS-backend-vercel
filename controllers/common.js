@@ -316,6 +316,7 @@ exports.addUser = async (req, res) => {
                 jobDetails,
                 immigrationDetails,
                 role: jobDetails?.role,
+                password: hashedPassword,
                 documentDetails,
                 contractDetails,
                 createdBy: req.user.role,
@@ -410,7 +411,7 @@ exports.getAllUsers = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
-            const users = await User.find()
+            const users = await User.find({ isDeleted: { $ne: true } })
             users.forEach((e) => {
                 if (e.documentDetails.length > 0) {
                     for (let i = 0; i < e.documentDetails.length; i++) {
@@ -453,7 +454,7 @@ exports.updateUserDetails = async (req, res) => {
                 contractDetails,
             } = req.body
 
-            if (personalDetails.email && employee.personalDetails.email != personalDetails.email) {
+            if (personalDetails.email && user.personalDetails.email != personalDetails.email) {
                 const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
                 if (existingEmail) {
                     return res.send({ status: 409, message: "Email already exists." });
@@ -650,7 +651,7 @@ exports.clockInFunc = async (req, res) => {
             }
 
             if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+                return res.send({ status: 400, message: "Location !" })
             }
 
             await User.updateOne(
@@ -689,15 +690,15 @@ exports.clockInFunc = async (req, res) => {
                 })
             }
 
-            const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
-            if (clockInsToday >= 2) {
-                return res.send({ status: 400, message: "You can only clock in two times per day." })
-            }
-
             const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
 
             if (lastClocking && !lastClocking.clockOut) {
                 return res.send({ status: 400, message: "Please clock out before clocking in again." })
+            }
+
+            const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
+            if (clockInsToday >= 2) {
+                return res.send({ status: 400, message: "You can only clock in two times per day." })
             }
 
             timesheet.clockingTime.push({
@@ -741,7 +742,7 @@ exports.clockOutFunc = async (req, res) => {
 
             const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
             if (!lastClocking || lastClocking.clockOut) {
-                return res.send({ status: 400, message: "No active clock-in to clock out from." })
+                return res.send({ status: 400, message: "You cannot clock-out without an active clock-in." })
             }
 
             lastClocking.clockOut = new Date()
@@ -798,6 +799,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             timesheet.isTimerOn = false
+
             await timesheet.save()
 
             return res.send({ status: 200, timesheet })

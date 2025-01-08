@@ -95,6 +95,7 @@ exports.addEmployee = async (req, res) => {
                 jobDetails,
                 immigrationDetails,
                 role: jobDetails?.role,
+                password: hashedPassword,
                 documentDetails,
                 contractDetails,
                 createdBy: req.user.role,

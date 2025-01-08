@@ -113,6 +113,7 @@ exports.addManager = async (req, res) => {
                 jobDetails,
                 immigrationDetails,
                 role: jobDetails?.role,
+                password: hashedPassword,
                 documentDetails,
                 contractDetails,
                 createdBy: req.user.role,
@@ -212,7 +213,7 @@ exports.updateManagerDetails = async (req, res) => {
                 contractDetails,
             } = req.body
 
-            if (personalDetails.email && employee.personalDetails.email != personalDetails.email) {
+            if (personalDetails.email && manager.personalDetails.email != personalDetails.email) {
                 const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
                 if (existingEmail) {
                     return res.send({ status: 409, message: "Email already exists." });
