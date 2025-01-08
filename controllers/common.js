@@ -204,7 +204,7 @@ exports.updatePassword = async (req, res) => {
 }
 
 exports.getDetails = async (req, res) => {
-    try {        
+    try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const userId = req.user._id
@@ -215,7 +215,7 @@ exports.getDetails = async (req, res) => {
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            return res.send({ status: 200, user})
+            return res.send({ status: 200, user })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
@@ -242,9 +242,9 @@ exports.addUser = async (req, res) => {
             //     return res.status(400).send({ message: "All sections of employee details are required." });
             // }
 
-            if(personalDetails && personalDetails.email){
+            if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
-                if(user){
+                if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
             }
@@ -273,12 +273,12 @@ exports.addUser = async (req, res) => {
                 console.log('documentDetails is not an array or is undefined');
             }
 
-            if(contractDetails.contractDocument){
+            if (contractDetails.contractDocument) {
                 const document = contractDetails.contractDocument
-                if(!document || typeof document !== 'string'){
+                if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if(/^[A-Za-z0-9+/=]+$/.test(document)){
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
                     if (document?.startsWith("JVBER")) {
                         contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
                     } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
@@ -354,8 +354,8 @@ exports.addUser = async (req, res) => {
 
                             <p>Best regards,<br>HRMS Team</p>
                         `,
-                    };                   
-                    
+                    };
+
                     await transporter.sendMail(mailOptions);
                     console.log('Email sent successfully');
                 } catch (error) {
@@ -392,8 +392,8 @@ exports.getUser = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if(user.documentDetails){
-                for(let i=0; i<user.documentDetails.length; i++){
+            if (user.documentDetails) {
+                for (let i = 0; i < user.documentDetails.length; i++) {
                     const doc = user.documentDetails[i];
                     doc.document = 'documentFile.pdf'
                 }
@@ -620,17 +620,17 @@ exports.getOwnTimeSheet = async (req, res) => {
                 _id: userId,
                 isDeleted: { $ne: true },
             })
-            if(!user) {
+            if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
             const currentDate = new Date().toISOString().slice(0, 10)
             const timesheet = await Timesheet.findOne({ userId, date: currentDate })
-            if(timesheet) {
-                return res.send({ status: 200, message: 'Time sheet get successfully.', timesheet})
+            if (timesheet) {
+                return res.send({ status: 200, message: 'Time sheet get successfully.', timesheet })
             } else {
                 return res.send({ status: 404, message: 'Record is not found!', timesheet: [] })
             }
-                            
+
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while getting time sheet:', error)
@@ -666,7 +666,7 @@ exports.clockInFunc = async (req, res) => {
             // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
 
             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-            
+
             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clocking ( getted location for clocking )
             const GEOFENCE_RADIUS = 1000 // meters
 
@@ -764,7 +764,7 @@ exports.clockOutFunc = async (req, res) => {
             const duration = formatDuration(clockInTime, clockOutTime)
             lastClocking.totalTiming = duration
 
-            if(timesheet.totalHours == '0h 0m 0s'){
+            if (timesheet.totalHours == '0h 0m 0s') {
                 timesheet.totalHours = duration
             } else {
                 const parseTime = (duration) => {

@@ -84,6 +84,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String
   },
+  password: String,
   lastKnownLocation: {
     latitude: String,
     longitude: String

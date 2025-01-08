@@ -48,8 +48,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'superadmin@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Superadmin'
             });
@@ -125,8 +125,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -173,8 +173,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -212,8 +212,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -272,8 +272,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -317,8 +317,8 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -349,8 +349,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'superadmin@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Superadmin'
             });
@@ -392,8 +392,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -440,8 +440,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -479,8 +479,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -524,8 +524,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });
@@ -569,8 +569,8 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             await User.create({
                 personalDetails: {
                     email: 'test123@example.com',
-                    password: hashedPassword,
                 },
+                password: hashedPassword,
                 isDeleted: false,
                 role: 'Employee'
             });

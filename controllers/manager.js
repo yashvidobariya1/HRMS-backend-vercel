@@ -18,7 +18,7 @@ exports.addManager = async (req, res) => {
             } = req.body
 
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
-            //     return res.status(400).send({ message: "All sections of employee details are required." });
+            //     return res.status(400).send({ message: "All sections of manager details are required." });
             // }
 
             if (personalDetails && personalDetails.email) {
@@ -87,7 +87,7 @@ exports.addManager = async (req, res) => {
                             <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
                         </ul>
     
-                        <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                        <p>Please ensure the manager logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
     
                         <ul>
                             <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
