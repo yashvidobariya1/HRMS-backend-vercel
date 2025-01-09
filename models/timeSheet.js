@@ -12,7 +12,7 @@ const TimesheetSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
-        clockingTime: [{
+        clockinTime: [{
             clockIn: Date,
             clockOut: {
                 type: Date,
@@ -22,7 +22,7 @@ const TimesheetSchema = new mongoose.Schema(
                 type: String,
                 default: 0
             },
-            isClocking: {
+            isClockin: {
                 type: Boolean,
                 default: false
             }
@@ -39,8 +39,8 @@ const TimesheetSchema = new mongoose.Schema(
         timestamps: true,
         toJSON: {
             transform: (doc, ret) => {
-                if (ret.clockingTime) {
-                    ret.clockingTime.forEach(entry => {
+                if (ret.clockinTime) {
+                    ret.clockinTime.forEach(entry => {
                         if (entry.clockOut === null) {
                             entry.clockOut = "";
                         }

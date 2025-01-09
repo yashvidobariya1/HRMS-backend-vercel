@@ -667,7 +667,7 @@ exports.clockInFunc = async (req, res) => {
 
             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
 
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clocking ( getted location for clocking )
+            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
             const GEOFENCE_RADIUS = 1000 // meters
 
             if (!geolib.isPointWithinRadius(
@@ -685,26 +685,26 @@ exports.clockInFunc = async (req, res) => {
                 timesheet = new Timesheet({
                     userId,
                     date: currentDate,
-                    clockingTime: [],
+                    clockinTime: [],
                     totalHours: '0h 0m 0s'
                 })
             }
 
-            const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
 
-            if (lastClocking && !lastClocking.clockOut) {
-                return res.send({ status: 400, message: "Please clock out before clocking in again." })
+            if (lastClockin && !lastClockin.clockOut) {
+                return res.send({ status: 400, message: "Please clock out before clockin again." })
             }
 
-            const clockInsToday = timesheet.clockingTime.filter(entry => entry.clockIn).length
+            const clockInsToday = timesheet.clockinTime.filter(entry => entry.clockIn).length
             if (clockInsToday >= 2) {
-                return res.send({ status: 400, message: "You can only clock in two times per day." })
+                return res.send({ status: 400, message: "You can only clock-in twice in a day." })
             }
 
-            timesheet.clockingTime.push({
+            timesheet.clockinTime.push({
                 clockIn: new Date(),
                 clockOut: "",
-                isClocking: true
+                isClockin: true
             })
 
             timesheet.isTimerOn = true
@@ -740,16 +740,16 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 404, message: "No timesheet found for today." })
             }
 
-            const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
-            if (!lastClocking || lastClocking.clockOut) {
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+            if (!lastClockin || lastClockin.clockOut) {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClocking.clockOut = new Date()
-            lastClocking.isClocking = false
+            lastClockin.clockOut = new Date()
+            lastClockin.isClockin = false
 
-            const clockInTime = new Date(lastClocking.clockIn)
-            const clockOutTime = new Date(lastClocking.clockOut)
+            const clockInTime = new Date(lastClockin.clockIn)
+            const clockOutTime = new Date(lastClockin.clockOut)
 
             const formatDuration = (clockInTime, clockOutTime) => {
                 let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
@@ -762,7 +762,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             const duration = formatDuration(clockInTime, clockOutTime)
-            lastClocking.totalTiming = duration
+            lastClockin.totalTiming = duration
 
             if (timesheet.totalHours == '0h 0m 0s') {
                 timesheet.totalHours = duration
