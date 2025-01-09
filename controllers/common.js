@@ -651,7 +651,7 @@ exports.clockInFunc = async (req, res) => {
             }
 
             if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Location !" })
+                return res.send({ status: 400, message: "Location coordinator data is not found!" })
             }
 
             await User.updateOne(
@@ -742,7 +742,7 @@ exports.clockOutFunc = async (req, res) => {
 
             const lastClocking = timesheet.clockingTime[timesheet.clockingTime.length - 1]
             if (!lastClocking || lastClocking.clockOut) {
-                return res.send({ status: 400, message: "You cannot clock-out without an active clock-in." })
+                return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
             lastClocking.clockOut = new Date()

@@ -941,7 +941,7 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
                 .send({ userId })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(400);
-            expect(JSON.parse(res.text).message).toBe('Something went wrong, Please try again!');
+            expect(JSON.parse(res.text).message).toBe('Location coordinator data is not found!');
         })
         test('should return 403 for outside the geofenc area', async () => {
             const res = await request(app)
@@ -1145,13 +1145,13 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(resclockout.text).status).toBe(200);
         })
-        test('should return 400 for No active clock-in to clock out from.', async () => {
+        test('should return 400 for not clock-out without an active clock-in.', async () => {
             const res = await request(app)
                 .post('/clockout')
                 .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(400);
-            expect(JSON.parse(res.text).message).toBe('No active clock-in to clock out from.');
+            expect(JSON.parse(res.text).message).toBe("You can't clock-out without an active clock-in.");
         })
         test('should return 403 for Access denied for unauthorized role', async () => {
             const hashedPassword = await bcrypt.hash('Abcd@1234', 10);
