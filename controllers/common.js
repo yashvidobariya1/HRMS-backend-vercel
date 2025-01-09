@@ -308,7 +308,7 @@ exports.addUser = async (req, res) => {
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
 
-            const newEmployee = {
+            const newUser = {
                 personalDetails,
                 addressDetails,
                 kinDetails,
@@ -326,12 +326,12 @@ exports.addUser = async (req, res) => {
                 try {
                     let mailOptions = {
                         from: process.env.NODEMAILER_EMAIL,
-                        to: newEmployee.personalDetails.email,
+                        to: newUser.personalDetails.email,
                         subject: "Welcome to [Company Name]'s HRMS Portal",
                         html: `
                             <p>Welcome to HRMS Portal!</p>
 
-                            <p>We are pleased to inform you that a new employee account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+                            <p>We are pleased to inform you that a new ${jobDetails.role} account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
 
                             <ul>
                                 <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
@@ -340,7 +340,7 @@ exports.addUser = async (req, res) => {
                                 <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
                             </ul>
 
-                            <p>Please ensure the employee logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                            <p>Please ensure the ${jobDetails.role} logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
                             <ul>
                                 <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
