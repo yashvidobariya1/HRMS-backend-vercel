@@ -375,7 +375,7 @@
 //         //     Timesheet.create({
 //         //         userId,
 //         //         date: 'YYYY-MM-DD',
-//         //         clockingTime: []
+//         //         clockinTime: []
 //         //     })
 //         //     const res = await request(app)
 //         //     .post('/clockin')
@@ -383,7 +383,7 @@
 //         //     .set('x-api-key', 'Employee' || 'Manager')
 //         //     console.log('res.text/....====>>>>>>>>', res.text)            
 //         //     expect(JSON.parse(res.text).status).toBe(400);
-//         //     expect(JSON.parse(res.text).message).toBe('Please clock out before clocking in again.')
+//         //     expect(JSON.parse(res.text).message).toBe('Please clock out before clockin in again.')
 //         // })
 //     })
 //     describe('ClockOut', () => {
@@ -951,7 +951,7 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             expect(JSON.parse(res.text).status).toBe(403);
             expect(JSON.parse(res.text).message).toBe('You are outside the geofence area.');
         })
-        // test('should return 400 for You can only clock in two times per day', async () => {
+        // test('should return 400 for You can only clock-in twice in a day', async () => {
         //     const hashedPassword = await bcrypt.hash('Rishi@1234', 10);
         //     const user = await User.create({
         //         personalDetails: {
@@ -994,20 +994,20 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
         //         .set('Authorization', `Bearer ${token}`);
 
         //     expect(JSON.parse(res.text).status).toBe(400);
-        //     expect(JSON.parse(res.text).message).toBe('You can only clock in two times per day.');
+        //     expect(JSON.parse(res.text).message).toBe('You can only clock-in twice in a day.');
         // });
         test('should return 400 for clockIn before clockOut', async () => {
             Timesheet.create({
                 userId,
                 date: 'YYYY-MM-DD',
-                clockingTime: []
+                clockinTime: []
             })
             const res = await request(app)
                 .post('/clockin')
                 .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
                 .set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(400);
-            expect(JSON.parse(res.text).message).toBe('Please clock out before clocking in again.')
+            expect(JSON.parse(res.text).message).toBe('Please clock out before clockin again.')
         })
         test('should return 403 for Access denied', async () => {
             const hashedPassword = await bcrypt.hash('Abcd@1234', 10);
