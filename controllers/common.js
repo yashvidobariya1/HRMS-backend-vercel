@@ -239,7 +239,7 @@ exports.addUser = async (req, res) => {
             } = req.body
 
             // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
-            //     return res.status(400).send({ message: "All sections of employee details are required." });
+            //     return res.status(400).send({ message: "All sections of user details are required." });
             // }
 
             if (personalDetails && personalDetails.email) {
@@ -362,8 +362,8 @@ exports.addUser = async (req, res) => {
                     console.log('Error occurred:', error);
                 }
             }
-            // console.log('new employee', newEmployee)
-            const user = await User.create(newEmployee)
+            // console.log('new user', newUser)
+            const user = await User.create(newUser)
 
             return res.send({ status: 200, message: `${jobDetails.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -380,7 +380,7 @@ exports.getUser = async (req, res) => {
             const userId = req.params.id
 
             if (!userId || userId == 'undefined' || userId == 'null') {
-                return res.send({ status: 404, message: 'Employee not found' })
+                return res.send({ status: 404, message: 'User not found' })
             }
 
             const user = await User.findOne({
