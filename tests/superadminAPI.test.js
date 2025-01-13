@@ -205,7 +205,7 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
             const getAllResponse = await request(app).get('/getallcompany').set('Authorization', `Bearer ${token}`)
             expect(getAllResponse.body.status).toBe(200);
             expect(getAllResponse.body.message).toBe('Company all get successfully.');
-            expect(getAllResponse.body.company).toBeInstanceOf(Array);
+            expect(getAllResponse.body.companys).toBeInstanceOf(Array);
         })
         test('should return 403 for forbidden roles', async () => {
             const hashedPassword = await bcrypt.hash('Test@123', 10);
@@ -472,7 +472,7 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             const getAllResponse = await request(app).get('/getalllocation').set('Authorization', `Bearer ${token}`)
             expect(getAllResponse.body.status).toBe(200);
             expect(getAllResponse.body.message).toBe('Location all get successfully.');
-            expect(getAllResponse.body.location).toBeInstanceOf(Array);
+            expect(getAllResponse.body.locations).toBeInstanceOf(Array);
         })
         test('should return 403 for forbidden roles', async () => {
             const hashedPassword = await bcrypt.hash('Test@123', 10);
