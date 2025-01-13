@@ -4,7 +4,10 @@ const locationSchema = new mongoose.Schema({
     isDeleted: {
         type: Boolean, default: false
     },
-    companyName: String,
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company'
+    },
     payeReferenceNumber: String,
     locationName: String,
     address: String,

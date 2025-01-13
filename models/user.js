@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
     payrollFrequency: String,
     pension: String,
   },
-  jobDetails: {
+  jobDetails: [{
     jobTitle: String,
     jobDescription: String,
     annualSalary: Number,
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema({
     location: String,
     assignManager: String,
     role: String
-  },
+  }],
   immigrationDetails: {
     passportNumber: String,
     countryOfIssue: String,
@@ -83,6 +83,14 @@ const userSchema = new mongoose.Schema({
   password: String,
   role: {
     type: String
+  },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company'
+  },
+  locationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Location'
   },
   password: String,
   lastKnownLocation: {

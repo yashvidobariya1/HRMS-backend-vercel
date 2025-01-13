@@ -4,9 +4,13 @@ const TimesheetSchema = new mongoose.Schema(
     {
         userId: {
             type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         },
         date: {
             type: String,
+        },
+        userRole: {
+            type: String
         },
         isTimerOn: {
             type: Boolean,
@@ -15,8 +19,7 @@ const TimesheetSchema = new mongoose.Schema(
         clockinTime: [{
             clockIn: Date,
             clockOut: {
-                type: Date,
-                // default: ""
+                type: Date
             },
             totalTiming: {
                 type: String,

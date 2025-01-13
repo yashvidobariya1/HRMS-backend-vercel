@@ -57,9 +57,9 @@ exports.getAllCompany = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const company = await Company.find({ isDeleted: { $ne: true } })
+            const companys = await Company.find({ isDeleted: { $ne: true } })
 
-            return res.send({ status: 200, message: 'Company all get successfully.', company })
+            return res.send({ status: 200, message: 'Company all get successfully.', companys })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting companies:", error);
@@ -88,54 +88,13 @@ exports.updateCompanyDetails = async (req, res) => {
                 contractDetails
             } = req.body
 
-            const updatedCompanyDetails = {
-                companyCode: companyDetails?.companyCode,
-                businessName: companyDetails?.businessName,
-                companyLogo: companyDetails?.companyLogo,
-                companyRegistrationNumber: companyDetails?.companyRegistrationNumber,
-                payeReferenceNumber: companyDetails?.payeReferenceNumber,
-                address: companyDetails?.address,
-                addressLine2: companyDetails?.addressLine2,
-                city: companyDetails?.city,
-                postCode: companyDetails?.postCode,
-                country: companyDetails?.country,
-                timeZone: companyDetails?.timeZone,
-                contactPersonFirstname: companyDetails?.contactPersonFirstname,
-                contactPersonMiddlename: companyDetails?.contactPersonMiddlename,
-                contactPersonLastname: companyDetails?.contactPersonLastname,
-                contactPersonEmail: companyDetails?.contactPersonEmail,
-                contactPhone: companyDetails?.contactPhone,
-                adminToReceiveNotification: companyDetails?.adminToReceiveNotification,
-                additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance,
-                pensionProvider: companyDetails?.pensionProvider,
-            }
-
-            const updatedEmployeeSettinf = {
-                payrollFrequency: employeeSettings?.payrollFrequency,
-                immigrationReminderDay1st: employeeSettings?.immigrationReminderDay1st,
-                immigrationReminderDay2nd: employeeSettings?.immigrationReminderDay2nd,
-                immigrationReminderDay3rd: employeeSettings?.immigrationReminderDay3rd,
-                holidayYear: employeeSettings?.holidayYear,
-                noticePeriodDays: employeeSettings?.noticePeriodDays,
-                contactConfirmationDays: employeeSettings?.contactConfirmationDays,
-                rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder,
-                holidaysExcludingBank: employeeSettings?.holidaysExcludingBank,
-                sickLeaves: employeeSettings?.sickLeaves,
-            }
-
-            const updateContractDetails = {
-                startDate: contractDetails?.startDate,
-                endDate: contractDetails?.endDate,
-                maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed,
-            }
-
             let updatedCompany = await Company.findByIdAndUpdate(
                 { _id: companyId },
                 {
                     $set: {
-                        companyDetails: updatedCompanyDetails,
-                        employeeSettings: updatedEmployeeSettinf,
-                        contractDetails: updateContractDetails,
+                        companyDetails,
+                        employeeSettings,
+                        contractDetails,
                         updatedAt: new Date()
                     }
                 }, { new: true }

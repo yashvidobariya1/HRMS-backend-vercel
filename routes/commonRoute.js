@@ -1,6 +1,7 @@
 const Router = require('express')
-const { login, updatePassword, emailVerification, otpVerification, forgotPassword, clockInFunc, clockOutFunc, getDetails, getOwnTimeSheet, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails } = require('../controllers/common')
 const { auth } = require('../middleware/authenticate')
+const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails } = require('../controllers/common')
+const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear } = require('../controllers/timeSheet')
 
 const commonRoute = Router()
 
@@ -17,11 +18,15 @@ commonRoute.get('/getallusers', auth, getAllUsers)
 commonRoute.post('/updateuser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteuser/:id', auth, deleteUserDetails)
 
-commonRoute.get('/getowntimesheet', auth, getOwnTimeSheet)
+commonRoute.get('/getowntimesheet', auth, getOwnTodaysTimeSheet)
+commonRoute.get('/getown-allTimesheet', auth, getOwnAllTimeSheets)
 commonRoute.post('/clockin', auth, clockInFunc)
 commonRoute.post('/clockout', auth, clockOutFunc)
 
 // get own details
 commonRoute.get('/getdetails', auth, getDetails)
+
+// get attendence by month and year
+commonRoute.get('/get-attendances', auth, getTimesheetByMonthAndYear)
 
 module.exports = commonRoute

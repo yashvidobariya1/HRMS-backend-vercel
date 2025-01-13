@@ -12,14 +12,12 @@ exports.addEmployee = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
+                companyId,
+                locationId,
                 immigrationDetails,
                 documentDetails,
                 contractDetails
             } = req.body
-
-            // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
-            //     return res.status(400).send({ message: "All sections of employee details are required." });
-            // }
 
             if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
@@ -44,15 +42,11 @@ exports.addEmployee = async (req, res) => {
                         } else {
                             documentDetails[i].document = `data:text/plain;base64,${document}`;
                         }
-                    } else {
-                        console.log(`Invalid Base64 string for item ${i}`);
                     }
                 }
-            } else {
-                console.log('documentDetails is not an array or is undefined');
             }
 
-            if (contractDetails.contractDocument) {
+            if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
@@ -66,8 +60,6 @@ exports.addEmployee = async (req, res) => {
                     } else {
                         contractDetails.contractDocument = `data:text/plain;base64,${document}`;
                     }
-                } else {
-                    console.log('Invalid Base64 string for contract document')
                 }
             }
 
@@ -93,8 +85,10 @@ exports.addEmployee = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
+                companyId,
+                locationId,
                 immigrationDetails,
-                role: jobDetails?.role,
+                role: jobDetails[0]?.role,
                 password: hashedPassword,
                 documentDetails,
                 contractDetails,
@@ -238,79 +232,6 @@ exports.updateEmployee = async (req, res) => {
                 }
             }
 
-            const updatedPersonalDetails = {
-                firstName: personalDetails?.firstName,
-                middleName: personalDetails?.middleName,
-                lastName: personalDetails?.lastName,
-                dateOfBirth: personalDetails?.dateOfBirth,
-                gender: personalDetails?.gender,
-                maritalStatus: personalDetails?.maritalStatus,
-                phone: personalDetails?.phone,
-                homeTelephone: personalDetails?.homeTelephone,
-                email: personalDetails?.email,
-                niNumber: personalDetails?.niNumber,
-                sendRegistrationLink: personalDetails?.sendRegistrationLink
-            }
-
-            const updatedAddressDetails = {
-                address: addressDetails?.address,
-                addressLine2: addressDetails?.addressLine2,
-                city: addressDetails?.city,
-                postCode: addressDetails?.postCode,
-            }
-
-            const updatedKinDetails = {
-                kinName: kinDetails?.kinName,
-                relationshipToYou: kinDetails?.relationshipToYou,
-                address: kinDetails?.address,
-                postCode: kinDetails?.postCode,
-                emergencyContactNumber: kinDetails?.emergencyContactNumber,
-                email: kinDetails?.email,
-            }
-
-            const updatedFinancialDetails = {
-                bankName: financialDetails?.bankName,
-                holderName: financialDetails?.holderName,
-                sortCode: financialDetails?.sortCode,
-                accountNumber: financialDetails?.accountNumber,
-                payrollFrequency: financialDetails?.payrollFrequency,
-                pension: financialDetails?.pension,
-            }
-
-            const updatedJobDetails = {
-                jobTitle: jobDetails?.jobTitle,
-                jobDescription: jobDetails?.jobDescription,
-                annualSalary: jobDetails?.annualSalary,
-                hourlyRate: jobDetails?.hourlyRate,
-                weeklyWorkingHours: jobDetails?.weeklyWorkingHours,
-                weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern,
-                weeklySalary: jobDetails?.weeklySalary,
-                joiningDate: jobDetails?.joiningDate,
-                socCode: jobDetails?.socCode,
-                modeOfTransfer: jobDetails?.modeOfTransfer,
-                sickLeavesAllow: jobDetails?.sickLeavesAllow,
-                leavesAllow: jobDetails?.leavesAllow,
-                location: jobDetails?.location,
-                assignManager: jobDetails?.assignManager,
-                role: jobDetails?.role,
-            }
-
-            const updatedImmigrationDetails = {
-                passportNumber: immigrationDetails?.passportNumber,
-                countryOfIssue: immigrationDetails?.countryOfIssue,
-                passportExpiry: immigrationDetails?.passportExpiry,
-                nationality: immigrationDetails?.nationality,
-                visaCategory: immigrationDetails?.visaCategory,
-                visaValidFrom: immigrationDetails?.visaValidFrom,
-                visaValidTo: immigrationDetails?.visaValidTo,
-                brpNumber: immigrationDetails?.brpNumber,
-                cosNumber: immigrationDetails?.cosNumber,
-                restriction: immigrationDetails?.restriction,
-                shareCode: immigrationDetails?.shareCode,
-                rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
-                rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
-            }
-
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -327,8 +248,23 @@ exports.updateEmployee = async (req, res) => {
                         } else {
                             documentDetails[i].document = `data:text/plain;base64,${document}`;
                         }
+                    }
+                }
+            }
+
+            if (contractDetails && Array.isArray(contractDetails)) {
+                const document = contractDetails.contractDocument
+                if (!document || typeof document !== 'string') {
+                    console.log('Invalid or missing contract document')
+                }
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                    if (document?.startsWith("JVBER")) {
+                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
+                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
                     } else {
-                        console.log(`Invalid Base64 string for item ${i}`);
+                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
                     }
                 }
             }
@@ -337,12 +273,12 @@ exports.updateEmployee = async (req, res) => {
                 { _id: employeeId },
                 {
                     $set: {
-                        personalDetails: updatedPersonalDetails,
-                        addressDetails: updatedAddressDetails,
-                        kinDetails: updatedKinDetails,
-                        financialDetails: updatedFinancialDetails,
-                        jobDetails: updatedJobDetails,
-                        immigrationDetails: updatedImmigrationDetails,
+                        personalDetails,
+                        addressDetails,
+                        kinDetails,
+                        financialDetails,
+                        jobDetails,
+                        immigrationDetails,
                         documentDetails,
                         contractDetails,
                         updatedAt: new Date()

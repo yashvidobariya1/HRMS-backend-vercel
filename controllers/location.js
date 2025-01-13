@@ -6,6 +6,7 @@ exports.addLocation = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const newLocation = {
                 companyName: req.body.companyName,
+                companyId: req.body.companyId,
                 payeReferenceNumber: req.body.payeReferenceNumber,
                 locationName: req.body.locationName,
                 address: req.body.address,
@@ -57,17 +58,43 @@ exports.getAllLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const location = await Location.find({ isDeleted: { $ne: true } })
+            const locations = await Location.find({ isDeleted: { $ne: true } })
 
-            if (!location) {
-                return res.send({ status: 404, message: 'Location not found' })
+            if (!locations) {
+                return res.send({ status: 404, message: 'Locations not found' })
             }
 
-            return res.send({ status: 200, message: 'Location all get successfully.', location })
+            return res.send({ status: 200, message: 'Location all get successfully.', locations })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting locations:", error);
         res.send({ message: "Something went wrong while getting locations!" })
+    }
+}
+
+exports.getCompanyLocations = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administartor', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const companyId = req.params.id
+            const locations = await Location.find({ companyId: companyId })
+            if(!locations){
+                res.send({ status: 404, message: 'Location not found' })
+            }
+
+            let allLocation = []
+            locations.forEach((loc) => {
+                allLocation.push({
+                    _id: loc._id,
+                    locationName: loc.locationName,
+                })
+            })
+
+            return res.send({ status:200, message: 'Location getted successfully.', allLocation })
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error("Error occurred while getting location:", error);
+        res.send({ message: "Something went wrong while getting location!" })
     }
 }
 
