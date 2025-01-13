@@ -17,7 +17,6 @@ const administratorRoute = require('./routes/administratorRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const commonRoute = require('./routes/commonRoute');
 
-// app.use(auth)
 app.use(managerRoute)
 app.use(superAdminRoute)
 app.use(administratorRoute)

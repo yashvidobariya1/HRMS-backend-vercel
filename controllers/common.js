@@ -1,7 +1,5 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-const geolib = require('geolib')
-const Timesheet = require("../models/timeSheet");
 const { transporter } = require("../utils/nodeMailer");
 
 exports.login = async (req, res) => {
@@ -233,14 +231,12 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
+                companyId,
+                locationId,
                 immigrationDetails,
                 documentDetails,
                 contractDetails
             } = req.body
-
-            // if (!personalDetails || !addressDetails || !jobDetails || !immigrationDetails) {
-            //     return res.status(400).send({ message: "All sections of user details are required." });
-            // }
 
             if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
@@ -265,15 +261,11 @@ exports.addUser = async (req, res) => {
                         } else {
                             documentDetails[i].document = `data:text/plain;base64,${document}`;
                         }
-                    } else {
-                        console.log(`Invalid Base64 string for item ${i}`);
                     }
                 }
-            } else {
-                console.log('documentDetails is not an array or is undefined');
             }
 
-            if (contractDetails.contractDocument) {
+            if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
@@ -287,8 +279,6 @@ exports.addUser = async (req, res) => {
                     } else {
                         contractDetails.contractDocument = `data:text/plain;base64,${document}`;
                     }
-                } else {
-                    console.log('Invalid Base64 string for contract document')
                 }
             }
 
@@ -314,8 +304,10 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
+                companyId,
+                locationId,
                 immigrationDetails,
-                role: jobDetails?.role,
+                role: jobDetails[0]?.role,
                 password: hashedPassword,
                 documentDetails,
                 contractDetails,
@@ -461,79 +453,6 @@ exports.updateUserDetails = async (req, res) => {
                 }
             }
 
-            const updatedPersonalDetails = {
-                firstName: personalDetails?.firstName,
-                middleName: personalDetails?.middleName,
-                lastName: personalDetails?.lastName,
-                dateOfBirth: personalDetails?.dateOfBirth,
-                gender: personalDetails?.gender,
-                maritalStatus: personalDetails?.maritalStatus,
-                phone: personalDetails?.phone,
-                homeTelephone: personalDetails?.homeTelephone,
-                email: personalDetails?.email,
-                niNumber: personalDetails?.niNumber,
-                sendRegistrationLink: personalDetails?.sendRegistrationLink
-            }
-
-            const updatedAddressDetails = {
-                address: addressDetails?.address,
-                addressLine2: addressDetails?.addressLine2,
-                city: addressDetails?.city,
-                postCode: addressDetails?.postCode,
-            }
-
-            const updatedKinDetails = {
-                kinName: kinDetails?.kinName,
-                relationshipToYou: kinDetails?.relationshipToYou,
-                address: kinDetails?.address,
-                postCode: kinDetails?.postCode,
-                emergencyContactNumber: kinDetails?.emergencyContactNumber,
-                email: kinDetails?.email,
-            }
-
-            const updatedFinancialDetails = {
-                bankName: financialDetails?.bankName,
-                holderName: financialDetails?.holderName,
-                sortCode: financialDetails?.sortCode,
-                accountNumber: financialDetails?.accountNumber,
-                payrollFrequency: financialDetails?.payrollFrequency,
-                pension: financialDetails?.pension,
-            }
-
-            const updatedJobDetails = {
-                jobTitle: jobDetails?.jobTitle,
-                jobDescription: jobDetails?.jobDescription,
-                annualSalary: jobDetails?.annualSalary,
-                hourlyRate: jobDetails?.hourlyRate,
-                weeklyWorkingHours: jobDetails?.weeklyWorkingHours,
-                weeklyWorkingHoursPattern: jobDetails?.weeklyWorkingHoursPattern,
-                weeklySalary: jobDetails?.weeklySalary,
-                joiningDate: jobDetails?.joiningDate,
-                socCode: jobDetails?.socCode,
-                modeOfTransfer: jobDetails?.modeOfTransfer,
-                sickLeavesAllow: jobDetails?.sickLeavesAllow,
-                leavesAllow: jobDetails?.leavesAllow,
-                location: jobDetails?.location,
-                assignManager: jobDetails?.assignManager,
-                role: jobDetails?.role,
-            }
-
-            const updatedImmigrationDetails = {
-                passportNumber: immigrationDetails?.passportNumber,
-                countryOfIssue: immigrationDetails?.countryOfIssue,
-                passportExpiry: immigrationDetails?.passportExpiry,
-                nationality: immigrationDetails?.nationality,
-                visaCategory: immigrationDetails?.visaCategory,
-                visaValidFrom: immigrationDetails?.visaValidFrom,
-                visaValidTo: immigrationDetails?.visaValidTo,
-                brpNumber: immigrationDetails?.brpNumber,
-                cosNumber: immigrationDetails?.cosNumber,
-                restriction: immigrationDetails?.restriction,
-                shareCode: immigrationDetails?.shareCode,
-                rightToWorkCheckDate: immigrationDetails?.rightToWorkCheckDate,
-                rightToWorkEndDate: immigrationDetails?.rightToWorkEndDate,
-            }
-
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -550,8 +469,23 @@ exports.updateUserDetails = async (req, res) => {
                         } else {
                             documentDetails[i].document = `data:text/plain;base64,${document}`;
                         }
+                    }
+                }
+            }
+
+            if (contractDetails && Array.isArray(contractDetails)) {
+                const document = contractDetails.contractDocument
+                if (!document || typeof document !== 'string') {
+                    console.log('Invalid or missing contract document')
+                }
+                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
+                    if (document?.startsWith("JVBER")) {
+                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
+                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
+                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
                     } else {
-                        console.log(`Invalid Base64 string for item ${i}`);
+                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
                     }
                 }
             }
@@ -560,12 +494,12 @@ exports.updateUserDetails = async (req, res) => {
                 { _id: userId },
                 {
                     $set: {
-                        personalDetails: updatedPersonalDetails,
-                        addressDetails: updatedAddressDetails,
-                        kinDetails: updatedKinDetails,
-                        financialDetails: updatedFinancialDetails,
-                        jobDetails: updatedJobDetails,
-                        immigrationDetails: updatedImmigrationDetails,
+                        personalDetails,
+                        addressDetails,
+                        kinDetails,
+                        financialDetails,
+                        jobDetails,
+                        immigrationDetails,
                         documentDetails,
                         contractDetails,
                         updatedAt: new Date()
@@ -608,204 +542,5 @@ exports.deleteUserDetails = async (req, res) => {
     } catch (error) {
         console.error("Error occurred while removing user:", error);
         res.send({ message: "Something went wrong while removing user!" })
-    }
-}
-
-exports.getOwnTimeSheet = async (req, res) => {
-    try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
-        if (allowedRoles.includes(req.user.role)) {
-            const userId = req.user._id
-            const user = await User.findOne({
-                _id: userId,
-                isDeleted: { $ne: true },
-            })
-            if (!user) {
-                return res.send({ status: 404, message: 'User not found' })
-            }
-            const currentDate = new Date().toISOString().slice(0, 10)
-            const timesheet = await Timesheet.findOne({ userId, date: currentDate })
-            if (timesheet) {
-                return res.send({ status: 200, message: 'Time sheet get successfully.', timesheet })
-            } else {
-                return res.send({ status: 404, message: 'Record is not found!', timesheet: {} })
-            }
-
-        } else return res.send({ status: 403, message: "Access denied" })
-    } catch (error) {
-        console.error('Error occurred while getting time sheet:', error)
-        res.send({ message: "Something went wrong while getting time sheet!" })
-    }
-}
-
-exports.clockInFunc = async (req, res) => {
-    try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
-        if (allowedRoles.includes(req.user.role)) {
-            // console.log('req.user.role/...', req.user.role)
-            const { userId, location } = req.body
-
-            const existUser = await User.findById(userId)
-            if (!existUser) {
-                return res.send({ status: 404, message: "User not found" })
-            }
-
-            if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Location coordinator data is not found!" })
-            }
-
-            await User.updateOne(
-                { _id: existUser._id },
-                { $set: { lastKnownLocation: location } }
-            )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 1000 // meters
-
-            if (!geolib.isPointWithinRadius(
-                { latitude: location.latitude, longitude: location.longitude },
-                GEOFENCE_CENTER,
-                GEOFENCE_RADIUS
-            )) {
-                return res.send({ status: 403, message: 'You are outside the geofence area.' })
-            }
-
-            const currentDate = new Date().toISOString().slice(0, 10)
-            let timesheet = await Timesheet.findOne({ userId, date: currentDate })
-
-            if (!timesheet) {
-                timesheet = new Timesheet({
-                    userId,
-                    date: currentDate,
-                    clockinTime: [],
-                    totalHours: '0h 0m 0s'
-                })
-            }
-
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
-
-            if (lastClockin && !lastClockin.clockOut) {
-                return res.send({ status: 400, message: "Please clock out before clockin again." })
-            }
-
-            const clockInsToday = timesheet.clockinTime.filter(entry => entry.clockIn).length
-            if (clockInsToday >= 2) {
-                return res.send({ status: 400, message: "You can only clock-in twice in a day." })
-            }
-
-            timesheet.clockinTime.push({
-                clockIn: new Date(),
-                clockOut: "",
-                isClockin: true
-            })
-
-            timesheet.isTimerOn = true
-            await timesheet.save()
-
-            return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Access denied" })
-    } catch (error) {
-        console.error("Error occurred while clock in:", error);
-        res.send({ message: "Something went wrong while clock in!" })
-    }
-}
-
-exports.clockOutFunc = async (req, res) => {
-    try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
-        if (allowedRoles.includes(req.user.role)) {
-            const { userId, location } = req.body
-
-            const existUser = await User.findById(userId)
-            if (!existUser) {
-                return res.send({ status: 404, message: "User not found" })
-            }
-
-            if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Something went wrong, Please try again!" })
-            }
-
-            const currentDate = new Date().toISOString().slice(0, 10);
-            const timesheet = await Timesheet.findOne({ userId, date: currentDate })
-
-            if (!timesheet) {
-                return res.send({ status: 404, message: "No timesheet found for today." })
-            }
-
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
-            if (!lastClockin || lastClockin.clockOut) {
-                return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
-            }
-
-            lastClockin.clockOut = new Date()
-            lastClockin.isClockin = false
-
-            const clockInTime = new Date(lastClockin.clockIn)
-            const clockOutTime = new Date(lastClockin.clockOut)
-
-            const formatDuration = (clockInTime, clockOutTime) => {
-                let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
-                const hours = Math.floor(diffInSeconds / 3600)
-                diffInSeconds %= 3600
-                const minutes = Math.floor(diffInSeconds / 60)
-                const seconds = diffInSeconds % 60
-
-                return `${hours}h ${minutes}m ${seconds}s`
-            }
-
-            const duration = formatDuration(clockInTime, clockOutTime)
-            lastClockin.totalTiming = duration
-
-            if (timesheet.totalHours == '0h 0m 0s') {
-                timesheet.totalHours = duration
-            } else {
-                const parseTime = (duration) => {
-                    const regex = /(\d+)h|(\d+)m|(\d+)s/g
-                    let hours = 0, minutes = 0, seconds = 0
-                    let match
-
-                    while ((match = regex.exec(duration)) !== null) {
-                        if (match[1]) hours = parseInt(match[1], 10)
-                        if (match[2]) minutes = parseInt(match[2], 10)
-                        if (match[3]) seconds = parseInt(match[3], 10)
-                    }
-
-                    return { hours, minutes, seconds }
-                }
-                const addDurations = (duration1, duration2) => {
-                    const time1 = parseTime(duration1)
-                    const time2 = parseTime(duration2)
-
-                    let totalSeconds = time1.seconds + time2.seconds
-                    let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
-                    let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
-
-                    totalSeconds %= 60
-                    totalMinutes %= 60
-
-                    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
-                }
-
-                const result = addDurations(timesheet.totalHours, duration)
-                timesheet.totalHours = result
-            }
-
-            timesheet.isTimerOn = false
-
-            await timesheet.save()
-
-            return res.send({ status: 200, timesheet })
-        } else return res.send({ status: 403, message: "Access denied" })
-    } catch (error) {
-        console.error("Error occurred while clock out:", error);
-        res.send({ message: "Something went wrong while clock out!" })
     }
 }

@@ -1,7 +1,7 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controllers/company')
-const { addLocation, getLocation, getAllLocation, updateLocationDetails, deleteLocation } = require('../controllers/location')
+const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLocationDetails, deleteLocation } = require('../controllers/location')
 
 const superAdminRoute = Router()
 
@@ -15,6 +15,8 @@ superAdminRoute.post('/deletecompany/:id', auth, deleteCompany)
 superAdminRoute.post('/addlocation', auth, addLocation)
 superAdminRoute.get('/getlocation/:id', auth, getLocation)
 superAdminRoute.get('/getalllocation', auth, getAllLocation)
+// get all company location by company ID
+superAdminRoute.get('/company-locations/:id', auth, getCompanyLocations)
 superAdminRoute.post('/updatelocation/:id', auth, updateLocationDetails)
 superAdminRoute.post('/deletelocation/:id', auth, deleteLocation)
 
