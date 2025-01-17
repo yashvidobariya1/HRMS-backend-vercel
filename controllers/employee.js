@@ -1,6 +1,7 @@
 const User = require("../models/user")
 const bcrypt = require('bcrypt')
 const { transporter } = require("../utils/nodeMailer");
+const cloudinary = require('../utils/cloudinary');
 
 exports.addEmployee = async (req, res) => {
     try {
@@ -26,6 +27,7 @@ exports.addEmployee = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -33,33 +35,44 @@ exports.addEmployee = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document?.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -90,8 +103,8 @@ exports.addEmployee = async (req, res) => {
                 immigrationDetails,
                 role: jobDetails[0]?.role,
                 password: hashedPassword,
-                documentDetails,
-                contractDetails,
+                documentDetails: documentDetailsFile,
+                contractDetails: contractDetailsFile,
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
@@ -165,13 +178,6 @@ exports.getEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'Employee not found' })
             }
 
-            if (employee.documentDetails) {
-                for (let i = 0; i < employee.documentDetails.length; i++) {
-                    const doc = employee.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
-                }
-            }
-
             return res.send({ status: 200, message: 'Employee get successfully.', employee })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -185,12 +191,7 @@ exports.getAllEmployees = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
-            if (employees.documentDetails) {
-                for (let i = 0; i < employees.documentDetails.length; i++) {
-                    const doc = employees.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
-                }
-            }
+            
             res.send({ status: 200, message: 'Employee all get successfully.', employees })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -232,6 +233,7 @@ exports.updateEmployee = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -239,33 +241,44 @@ exports.updateEmployee = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document?.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -279,8 +292,8 @@ exports.updateEmployee = async (req, res) => {
                         financialDetails,
                         jobDetails,
                         immigrationDetails,
-                        documentDetails,
-                        contractDetails,
+                        documentDetails: documentDetailsFile,
+                        contractDetails: contractDetailsFile,
                         updatedAt: new Date()
                     }
                 }, { new: true }

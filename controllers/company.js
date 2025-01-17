@@ -1,4 +1,5 @@
 const Company = require("../models/company")
+const cloudinary = require('../utils/cloudinary')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -10,8 +11,39 @@ exports.addCompany = async (req, res) => {
                 contractDetails
             } = req.body
 
+            let companyLogoImg
+            if(companyDetails.companyLogo){
+                const document = companyDetails.companyLogo
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item`)
+                }
+                const isValidImage = document.startsWith("data:image/png;base64,") || document.startsWith("data:image/jpeg;base64,");
+                if (!isValidImage) {
+                    console.error("Invalid image format. Only PNG and JPEG are allowed.");
+                    return res.send({ status: 400, message: "Invalid image format. Only PNG and JPEG are allowed." });
+                }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    companyLogoImg = {
+                        fileId: element?.public_id,
+                        fileURL: element?.secure_url,
+                        fileName: companyDetails?.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                }
+            }
+
             const newCompany = {
-                companyDetails,
+                companyDetails: {
+                    ...companyDetails,
+                    companyLogo: companyLogoImg
+                },
                 employeeSettings,
                 contractDetails
             }
@@ -57,9 +89,9 @@ exports.getAllCompany = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const companys = await Company.find({ isDeleted: { $ne: true } })
+            const companies = await Company.find({ isDeleted: { $ne: true } })
 
-            return res.send({ status: 200, message: 'Company all get successfully.', companys })
+            return res.send({ status: 200, message: 'Company all get successfully.', companies })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting companies:", error);
@@ -99,7 +131,6 @@ exports.updateCompanyDetails = async (req, res) => {
                     }
                 }, { new: true }
             )
-            // await updatedCompany.save()
 
             return res.send({ status: 200, message: 'Company details updated successfully.', updatedCompany })
         } else return res.send({ status: 403, message: "Access denied" })

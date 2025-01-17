@@ -1,6 +1,9 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
+const cloudinary = require('../utils/cloudinary');
+const Notification = require("../models/notification");
+const { default: mongoose } = require("mongoose");
 
 exports.login = async (req, res) => {
     try {
@@ -245,6 +248,7 @@ exports.addUser = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -252,33 +256,44 @@ exports.addUser = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document?.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -309,8 +324,8 @@ exports.addUser = async (req, res) => {
                 immigrationDetails,
                 role: jobDetails[0]?.role,
                 password: hashedPassword,
-                documentDetails,
-                contractDetails,
+                documentDetails: documentDetailsFile,
+                contractDetails: contractDetailsFile,
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
@@ -384,13 +399,6 @@ exports.getUser = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if (user.documentDetails) {
-                for (let i = 0; i < user.documentDetails.length; i++) {
-                    const doc = user.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
-                }
-            }
-
             return res.send({ status: 200, message: 'User get successfully.', user })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -404,14 +412,7 @@ exports.getAllUsers = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const users = await User.find({ isDeleted: { $ne: true } })
-            users.forEach((e) => {
-                if (e.documentDetails.length > 0) {
-                    for (let i = 0; i < e.documentDetails.length; i++) {
-                        const doc = e.documentDetails[i];
-                        doc.document = 'documentFile.pdf'
-                    }
-                }
-            })
+
             return res.send({ status: 200, message: 'Users get successfully.', users })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -453,6 +454,7 @@ exports.updateUserDetails = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -460,33 +462,44 @@ exports.updateUserDetails = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document?.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -500,8 +513,8 @@ exports.updateUserDetails = async (req, res) => {
                         financialDetails,
                         jobDetails,
                         immigrationDetails,
-                        documentDetails,
-                        contractDetails,
+                        documentDetails: documentDetailsFile,
+                        contractDetails: contractDetailsFile,
                         updatedAt: new Date()
                     }
                 }, { new: true }
@@ -544,3 +557,121 @@ exports.deleteUserDetails = async (req, res) => {
         res.send({ message: "Something went wrong while removing user!" })
     }
 }
+
+exports.getNotifications = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            let notifiedId = req.params.id
+            let companyId = req.query.companyId
+            let locationId = req.query.locationId
+            // console.log(notifiedId);
+
+            if (!notifiedId || notifiedId == 'undefined' || notifiedId == 'null') {
+                return res.send({ status: 404, message: 'Notification not found' })
+            }
+
+            let notifications = await Notification.aggregate([
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "userId",
+                        foreignField: "_id",
+                        as: "user_id",
+                    },
+                }, {
+                    $unwind: "$user_id"
+                }, {
+                    $match: {
+                        "user_id.isDeleted": false,
+                        notifiedId: new mongoose.Types.ObjectId(notifiedId),
+                        ...(companyId && { "user_id.companyId": new mongoose.Types.ObjectId(companyId) }),
+                        ...(locationId && { "user_id.locationId": new mongoose.Types.ObjectId(locationId) }),
+                    }
+                },
+                {
+                    $project: {
+                        "user._id": "$user_id._id",
+                        "user.firstName": "$user_id.personalDetails.firstName",
+                        "user.middleName": "$user_id.personalDetails.middleName",
+                        "user.lastName": "$user_id.personalDetails.lastName",
+                        "notifiedId": "$user_id.creatorId",
+                        "notifiedRole": "$user_id.createdBy",
+                        type: 1,
+                        message: 1,
+                        isRead: 1,
+                        createdAt: 1,
+                        updatedAt: 1
+                    }
+                },
+                {
+                    $sort: { createdAt: -1 }
+                },
+            ]);
+            // console.log("notifications", notifications);
+
+            const notificationIds = notifications.map((notification) => notification._id);
+            if (notificationIds.length > 0) {
+                await Notification.updateMany(
+                    { _id: { $in: notificationIds } },
+                    { $set: { isRead: true } }
+                );
+            }
+
+            res.send({ status: 200, message: "Notification get successfully.", notifications });
+        } else return res.send({ status: 403, message: "Access denied" })
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).send({ message: 'Error fetching notifications' });
+    }
+};
+
+exports.getUnreadNotificationsCount = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        if (allowedRoles.includes(req.user.role)) {
+            const notifiedId = req.params.id;
+            const companyId = req.query.companyId;
+            const locationId = req.query.locationId;
+
+            if (!notifiedId || notifiedId == 'undefined' || notifiedId == 'null') {
+                return res.send({ status: 404, message: 'Notification not found' })
+            }
+
+            const unreadCount = await Notification.aggregate([
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "userId",
+                        foreignField: "_id",
+                        as: "user_id",
+                    },
+                },
+                {
+                    $unwind: "$user_id"
+                },
+                {
+                    $match: {
+                        "user_id.isDeleted": false,
+                        notifiedId: new mongoose.Types.ObjectId(notifiedId),
+                        isRead: false,
+                        ...(companyId && { "user_id.companyId": new mongoose.Types.ObjectId(companyId) }),
+                        ...(locationId && { "user_id.locationId": new mongoose.Types.ObjectId(locationId) }),
+                    }
+                },
+                {
+                    $count: "unreadCount"
+                }
+            ]);
+
+            const count = unreadCount.length > 0 ? unreadCount[0].unreadCount : 0;
+
+            res.send({ status: 200, message: "New NotificationCount get successfully.", unreadCount: count });
+        } else {
+            return res.send({ status: 403, message: "Access denied" });
+        }
+    } catch (error) {
+        console.error("Error fetching unread notifications count:", error);
+        res.status(500).send({ message: "Error fetching unread notifications count" });
+    }
+};

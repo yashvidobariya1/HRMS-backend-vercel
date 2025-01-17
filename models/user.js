@@ -74,11 +74,19 @@ const userSchema = new mongoose.Schema({
   },
   documentDetails: [{
     documentType: String,
-    document: String,
+    document: {
+      fileId: String,
+      fileName: String,
+      fileURL: String,
+    },
   }],
   contractDetails: {
     contractType: String,
-    contractDocument: String,
+    contractDocument: {
+      fileId: String,
+      fileName: String,
+      fileURL: String,
+    },
   },
   password: String,
   role: {
