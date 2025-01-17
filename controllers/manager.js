@@ -1,6 +1,7 @@
 const User = require('../models/user')
 const bcrypt = require('bcrypt')
 const { transporter } = require('../utils/nodeMailer')
+const cloudinary = require('../utils/cloudinary');
 
 exports.addManager = async (req, res) => {
     try {
@@ -26,6 +27,7 @@ exports.addManager = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -33,33 +35,44 @@ exports.addManager = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document.startsWith("iVBOR") || document.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -127,8 +140,8 @@ exports.addManager = async (req, res) => {
                 immigrationDetails,
                 role: jobDetails[0]?.role,
                 password: hashedPassword,
-                documentDetails,
-                contractDetails,
+                documentDetails: documentDetailsFile,
+                contractDetails: contractDetailsFile,
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
@@ -161,13 +174,6 @@ exports.getManager = async (req, res) => {
                 return res.send({ status: 404, message: 'Manager not found' })
             }
 
-            if (manager.documentDetails) {
-                for (let i = 0; i < manager.documentDetails.length; i++) {
-                    const doc = manager.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
-                }
-            }
-
             return res.send({ status: 200, message: 'Manager get successfully.', manager })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -184,13 +190,6 @@ exports.getAllManager = async (req, res) => {
                 role: "Manager",
                 isDeleted: { $ne: true }
             })
-
-            if (managers.documentDetails) {
-                for (let i = 0; i < managers.documentDetails.length; i++) {
-                    const doc = managers.documentDetails[i];
-                    doc.document = 'documentFile.pdf'
-                }
-            }
             return res.send({ status: 200, message: 'Manager all get successfully.', managers })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -233,6 +232,7 @@ exports.updateManagerDetails = async (req, res) => {
                 }
             }
 
+            let documentDetailsFile
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
                     const document = documentDetails[i].document;
@@ -240,33 +240,44 @@ exports.updateManagerDetails = async (req, res) => {
                     if (!document || typeof document !== 'string') {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
-                    if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                        if (document?.startsWith("JVBER")) {
-                            documentDetails[i].document = `data:application/pdf;base64,${document}`;
-                        } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                            const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                            documentDetails[i].document = `data:${mimeType};base64,${document}`;
-                        } else {
-                            documentDetails[i].document = `data:text/plain;base64,${document}`;
-                        }
+                    try {
+                        let element = await cloudinary.uploader.upload(contract, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        documentDetailsFile = {
+                            fileId: element.public_id,
+                            fileURL: element.secure_url,
+                            fileName: documentDetails.fileName,
+                        };
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
             }
 
+            let contractDetailsFile
             if (contractDetails && Array.isArray(contractDetails)) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
-                if (/^[A-Za-z0-9+/=]+$/.test(document)) {
-                    if (document?.startsWith("JVBER")) {
-                        contractDetails.contractDocument = `data:application/pdf;base64,${document}`;
-                    } else if (document?.startsWith("iVBOR") || document?.startsWith("/9j/")) {
-                        const mimeType = document.startsWith("iVBOR") ? "image/png" : "image/jpeg";
-                        contractDetails.contractDocument = `data:${mimeType};base64,${document}`;
-                    } else {
-                        contractDetails.contractDocument = `data:text/plain;base64,${document}`;
-                    }
+                try {
+                    let element = await cloudinary.uploader.upload(contract, {
+                        resource_type: "auto",
+                        folder: "contracts",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    contractDetailsFile = {
+                        fileId: element.public_id,
+                        fileURL: element.secure_url,
+                        fileName: contractDetails.fileName,
+                    };
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -280,8 +291,8 @@ exports.updateManagerDetails = async (req, res) => {
                         financialDetails,
                         jobDetails,
                         immigrationDetails,
-                        documentDetails,
-                        contractDetails,
+                        documentDetails: documentDetailsFile,
+                        contractDetails: contractDetailsFile,
                         updatedAt: new Date()
                     }
                 }, { new: true }

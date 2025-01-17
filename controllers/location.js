@@ -1,20 +1,37 @@
+const Company = require("../models/company");
 const Location = require("../models/location")
 
 exports.addLocation = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
+
+            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved } = req.body
+
+            const company = await Company.findById(companyId)
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found.' })
+            }
+            const locations = await Location.find({ companyId: companyId })
+            console.log('locations/...', locations)
+            if (Array.isArray(locations)) {
+                for (const loc of locations) {
+                    if (loc.locationName == locationName) {
+                        return res.send({ status: 409, message: `The location name '${locationName}' already exists. Please choose a different name.` })
+                    }
+                }
+            }
+
             const newLocation = {
-                companyName: req.body.companyName,
-                companyId: req.body.companyId,
-                payeReferenceNumber: req.body.payeReferenceNumber,
-                locationName: req.body.locationName,
-                address: req.body.address,
-                addressLine2: req.body.addressLine2,
-                city: req.body.city,
-                postcode: req.body.postcode,
-                country: req.body.country,
-                ukviApproved: req.body.ukviApproved,
+                companyId,
+                payeReferenceNumber,
+                locationName,
+                address,
+                addressLine2,
+                city,
+                postcode,
+                country,
+                ukviApproved,
             }
 
             // console.log('new Location', newLocation)
@@ -82,15 +99,15 @@ exports.getCompanyLocations = async (req, res) => {
                 res.send({ status: 404, message: 'Location not found' })
             }
 
-            let allLocation = []
+            let companiesAllLocations = []
             locations.forEach((loc) => {
-                allLocation.push({
+                companiesAllLocations.push({
                     _id: loc._id,
                     locationName: loc.locationName,
                 })
             })
 
-            return res.send({ status:200, message: 'Location getted successfully.', allLocation })
+            return res.send({ status:200, message: 'Location getted successfully.', companiesAllLocations })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting location:", error);
@@ -117,7 +134,7 @@ exports.updateLocationDetails = async (req, res) => {
                 { _id: locationId },
                 {
                     $set: {
-                        companyName: req.body.companyName,
+                        companyId: req.body.companyId,
                         payeReferenceNumber: req.body.payeReferenceNumber,
                         locationName: req.body.locationName,
                         address: req.body.address,

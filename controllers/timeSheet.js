@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const geolib = require('geolib')
 const Timesheet = require("../models/timeSheet");
+const Notification = require("../models/notification");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -42,7 +43,7 @@ exports.clockInFunc = async (req, res) => {
                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10)
+            let currentDate = new Date().toISOString().slice(0, 10)
             let timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
             if (!timesheet) {
@@ -74,6 +75,18 @@ exports.clockInFunc = async (req, res) => {
             timesheet.isTimerOn = true
             await timesheet.save()
 
+            //------entry notification-----------
+            const notifiedId = existUser?.creatorId;
+            const { firstName, middleName, lastName } = existUser.personalDetails;
+            const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+            const notification = new Notification({
+                userId,
+                notifiedId,
+                type: 'Clockin',
+                message: `User ${name} entered the geofence at ${currentDate}`
+            });
+            await notification.save();
+
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -97,7 +110,7 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 400, message: "Something went wrong, Please try again!" })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10);
+            let currentDate = new Date().toISOString().slice(0, 10);
             const timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
             if (!timesheet) {
@@ -162,9 +175,52 @@ exports.clockOutFunc = async (req, res) => {
                 timesheet.totalHours = result
             }
 
+            const parseTime = (duration) => {
+                const regex = /(\d+)h|(\d+)m|(\d+)s/g;
+                let hours = 0, minutes = 0, seconds = 0;
+                let match;
+
+                while ((match = regex.exec(duration)) !== null) {
+                    if (match[1]) hours = parseInt(match[1], 10);
+                    if (match[2]) minutes = parseInt(match[2], 10);
+                    if (match[3]) seconds = parseInt(match[3], 10);
+                }
+
+                return hours * 3600 + minutes * 60 + seconds;
+            };
+
+            const totalHoursObj = parseTime(timesheet.totalHours);
+            const totalWorkedHours = totalHoursObj.hours + totalHoursObj.minutes / 60 + totalHoursObj.seconds / 3600;
+            console.log('totalHours/...', totalHoursObj)
+            console.log('totalWorkedHours/...', totalWorkedHours)
+            console.log('existUser/...', existUser)
+            console.log('existUser?.jobDetails?.weeklyWorkingHours/...', existUser?.jobDetails?.weeklyWorkingHours)
+
+            if (totalWorkedHours > existUser?.jobDetails?.weeklyWorkingHours) {
+                console.log('if-part')
+                const overtimeHours = formatDuration(totalWorkedHours, existUser?.jobDetails?.weeklyWorkingHours);
+                console.log('overtimeHours/...', overtimeHours)
+                timesheet.overTime = overtimeHours;
+            } else {
+                console.log('else-part')
+                timesheet.overTime = '0h 0m 0s';
+            }
+
             timesheet.isTimerOn = false
 
             await timesheet.save()
+
+            //------exit notification-----------
+            const notifiedId = existUser?.creatorId;
+            const { firstName, middleName, lastName } = existUser.personalDetails;
+            const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+            const notification = new Notification({
+                userId,
+                notifiedId,
+                type: 'Clockout',
+                message: `User ${name} exited the geofence at ${currentDate}`
+            });
+            await notification.save();
 
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })

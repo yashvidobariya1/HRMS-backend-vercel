@@ -7,7 +7,11 @@ const companySchema = new mongoose.Schema({
     companyDetails: {
         companyCode: String,
         businessName: String,
-        companyLogo: String,
+        companyLogo: {
+            fileId: String,
+            fileName: String,
+            fileURL: String,
+        },
         companyRegistrationNumber: String,
         payeReferenceNumber: String,
         address: String,
