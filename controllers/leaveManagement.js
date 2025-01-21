@@ -23,7 +23,7 @@ exports.leaveRequest = async (req, res) => {
                     reason,
                     status: 'Pending',
                 })
-                res.json({ message: 'Leave request submitted' })
+                res.json({ message: 'Leave request submitted', newLeave })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

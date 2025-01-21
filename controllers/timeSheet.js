@@ -483,17 +483,68 @@ exports.generateQRcode = async (req, res) => {
         res.send({ message: 'Error occured while generating QR code!' })
     }
 }
+exports.verifyQRCode = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { qrValue } = req.body;
 
-// exports.verifyQRCode = async (req, res) => {
-//     try {
-//         const allowedRoles = ['Administrator', 'Manager', 'Employee']
-//         if(allowedRoles.includes(req.user.role)){
-//             const {
-//                 qrValue
-//             } = req.body
-//         } else return res.send({ status: 403, message: 'Access denied' })
-//     } catch (error) {
-//         console.error('Error occurred while verifying QR code:', error)
-//         return res.send({ message: 'Error occurred while verifying QR code!' })
-//     }
-// }
+            const user = await User.findById(req.user._id)
+            if(!user){
+                return res.send({ status: 404, message: 'User not found.' })
+            }
+            let companyId = user?.companyId.toString()
+            let locationId = user?.locationId.toString()
+
+            let qrCode
+            qrCode = await QR.findOne({
+                'valueOfQRCode.qrValue': qrValue,
+                companyId,
+                locationId,
+            });
+
+            if (!qrCode) {
+                qrCode = await QR.findOne({
+                    'valueOfQRCode.qrValue': qrValue,
+                    companyId
+                });
+            }
+            
+            if (!qrCode) {
+                return res.send({ status: 400, message: 'QR code not found or invalid QR code' })
+            }
+
+
+            let entity;
+            let entityName;
+            if (qrCode.isCompanyQR) {
+                entity = await Company.findById(qrCode.companyId);
+                entityName = 'Company';
+            } else if (qrCode.isLocationQR) {
+                entity = await Location.findById(qrCode.locationId);
+                entityName = 'Location';
+            }
+
+            if (!entity) {
+                return res.send({
+                    status: 404,
+                    message: `${entityName} associated with the QR code not found`,
+                });
+            }
+
+            return res.send({
+                status: 200,
+                message: `${entityName} QR code verified successfully`,
+                entityDetails: {
+                    entityId: qrCode.isCompanyQR ? qrCode.companyId : qrCode.locationId,
+                    entityName: entityName,
+                    qrValue: qrCode.valueOfQRCode.qrValue,
+                    qrURL: qrCode.valueOfQRCode.qrURL,
+                },
+            });
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred during QR code verification:', error);
+        res.send({ message: 'Error occurred during QR code verification!' });
+    }
+};
