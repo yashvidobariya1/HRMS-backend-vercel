@@ -1,7 +1,8 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getNotifications, getUnreadNotificationsCount } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear } = require('../controllers/timeSheet')
+const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode } = require('../controllers/timeSheet')
+const { leaveRequest } = require('../controllers/leaveManagement')
 
 const commonRoute = Router()
 
@@ -31,5 +32,11 @@ commonRoute.get('/getTimesheetsByMonthAndYear', auth, getTimesheetByMonthAndYear
 
 commonRoute.get('/getNotifications/:id', auth, getNotifications)
 commonRoute.get('/getUnreadNotificationsCount/:id', auth, getUnreadNotificationsCount)
+
+// QR code scanning
+commonRoute.post('/verifyQRCode', auth, verifyQRCode) 
+
+// leave request
+commonRoute.post('/leaveRequest', auth, leaveRequest)
 
 module.exports = commonRoute

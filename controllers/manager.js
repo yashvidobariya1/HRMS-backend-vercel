@@ -36,7 +36,7 @@ exports.addManager = async (req, res) => {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
                     try {
-                        let element = await cloudinary.uploader.upload(contract, {
+                        let element = await cloudinary.uploader.upload(document, {
                             resource_type: "auto",
                             folder: "contracts",
                         });
@@ -60,7 +60,7 @@ exports.addManager = async (req, res) => {
                     console.log('Invalid or missing contract document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
@@ -107,8 +107,8 @@ exports.addManager = async (req, res) => {
                         <ul>
                             <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
                             <li><b>Email:</b> ${personalDetails.email}</li>
-                            <li><b>Position:</b> ${jobDetails.jobTitle}</li>
-                            <li><b>Joining Date:</b> ${jobDetails.joiningDate}</li>
+                            <li><b>Position:</b> ${jobDetails[0].jobTitle}</li>
+                            <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
                         </ul>
     
                         <p>Please ensure the manager logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
@@ -241,7 +241,7 @@ exports.updateManagerDetails = async (req, res) => {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
                     try {
-                        let element = await cloudinary.uploader.upload(contract, {
+                        let element = await cloudinary.uploader.upload(document, {
                             resource_type: "auto",
                             folder: "contracts",
                         });
@@ -265,7 +265,7 @@ exports.updateManagerDetails = async (req, res) => {
                     console.log('Invalid or missing contract document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
