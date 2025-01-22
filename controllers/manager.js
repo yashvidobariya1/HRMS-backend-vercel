@@ -186,11 +186,25 @@ exports.getAllManager = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
             const managers = await User.find({
                 role: "Manager",
                 isDeleted: { $ne: true }
+            }).skip(skip).limit(limit)
+
+            const totalManagers = await User.countDocuments({ role: 'Manager', isDeleted: { $ne: true } })
+
+            return res.send({
+                status: 200,
+                message: 'Manager all get successfully.',
+                managers,
+                totalManagers,
+                totalPage: Math.ceil(totalManagers / limit),
+                currentPage: page
             })
-            return res.send({ status: 200, message: 'Manager all get successfully.', managers })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting managers:", error);

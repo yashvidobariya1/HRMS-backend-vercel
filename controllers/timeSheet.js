@@ -7,6 +7,7 @@ const Location = require("../models/location");
 const cloudinary = require("../utils/cloudinary");
 const QR = require('../models/qrCode')
 
+// clock in/out ma issue solve karvano 6 and console remove karva nah 6
 // exports.clockInFunc = async (req, res, next) => {
 //     try {
 //         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
@@ -263,13 +264,18 @@ const QR = require('../models/qrCode')
 //                     const timeObj = parseTime(js.totalHours);
 //                     totalWeeklyHours += timeObj.hours + timeObj.minutes / 60 + timeObj.seconds / 3600;
 //                 }
-//             }
+//             }console.log('existUser?.jobDetails.length', existUser?.jobDetails.length)
 
 //             if(existUser?.jobDetails.length > 1){
+//                 console.log('if condition')
 //                 let jobTitles = existUser.jobDetails
+//                 console.log('jobTitle', jobTitle)
 //                 jobTitles.forEach((job) => {
-//                     if(job.jobDetails == jobTitle){
+//                     console.log('job', job)
+//                     if(job.jobTitle == jobTitle){
 //                         const weeklyLimit = job.weeklyWorkingHours
+//                         console.log('totalWeeklyHours', totalWeeklyHours)
+//                         console.log('weeklyLimit', weeklyLimit)
 //                         if(totalWeeklyHours > weeklyLimit){
 //                             const overtimeHours = totalWeeklyHours - weeklyLimit;
 //                             jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
@@ -279,7 +285,10 @@ const QR = require('../models/qrCode')
 //                     }
 //                 })
 //             } else {
+//                 console.log('else part')
 //                 const weeklyLimit = existUser?.jobDetails[0]?.weeklyWorkingHours
+//                 console.log('weeklyLimit', weeklyLimit)
+//                 console.log('totalWeeklyHours', totalWeeklyHours)
 //                 if (totalWeeklyHours > weeklyLimit) {
 //                     const overtimeHours = totalWeeklyHours - weeklyLimit;
 //                     jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
