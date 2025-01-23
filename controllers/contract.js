@@ -63,6 +63,7 @@ exports.addContract = async (req, res) => {
                 creatorId: req.user._id,
                 uploadBy: name,
                 companyId: companyId,
+                companyName: company?.companyDetails?.businessName
             }
             // console.log('new contractForm', contractForm)
             let newContract = await Contract.create(contractForm)

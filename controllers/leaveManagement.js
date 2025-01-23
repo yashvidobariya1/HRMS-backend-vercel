@@ -11,6 +11,7 @@ exports.leaveRequest = async (req, res) => {
                 endDate,
                 leaveDays,
                 reasonOfLeave,
+                isPaidLeave,
             } = req.body
             const leave = await Leave.findOne({ where: { userId: req.user.id, startDate, endDate } })
             if (!leave) {
@@ -28,6 +29,7 @@ exports.leaveRequest = async (req, res) => {
                     endDate,
                     leaveDays,
                     reasonOfLeave,
+                    isPaidLeave,
                     status: 'Pending',
                 })
                 return res.send({ status:200, message: 'Leave request submitted.', newLeave })
@@ -49,11 +51,11 @@ exports.leaveRequest = async (req, res) => {
 
 exports.approveLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { approvalReason } = req.body
-            const leave = await Leave.find({ _id: leaveRequestId, status: 'Pending' })
+            const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending' })
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
@@ -61,7 +63,7 @@ exports.approveLeaveRequest = async (req, res) => {
             leave.approvalReason = approvalReason
             leave.approverId = req.user._id
             leave.approverRole = req.user.role
-            leave.save()
+            await leave.save()
             return res.send({ status: 200, message: 'Leave request approved.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -72,11 +74,11 @@ exports.approveLeaveRequest = async (req, res) => {
 
 exports.rejectLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body
-            const leave = await Leave.find({ _id: leaveRequestId, status: 'Pending' })
+            const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending' })
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
@@ -84,7 +86,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             leave.rejectionReason = rejectionReason
             leave.rejectorId = req.user._id
             leave.rejectorRole = req.user.role
-            leave.save()
+            await leave.save()
             return res.send({ status: 200, message: 'Leave request rejected.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

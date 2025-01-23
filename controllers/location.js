@@ -1,5 +1,6 @@
 const Company = require("../models/company");
-const Location = require("../models/location")
+const Location = require("../models/location");
+const User = require("../models/user");
 
 exports.addLocation = async (req, res) => {
     try {
@@ -116,25 +117,38 @@ exports.getCompanyLocations = async (req, res) => {
 
             const totalCompanyLocations = await Location.countDocuments({ companyId, isDeleted: { $ne: true } })
 
-            if(!locations){
-                res.send({ status: 404, message: 'Location not found' })
+            if (!locations || locations.length === 0) {
+                return res.send({ status: 404, message: 'Location not found' })
             }
 
-            let companiesAllLocations = []
-            locations.forEach((loc) => {
-                companiesAllLocations.push({
-                    _id: loc._id,
-                    locationName: loc.locationName,
+            const companiesAllLocations = await Promise.all(
+                locations.map(async (loc) => {
+                    const allManagers = await User.find({
+                        companyId,
+                        locationId: loc._id,
+                        role: 'Manager',
+                        isDeleted: false,
+                    }).then((managers) =>
+                        managers.map((manager) => ({
+                            _id: manager._id,
+                            managerName: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName}`,
+                        }))
+                    )        
+                    return {
+                        _id: loc._id,
+                        locationName: loc.locationName,
+                        managers: allManagers,
+                    }
                 })
-            })
-
+            )
+        
             return res.send({
                 status:200,
                 message: 'Location getted successfully.',
                 companiesAllLocations,
                 totalCompanyLocations,
                 totalPages: Math.ceil(totalCompanyLocations / limit),
-                currentPage: page
+                currentPage: page,
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {

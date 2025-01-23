@@ -27,6 +27,7 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
+            isExist.lastTimeLoggedIn = new Date()
             return res.send({
                 status: 200,
                 message: "User login successfully",
@@ -42,6 +43,7 @@ exports.login = async (req, res) => {
                 if (!result) {
                     return res.send({ status: 404, message: "Invalid credential" });
                 }
+                isExist.lastTimeLoggedIn = new Date()
                 return res.send({
                     status: 200,
                     message: "User login successfully",

@@ -38,7 +38,7 @@ commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 
 // leave request
 commonRoute.post('/leaveRequest', auth, leaveRequest)
-commonRoute.post('/leaveRequestApprove', auth, approveLeaveRequest)
-commonRoute.post('/leaveRequestReject', auth, rejectLeaveRequest)
+commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
+commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 
 module.exports = commonRoute

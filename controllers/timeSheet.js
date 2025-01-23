@@ -319,6 +319,7 @@ const QR = require('../models/qrCode')
 //     }
 // };
 
+// old method
 exports.clockInFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
@@ -377,11 +378,6 @@ exports.clockInFunc = async (req, res) => {
                 return res.send({ status: 400, message: "Please clock out before clockin again." })
             }
 
-            const clockInsToday = timesheet.clockinTime.filter(entry => entry.clockIn).length
-            if (clockInsToday >= 2) {
-                return res.send({ status: 400, message: "You can only clock-in twice in a day." })
-            }
-
             timesheet.clockinTime.push({
                 clockIn: new Date(),
                 clockOut: "",
@@ -399,6 +395,7 @@ exports.clockInFunc = async (req, res) => {
     }
 }
 
+// old method
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
