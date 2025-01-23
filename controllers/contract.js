@@ -63,6 +63,7 @@ exports.addContract = async (req, res) => {
                 creatorId: req.user._id,
                 uploadBy: name,
                 companyId: companyId,
+                companyName: company?.companyDetails?.businessName
             }
             // console.log('new contractForm', contractForm)
             let newContract = await Contract.create(contractForm)
@@ -79,8 +80,23 @@ exports.getAllContract = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
-            const contracts = await Contract.find({ isDeleted: false });
-            return res.send({ status: 200, message: 'Contracts all get successfully.', contracts })
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
+            const contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalContracts = await Contract.countDocuments({ isDeleted: { $ne: true } })
+
+            return res.send({
+                status: 200,
+                message: 'Contracts all get successfully.',
+                contracts,
+                totalContracts,
+                totalPages: Math.ceil(totalContracts / limit),
+                currentPage: page
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
@@ -92,8 +108,23 @@ exports.getAllContractOfCompany = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
-            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: false });
-            return res.send({ status: 200, message: 'Contracts all get successfully.', contracts })
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
+            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalContracts = await Contract.countDocuments({ companyId: req.body.companyId, isDeleted: { $ne: true } })
+
+            return res.send({
+                status: 200,
+                message: 'Contracts all get successfully.',
+                contracts,
+                totalContracts,
+                totalPages: Math.ceil(totalContracts / limit),
+                currebtPage: page
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);

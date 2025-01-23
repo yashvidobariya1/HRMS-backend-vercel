@@ -190,9 +190,23 @@ exports.getAllEmployees = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
-            const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } })
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
+            const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalEmployees = await User.countDocuments({ role: 'Employee', isDeleted: { $ne: true } })
             
-            res.send({ status: 200, message: 'Employee all get successfully.', employees })
+            return res.send({
+                status: 200,
+                message: 'Employee all get successfully.',
+                employees,
+                totalEmployees,
+                totalPages: Math.ceil(totalEmployees / limit),
+                currentPage: page
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting employees:", error);

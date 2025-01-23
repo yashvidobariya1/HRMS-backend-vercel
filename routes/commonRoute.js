@@ -2,7 +2,7 @@ const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getNotifications, getUnreadNotificationsCount } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode } = require('../controllers/timeSheet')
-const { leaveRequest } = require('../controllers/leaveManagement')
+const { leaveRequest, approveLeaveRequest, rejectLeaveRequest } = require('../controllers/leaveManagement')
 
 const commonRoute = Router()
 
@@ -38,5 +38,7 @@ commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 
 // leave request
 commonRoute.post('/leaveRequest', auth, leaveRequest)
+commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
+commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 
 module.exports = commonRoute

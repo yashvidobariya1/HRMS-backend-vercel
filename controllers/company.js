@@ -88,10 +88,23 @@ exports.getAllCompany = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
 
-            const companies = await Company.find({ isDeleted: { $ne: true } })
+            const skip = (page - 1) * limit
 
-            return res.send({ status: 200, message: 'Company all get successfully.', companies })
+            const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalCompanies = await Company.countDocuments({ isDeleted: { $ne: true } })
+
+            return res.send({
+                status: 200,
+                message: 'Company all get successfully.',
+                companies,
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / limit),
+                currentPage: page
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting companies:", error);

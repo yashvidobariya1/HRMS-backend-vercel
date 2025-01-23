@@ -19,6 +19,7 @@ const contractSchema = new mongoose.Schema({
     },
     uploadBy: String,
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
+    companyName: String
 }, { timestamps: true });
 
 module.exports = mongoose.model('Contract', contractSchema);

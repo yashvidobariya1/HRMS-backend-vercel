@@ -27,6 +27,7 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
+            isExist.lastTimeLoggedIn = new Date()
             return res.send({
                 status: 200,
                 message: "User login successfully",
@@ -42,6 +43,7 @@ exports.login = async (req, res) => {
                 if (!result) {
                     return res.send({ status: 404, message: "Invalid credential" });
                 }
+                isExist.lastTimeLoggedIn = new Date()
                 return res.send({
                     status: 200,
                     message: "User login successfully",
@@ -411,10 +413,26 @@ exports.getAllUsers = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
-            const users = await User.find({ isDeleted: { $ne: true } })
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
 
-            return res.send({ status: 200, message: 'Users get successfully.', users })
-        } else return res.send({ status: 403, message: "Access denied" })
+            const skip = (page - 1) * limit
+
+            const users = await User.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalUsers = await User.countDocuments({ isDeleted: { $ne: true } })
+
+            return res.send({
+                status: 200,
+                message: 'Users get successfully.',
+                users,
+                totalUsers,
+                totalPages: Math.ceil(totalUsers / limit),
+                currentPage: page
+            })
+        } else {
+            return res.send({ status: 403, message: "Access denied" })
+        }
     } catch (error) {
         console.error("Error occurred while getting users:", error);
         res.send({ message: "Something went wrong while getting users!" })

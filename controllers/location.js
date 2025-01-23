@@ -1,5 +1,6 @@
 const Company = require("../models/company");
-const Location = require("../models/location")
+const Location = require("../models/location");
+const User = require("../models/user");
 
 exports.addLocation = async (req, res) => {
     try {
@@ -74,14 +75,27 @@ exports.getAllLocation = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
 
-            const locations = await Location.find({ isDeleted: { $ne: true } })
+            const skip = (page - 1) * limit
+
+            const locations = await Location.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalLocations = await Location.countDocuments({ isDeleted: { $ne: true } })
 
             if (!locations) {
                 return res.send({ status: 404, message: 'Locations not found' })
             }
 
-            return res.send({ status: 200, message: 'Location all get successfully.', locations })
+            return res.send({
+                status: 200,
+                message: 'Location all get successfully.',
+                locations,
+                totalLocations,
+                totalPages: Math.ceil(totalLocations / limit),
+                currentPage: page
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting locations:", error);
@@ -94,20 +108,48 @@ exports.getCompanyLocations = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administartor', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.params.id
-            const locations = await Location.find({ companyId: companyId })
-            if(!locations){
-                res.send({ status: 404, message: 'Location not found' })
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
+            const locations = await Location.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalCompanyLocations = await Location.countDocuments({ companyId, isDeleted: { $ne: true } })
+
+            if (!locations || locations.length === 0) {
+                return res.send({ status: 404, message: 'Location not found' })
             }
 
-            let companiesAllLocations = []
-            locations.forEach((loc) => {
-                companiesAllLocations.push({
-                    _id: loc._id,
-                    locationName: loc.locationName,
+            const companiesAllLocations = await Promise.all(
+                locations.map(async (loc) => {
+                    const allManagers = await User.find({
+                        companyId,
+                        locationId: loc._id,
+                        role: 'Manager',
+                        isDeleted: false,
+                    }).then((managers) =>
+                        managers.map((manager) => ({
+                            _id: manager._id,
+                            managerName: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName}`,
+                        }))
+                    )        
+                    return {
+                        _id: loc._id,
+                        locationName: loc.locationName,
+                        managers: allManagers,
+                    }
                 })
+            )
+        
+            return res.send({
+                status:200,
+                message: 'Location getted successfully.',
+                companiesAllLocations,
+                totalCompanyLocations,
+                totalPages: Math.ceil(totalCompanyLocations / limit),
+                currentPage: page,
             })
-
-            return res.send({ status:200, message: 'Location getted successfully.', companiesAllLocations })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting location:", error);
