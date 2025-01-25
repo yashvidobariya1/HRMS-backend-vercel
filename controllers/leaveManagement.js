@@ -43,11 +43,143 @@ exports.leaveRequest = async (req, res) => {
     }
 }
 
-// show pending leave request in user panel ( count pending leave requests )
-// administrator and manager are aprove or reject leave request
-// if leave request from manager then they show only administrator and leave request from employee then they show in administrator and manager
-// show leave history in user panel
-// show leave history in administartor panel
+exports.getAllOwnLeaves = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = ( page - 1 ) * limit
+            const userId = req.user._id
+            const allLeaves = await Leave.find({ userId }).skip(skip).limit(limit)
+
+            const totalLeaves = await Leave.countDocuments({ userId })
+
+            if(!allLeaves){
+                return res.send({ status: 404, message: 'Leaves not found' })
+            }
+            return res.send({
+                status: 200,
+                message: 'All leave requests get successfully.',
+                allLeaves,
+                totalLeaves,
+                totalPages: Math.ceil(totalLeaves / limit),
+                currentPage: page
+            })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while getting all leaves requests:', error)
+        res.send({ message: 'Error occurred while getting all leave requests!' })
+    }
+}
+
+exports.getAllLeaveRequest = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin']
+        if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = ( page - 1 ) * limit
+            const allLeaveRequests = await Leave.find().skip(skip).limit(limit)
+
+            const totalLeaveRequests = await Leave.countDocuments()
+            if(!allLeaveRequests){
+                return res.send({ status: 404, message: 'Leave requests not found' })
+            }
+            return res.send({
+                status: 200,
+                message: 'All leave requests getted successfully.',
+                allLeaveRequests,
+                totalLeaveRequests,
+                totalPages: Math.ceil(totalLeaveRequests / limit),
+                currentPage: page
+            })
+        } else return res.send({ status: 403, messgae: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while getting all leave requests.', error)
+        res.send({ message: 'Error occurred while getting all leave requests!' })
+    }
+}
+
+// pending work
+exports.getAllOwnCompanyEmployeesLR = async (req, res) => {
+    // try {
+    //     const allowedRoles = ['Administrator', 'Manager']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+
+    //         const skip = ( page - 1 ) * limit
+            
+    //         if(req.user.role == 'Administrator'){
+    //             const allLeaveRequests = await Leave.find({ companyId: req.user.companyId }).skip(skip).limit(limit)
+    //             const totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
+    //             return res.send({
+    //                 status: 200,
+    //                 message: 'All leave requests getted successfully.',
+    //                 allLeaveRequests,
+    //                 totalLeaveRequests,
+    //                 totalPages: Math.ceil(totalLeaveRequests / limit),
+    //                 currentPage: page
+    //             })
+    //         } else if(req.user.role == 'Manager'){
+    //             const allLeaveRequests = await Leave.find({ companyId: req.user.companyId })
+    //             let allEmployeesLR = []
+    //             allLeaveRequests.map((LR) => {
+                    
+    //             })
+    //         }
+    //     } else return res.send({ status: 403, messgae: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while getting own company employees leave requests:', error)
+    //     res.send({ message: 'Error occurred while getting own company employees leave requests!' })
+    // }
+}
+
+// pending work
+exports.updateLeaveRequest = async (req, res) => {
+    // try {
+    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const LRId = req.params.id
+    //         const {
+    //             leaveType,
+    //             slectionDuration,
+    //             startDate,
+    //             endDate,
+    //             leaveDays,
+    //             reasonOfLeave,
+    //             isPaidLeave,
+    //         } = req.body
+    //         const leaveRequest = await Leave.findById(LRId)
+    //         if(!leaveRequest){
+    //             return res.send({ status: 404, message: 'Leave request not found' })
+    //         }
+
+    //         const updatedLeaveRequest = await Leave.findByIdAndUpdate(
+    //             { _id: LRId },
+    //             {
+    //                 $set: {
+    //                     leaveType,
+    //                     slectionDuration,
+    //                     startDate,
+    //                     endDate,
+    //                     leaveDays,
+    //                     reasonOfLeave,
+    //                     isPaidLeave,
+    //                 }
+    //             }, { new: true }
+    //         )
+
+    //         return res.send({ status: 200, message: 'Leave request update successfully', updatedLeaveRequest })
+    //     } else return res.send({ status: 403, messgae: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while updating leave request:', error)
+    //     res.send({ message: 'Error occurred while updating leave request!' })
+    // }
+}
 
 exports.approveLeaveRequest = async (req, res) => {
     try {
