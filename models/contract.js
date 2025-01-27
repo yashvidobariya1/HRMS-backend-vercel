@@ -7,7 +7,6 @@ const contractSchema = new mongoose.Schema({
         default: false
     },
     contract: {
-        fileId: String,
         fileName: String,
         fileURL: String,
     },

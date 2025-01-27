@@ -51,7 +51,6 @@ exports.addEmployee = async (req, res) => {
     //                     documentDetailsFile.push({
     //                         documentType: documentDetails[i].documentType,
     //                         document: {
-    //                             fileId: element.public_id,
     //                             fileURL: element.secure_url,
     //                             fileName: documentDetails[i].fileName,
     //                         }                            
@@ -78,7 +77,6 @@ exports.addEmployee = async (req, res) => {
     //                 contractDetailsFile = {
     //                     contractType: contractDetails.contractType,
     //                     contractDocument: {
-    //                         fileId: element.public_id,
     //                         fileURL: element.secure_url,
     //                         fileName: contractDetails.fileName,
     //                     }
@@ -284,7 +282,6 @@ exports.updateEmployee = async (req, res) => {
     //                     documentDetailsFile.push({
     //                         documentType: documentDetails[i].documentType,
     //                         document: {
-    //                             fileId: element.public_id,
     //                             fileURL: element.secure_url,
     //                             fileName: documentDetails[i].fileName,
     //                         }                            
@@ -311,7 +308,6 @@ exports.updateEmployee = async (req, res) => {
     //                 contractDetailsFile = {
     //                     contractType: contractDetails.contractType,
     //                     contractDocument: {
-    //                         fileId: element.public_id,
     //                         fileURL: element.secure_url,
     //                         fileName: contractDetails.fileName,
     //                     }

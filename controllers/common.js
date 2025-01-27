@@ -298,7 +298,6 @@ exports.addUser = async (req, res) => {
                     contractDetailsFile = {
                         contractType: contractDetails.contractType,
                         contractDocument: {
-                            fileId: element.public_id,
                             fileURL: element.secure_url,
                             fileName: contractDetails.fileName,
                         }
@@ -498,16 +497,24 @@ exports.updateUserDetails = async (req, res) => {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
                     try {
-                        let element = await cloudinary.uploader.upload(gettedDocument, {
-                            resource_type: "auto",
-                            folder: "contracts",
-                        });
-                        // console.log('Cloudinary response:', element);
-                        documentDetailsFile.push({
-                            documentType: documentDetails[i].documentType,
-                            documentName: documentDetails[i].documentName,
-                            document: element.secure_url
-                        })
+                        if(gettedDocument.startsWith('data:')){
+                            let element = await cloudinary.uploader.upload(gettedDocument, {
+                                resource_type: "auto",
+                                folder: "contracts",
+                            });
+                            // console.log('Cloudinary response:', element);
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: element.secure_url
+                            })
+                        } else {
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: gettedDocument
+                            })
+                        }
                     } catch (uploadError) {
                         console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -522,19 +529,28 @@ exports.updateUserDetails = async (req, res) => {
                     console.log('Invalid or missing contract document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
-                        resource_type: "auto",
-                        folder: "contracts",
-                    });
-                    // console.log('Cloudinary response:', element);
-                    contractDetailsFile = {
-                        contractType: contractDetails.contractType,
-                        contractDocument: {
-                            fileId: element.public_id,
-                            fileURL: element.secure_url,
-                            fileName: contractDetails.fileName,
+                    if(document.startsWith('data:')){
+                        let element = await cloudinary.uploader.upload(document, {
+                            resource_type: "auto",
+                            folder: "contracts",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        contractDetailsFile = {
+                            contractType: contractDetails.contractType,
+                            contractDocument: {
+                                fileURL: element.secure_url,
+                                fileName: contractDetails.fileName,
+                            }
+                        };
+                    } else {
+                        contractDetailsFile = {
+                            contractType: contractDetails.contractType,
+                            contractDocument: {
+                                fileURL: document,
+                                fileName: contractDetails.fileName,
+                            }
                         }
-                    };
+                    }
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -722,17 +738,17 @@ exports.getUnreadNotificationsCount = async (req, res) => {
 
 
 
-
-// pendind work
-
+// =================================================================pending work for generating the offer letter===========================================================
 
 const { PDFDocument, StandardFonts } = require('pdf-lib');
-const fs = require('fs')
-const path = require('path');
-const { default: axios } = require("axios");
+const axios = require("axios");
+const Docxtemplater = require("docxtemplater");
+const PizZip = require("pizzip");
+const streamifier = require("streamifier");
+const Contract = require("../models/contract");
 
 
-
+// first method
 // Utility: Fetch PDF from URL
 async function fetchPDF(url) {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
@@ -813,50 +829,125 @@ async function replacePlaceholdersInPDF(pdfBytes, data) {
     return updatedPdfBytes;
 }
 
-
-
-exports.generateOfferLetter = async (req, res) => {
-    // try {
-    //     const { name, position, company, joiningDate, email, pdfUrl } = req.body;
+// exports.generateOfferLetter = async (req, res) => {
+//     try {
+//         const { name, position, company, joiningDate, email, pdfUrl } = req.body;
     
-    //     if (!name || !position || !company || !joiningDate || !email || !pdfUrl) {
-    //         return res.status(400).send({ error: 'All fields are required!' });
-    //     }
+//         if (!name || !position || !company || !joiningDate || !email || !pdfUrl) {
+//             return res.status(400).send({ error: 'All fields are required!' });
+//         }
 
-    //     // Step 1: Fetch PDF from URL
-    //     const pdfBytes = await fetchPDF(pdfUrl);
+//         // Step 1: Fetch PDF from URL
+//         const pdfBytes = await fetchPDF(pdfUrl);
 
-    //     // Step 2: Replace placeholders in the PDF
-    //     const updatedPdfBytes = await replacePlaceholdersInPDF(pdfBytes, {
-    //         name,
-    //         position,
-    //         company,
-    //         joiningDate,
-    //     });
+//         // Step 2: Replace placeholders in the PDF
+//         const updatedPdfBytes = await replacePlaceholdersInPDF(pdfBytes, {
+//             name,
+//             position,
+//             company,
+//             joiningDate,
+//         });
 
-    //     // Step 3: Save the updated PDF to a temporary file
-    //     const filePath = path.join(__dirname, 'generated-offer-letter.pdf');
-    //     fs.writeFileSync(filePath, updatedPdfBytes);
+//         // Step 3: Save the updated PDF to a temporary file
+//         const filePath = path.join(__dirname, 'generated-offer-letter.pdf');
+//         fs.writeFileSync(filePath, updatedPdfBytes);
 
-    //     // Step 4: Send the updated PDF via email
-    //     const mailOptions = {
-    //         from: 'your-email@gmail.com',
-    //         to: email,
-    //         subject: 'Your Offer Letter',
-    //         text: `Dear ${name},\n\nPlease find your offer letter attached.`,
-    //         attachments: [{ filename: 'offer-letter.pdf', path: filePath }],
-    //     };
-    //     await transporter.sendMail(mailOptions);
+//         // Step 4: Send the updated PDF via email
+//         const mailOptions = {
+//             from: 'your-email@gmail.com',
+//             to: email,
+//             subject: 'Your Offer Letter',
+//             text: `Dear ${name},\n\nPlease find your offer letter attached.`,
+//             attachments: [{ filename: 'offer-letter.pdf', path: filePath }],
+//         };
+//         await transporter.sendMail(mailOptions);
 
-    //     // Cleanup: Remove the temporary file
-    //     fs.unlinkSync(filePath);
+//         // Cleanup: Remove the temporary file
+//         fs.unlinkSync(filePath);
     
-    //     res.status(200).send({ message: 'Offer letter sent successfully!' });
-    // } catch (err) {
-    //     console.error(err);
-    //     res.status(500).send({ error: 'Something went wrong!' });
-    // }
+//         res.status(200).send({ message: 'Offer letter sent successfully!' });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send({ error: 'Something went wrong!' });
+//     }
+// };
+
+
+
+
+
+
+
+
+// secound method
+
+
+const getContractById = async (contractId) => {
+    
+    const contract = await Contract.findById(contractId)
+
+    return {
+        contractName: contract?.contractName,
+        companyName: contract?.companyName,
+        contractURL: contract?.contract?.fileURL,
+    };
+}
+
+
+exports.generateContractLetter = async (req, res) => {
+    try {
+        const { name, position, company, joiningDate, email, contractId } = req.body;
+    
+        if (!name || !position || !company || !joiningDate || !email) {
+            return res.status(400).send({ error: 'All fields are required!' })
+        }
+
+        const gettedContract = await getContractById(contractId)
+        if(!gettedContract){
+            return res.send({ status: 404, messgae: 'Contract not found!' })
+        }
+        console.log('gettedContract', gettedContract)
+        const cloudinaryUrl = gettedContract?.contractURL; // e.g., "https://res.cloudinary.com/your-cloud-name/raw/upload/v123456789/fulltime-contract.docx"
+        console.log('cloudinary url: ' + cloudinaryUrl)
+        const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
+        const content = response.data;
+
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+        // Replace placeholders with user data
+        doc.render({ name, position, company, joiningDate, email });
+
+        // Generate the filled contract
+        const buffer = doc.getZip().generate({ type: "nodebuffer" });
+
+        const uploadToCloudinary = async (buffer) => {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { resource_type: "raw", folder: "employeeContract" },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                streamifier.createReadStream(buffer).pipe(uploadStream);
+            });
+        };
+
+        const uploadResult = await uploadToCloudinary(buffer)
+        const generatedUrl = uploadResult.secure_url
+
+        return res.send({
+            status: 200,
+            message: 'Contract letter generated successfully for user.',
+            employeeContractForm: generatedUrl
+        })
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ error: 'Something went wrong!' });
+    }
 };
+
 // exports.generateOfferLetter = async (req, res) => {
 //     try {
 //         const { name, position, company, joiningDate, email, pdfUrl } = req.body;

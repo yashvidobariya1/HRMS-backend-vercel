@@ -1,8 +1,8 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getNotifications, getUnreadNotificationsCount, generateOfferLetter } = require('../controllers/common')
+const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getNotifications, getUnreadNotificationsCount, generateContractLetter } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear } = require('../controllers/timeSheet')
-const { leaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllLeaveRequest, getAllOwnCompanyEmployeesLR, getAllOwnLeaves } = require('../controllers/leaveManagement')
+const { leaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllLeaveRequest, getAllOwnLeaves, updateLeaveRequest } = require('../controllers/leaveManagement')
 
 const commonRoute = Router()
 
@@ -30,7 +30,7 @@ commonRoute.get('/getDetails', auth, getDetails)
 // get attendence by month and year
 commonRoute.get('/getTimesheetsByMonthAndYear', auth, getTimesheetByMonthAndYear)
 commonRoute.get('/getOwnTimesheetByMonthAndYear', auth, getOwnTimesheetByMonthAndYear)
-commonRoute.post('/generateOfferLetter', generateOfferLetter)
+// commonRoute.post('/generateContractLetter', generateContractLetter)
 
 commonRoute.get('/getNotifications/:id', auth, getNotifications)
 commonRoute.get('/getUnreadNotificationsCount/:id', auth, getUnreadNotificationsCount)
@@ -42,7 +42,7 @@ commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 commonRoute.post('/leaveRequest', auth, leaveRequest)
 commonRoute.get('/getAllOwnLeaves', auth, getAllOwnLeaves)
 commonRoute.get('/getAllLeaveRequest', auth, getAllLeaveRequest)
-commonRoute.get('/getAllOwnCompanyEmployeesLR', auth, getAllOwnCompanyEmployeesLR)
+commonRoute.post('/updateLeaveRequest/:id', auth, updateLeaveRequest)
 commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
 commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 

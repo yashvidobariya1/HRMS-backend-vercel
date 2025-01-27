@@ -39,13 +39,12 @@ exports.addContract = async (req, res) => {
                     return res.send({ status: 400, message: "Invalid or missing contract document." });
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
                     contractFile = {
-                        fileId: element.public_id,
                         fileURL: element.secure_url,
                         fileName: fileName
                     };
@@ -196,13 +195,12 @@ exports.updateContract = async (req, res) => {
                     console.log('Invalid or missing contract document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
                     contractFile = {
-                        fileId: element.public_id,
                         fileURL: element.secure_url,
                         fileName
                     };

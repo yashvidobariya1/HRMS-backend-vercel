@@ -80,7 +80,6 @@ const userSchema = new mongoose.Schema({
   contractDetails: {
     contractType: String,
     contractDocument: {
-      fileId: String,
       fileName: String,
       fileURL: String,
     },

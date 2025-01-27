@@ -8,6 +8,7 @@ const cloudinary = require("../utils/cloudinary");
 const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 
+// pending work
 // clock in/out ma issue solve karvano 6 and console remove karva nah 6
 // exports.clockInFunc = async (req, res, next) => {
 //     try {
@@ -607,37 +608,37 @@ exports.getTimesheetByMonthAndYear = async (req, res) =>{
 
 // pending work
 exports.getOwnTimesheetByMonthAndYear = async (req, res) => {
-    // try {
-    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
-    //     if(allowedRoles.includes(req.user.role)){
-    //         const { month, year } = req.query
-    //         if (!month || !year) {
-    //             return res.status(400).json({ message: 'Month and year are required' });
-    //         }
-    //         const startDate = new Date(`${year}-${month}-01T00:00:00.000`)
-    //         const endDate = new Date(startDate)
-    //         endDate.setMonth(startDate.getMonth() + 1)
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { month, year } = req.query
+            if (!month || !year) {
+                return res.status(400).json({ message: 'Month and year are required' });
+            }
+            const startDate = new Date(`${year}-${month}-01T00:00:00.000`)
+            const endDate = new Date(startDate)
+            endDate.setMonth(startDate.getMonth() + 1)
 
-    //         const timesheets = await Timesheet.find({
-    //             userId: req.user._id,
-    //             createdAt: { $gte: startDate, $lt: endDate }
-    //         })
+            const timesheets = await Timesheet.find({
+                userId: req.user._id,
+                createdAt: { $gte: startDate, $lt: endDate }
+            })
 
-    //         const userLeaves = await Leave.find({
-    //             userId: req.user._id,
-    //             startDate: { $gte: startDate },
-    //             endDate: { $lt: endDate },
-    //             status: 'Approved'
-    //         })
-    //         console.log('timesheets/...', timesheets)
-    //         console.log('userLeaves/...', userLeaves)
+            const userLeaves = await Leave.find({
+                userId: req.user._id,
+                startDate: { $gte: startDate },
+                endDate: { $lt: endDate },
+                status: 'Approved'
+            })
+            console.log('timesheets/...', timesheets)
+            console.log('userLeaves/...', userLeaves)
 
-    //         res.status(200).send({ timesheets, userLeaves })
-    //     } else return res.send({ status: 403, message: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error occurred while getting timesheet.', error)
-    //     res.send({ message: 'Error occurred while getting timesheet!' })
-    // }
+            res.status(200).send({ timesheets, userLeaves })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while getting timesheet.', error)
+        res.send({ message: 'Error occurred while getting timesheet!' })
+    }
 }
 
 exports.generateQRcode = async (req, res) => {

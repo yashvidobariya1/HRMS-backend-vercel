@@ -1,4 +1,5 @@
 const Leave = require('../models/leaveRequest')
+const User = require('../models/user')
 
 exports.leaveRequest = async (req, res) => {
     try {
@@ -61,7 +62,7 @@ exports.getAllOwnLeaves = async (req, res) => {
             }
             return res.send({
                 status: 200,
-                message: 'All leave requests get successfully.',
+                message: 'All leave requests getted successfully.',
                 allLeaves,
                 totalLeaves,
                 totalPages: Math.ceil(totalLeaves / limit),
@@ -76,109 +77,108 @@ exports.getAllOwnLeaves = async (req, res) => {
 
 exports.getAllLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
             const skip = ( page - 1 ) * limit
-            const allLeaveRequests = await Leave.find().skip(skip).limit(limit)
+            
+            if(req.user.role == 'Superadmin'){
+                // superadmin can get all leave requests
+                const allLeaveRequests = await Leave.find().skip(skip).limit(limit)
 
-            const totalLeaveRequests = await Leave.countDocuments()
-            if(!allLeaveRequests){
-                return res.send({ status: 404, message: 'Leave requests not found' })
+                const totalLeaveRequests = await Leave.countDocuments()
+                if(!allLeaveRequests){
+                    return res.send({ status: 404, message: 'Leave requests not found' })
+                }
+                return res.send({
+                    status: 200,
+                    message: 'All leave requests getted successfully.',
+                    allLeaveRequests,
+                    totalLeaveRequests,
+                    totalPages: Math.ceil(totalLeaveRequests / limit),
+                    currentPage: page
+                })
+            } else if(req.user.role == 'Administrator'){
+                // administrator can get all leave requests of own company
+                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId }).skip(skip).limit(limit)
+                const totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
+                return res.send({
+                    status: 200,
+                    message: 'All leave requests getted successfully.',
+                    allLeaveRequests,
+                    totalLeaveRequests,
+                    totalPages: Math.ceil(totalLeaveRequests / limit),
+                    currentPage: page
+                })
+            } else if(req.user.role == 'Manager'){
+                // manager can get all leave requests of thier company
+                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId })
+                let allEmployeesLR = []
+                for (const LR of allLeaveRequests) {
+                    const existingUser = await User.findOne({ _id: LR.userId })
+                    if (existingUser.role === 'Manager') {
+                        allEmployeesLR.push(LR)
+                    }
+                }
+                const totalLeaveRequests = allEmployeesLR.length
+                return res.send({
+                    status: 200,
+                    message: 'All leave requests getted successfully.',
+                    allLeaveRequests: allEmployeesLR,
+                    totalLeaveRequests,
+                    totalPages: Math.ceil(totalLeaveRequests / limit),
+                    currentPage: page
+                })
             }
-            return res.send({
-                status: 200,
-                message: 'All leave requests getted successfully.',
-                allLeaveRequests,
-                totalLeaveRequests,
-                totalPages: Math.ceil(totalLeaveRequests / limit),
-                currentPage: page
-            })
         } else return res.send({ status: 403, messgae: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting all leave requests.', error)
-        res.send({ message: 'Error occurred while getting all leave requests!' })
+        console.error('Error occurred while getting own company employees leave requests:', error)
+        res.send({ message: 'Error occurred while getting own company employees leave requests!' })
     }
 }
 
-// pending work
-exports.getAllOwnCompanyEmployeesLR = async (req, res) => {
-    // try {
-    //     const allowedRoles = ['Administrator', 'Manager']
-    //     if(allowedRoles.includes(req.user.role)){
-    //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
-
-    //         const skip = ( page - 1 ) * limit
-            
-    //         if(req.user.role == 'Administrator'){
-    //             const allLeaveRequests = await Leave.find({ companyId: req.user.companyId }).skip(skip).limit(limit)
-    //             const totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
-    //             return res.send({
-    //                 status: 200,
-    //                 message: 'All leave requests getted successfully.',
-    //                 allLeaveRequests,
-    //                 totalLeaveRequests,
-    //                 totalPages: Math.ceil(totalLeaveRequests / limit),
-    //                 currentPage: page
-    //             })
-    //         } else if(req.user.role == 'Manager'){
-    //             const allLeaveRequests = await Leave.find({ companyId: req.user.companyId })
-    //             let allEmployeesLR = []
-    //             allLeaveRequests.map((LR) => {
-                    
-    //             })
-    //         }
-    //     } else return res.send({ status: 403, messgae: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error occurred while getting own company employees leave requests:', error)
-    //     res.send({ message: 'Error occurred while getting own company employees leave requests!' })
-    // }
-}
-
-// pending work
 exports.updateLeaveRequest = async (req, res) => {
-    // try {
-    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
-    //     if(allowedRoles.includes(req.user.role)){
-    //         const LRId = req.params.id
-    //         const {
-    //             leaveType,
-    //             slectionDuration,
-    //             startDate,
-    //             endDate,
-    //             leaveDays,
-    //             reasonOfLeave,
-    //             isPaidLeave,
-    //         } = req.body
-    //         const leaveRequest = await Leave.findById(LRId)
-    //         if(!leaveRequest){
-    //             return res.send({ status: 404, message: 'Leave request not found' })
-    //         }
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const LRId = req.params.id
+            const {
+                leaveType,
+                slectionDuration,
+                startDate,
+                endDate,
+                leaveDays,
+                reasonOfLeave,
+                isPaidLeave,
+            } = req.body
+            const leaveRequest = await Leave.findOne({_id: LRId, status: 'Pending'})
+            if(!leaveRequest){
+                return res.send({ status: 404, message: 'Leave request not found' })
+            }
 
-    //         const updatedLeaveRequest = await Leave.findByIdAndUpdate(
-    //             { _id: LRId },
-    //             {
-    //                 $set: {
-    //                     leaveType,
-    //                     slectionDuration,
-    //                     startDate,
-    //                     endDate,
-    //                     leaveDays,
-    //                     reasonOfLeave,
-    //                     isPaidLeave,
-    //                 }
-    //             }, { new: true }
-    //         )
+            const updatedLeaveRequest = await Leave.findByIdAndUpdate(
+                { _id: LRId },
+                {
+                    $set: {
+                        leaveType,
+                        slectionDuration,
+                        startDate,
+                        endDate,
+                        leaveDays,
+                        reasonOfLeave,
+                        isPaidLeave,
+                    }
+                }, { new: true }
+            )
 
-    //         return res.send({ status: 200, message: 'Leave request update successfully', updatedLeaveRequest })
-    //     } else return res.send({ status: 403, messgae: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error occurred while updating leave request:', error)
-    //     res.send({ message: 'Error occurred while updating leave request!' })
-    // }
+            return res.send({ status: 200, message: 'Leave request update successfully', updatedLeaveRequest })
+        } else return res.send({ status: 403, messgae: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while updating leave request:', error)
+        res.send({ message: 'Error occurred while updating leave request!' })
+    }
 }
 
 exports.approveLeaveRequest = async (req, res) => {

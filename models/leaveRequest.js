@@ -15,12 +15,9 @@ const leaveRequestSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['Pending', 'Approved', 'Rejected'],
-        default: 'pending'
+        default: 'Pending'
     },
-    isPaidLeave: {
-        type: Boolean,
-        default: false
-    },
+    isPaidLeave: Boolean,
     approverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approverRole: String,
     approvalReason: String,

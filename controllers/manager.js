@@ -51,7 +51,6 @@ exports.addManager = async (req, res) => {
     //                     documentDetailsFile.push({
     //                         documentType: documentDetails[i].documentType,
     //                         document: {
-    //                             fileId: element.public_id,
     //                             fileURL: element.secure_url,
     //                             fileName: documentDetails[i].fileName,
     //                         }                            
@@ -78,7 +77,6 @@ exports.addManager = async (req, res) => {
     //                 contractDetailsFile = {
     //                     contractType: contractDetails.contractType,
     //                     contractDocument: {
-    //                         fileId: element.public_id,
     //                         fileURL: element.secure_url,
     //                         fileName: contractDetails.fileName,
     //                     }
@@ -283,7 +281,6 @@ exports.updateManagerDetails = async (req, res) => {
     //                     documentDetailsFile.push({
     //                         documentType: documentDetails[i].documentType,
     //                         document: {
-    //                             fileId: element.public_id,
     //                             fileURL: element.secure_url,
     //                             fileName: documentDetails[i].fileName,
     //                         }                            
@@ -310,7 +307,6 @@ exports.updateManagerDetails = async (req, res) => {
     //                 contractDetailsFile = {
     //                     contractType: contractDetails.contractType,
     //                     contractDocument: {
-    //                         fileId: element.public_id,
     //                         fileURL: element.secure_url,
     //                         fileName: contractDetails.fileName,
     //                     }
