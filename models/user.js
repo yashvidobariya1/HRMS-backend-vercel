@@ -74,16 +74,12 @@ const userSchema = new mongoose.Schema({
   },
   documentDetails: [{
     documentType: String,
-    document: {
-      fileId: String,
-      fileName: String,
-      fileURL: String,
-    },
+    documentName: String,
+    document: String
   }],
   contractDetails: {
     contractType: String,
     contractDocument: {
-      fileId: String,
       fileName: String,
       fileURL: String,
     },
@@ -96,10 +92,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company'
   },
-  locationId: {
-    type: mongoose.Schema.Types.ObjectId,
+  locationId: [{
+    type: String,
     ref: 'Location'
-  },
+  }],
   password: String,
   lastKnownLocation: {
     latitude: String,

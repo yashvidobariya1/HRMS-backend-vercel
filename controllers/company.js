@@ -17,22 +17,13 @@ exports.addCompany = async (req, res) => {
                 if (!document || typeof document !== 'string') {
                     console.log(`Invalid or missing document for item`)
                 }
-                const isValidImage = document.startsWith("data:image/png;base64,") || document.startsWith("data:image/jpeg;base64,");
-                if (!isValidImage) {
-                    console.error("Invalid image format. Only PNG and JPEG are allowed.");
-                    return res.send({ status: 400, message: "Invalid image format. Only PNG and JPEG are allowed." });
-                }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
-                        folder: "contracts",
+                        folder: "companyLogos",
                     });
                     // console.log('Cloudinary response:', element);
-                    companyLogoImg = {
-                        fileId: element?.public_id,
-                        fileURL: element?.secure_url,
-                        fileName: companyDetails?.fileName,
-                    };
+                    companyLogoImg = element?.secure_url
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -133,11 +124,37 @@ exports.updateCompanyDetails = async (req, res) => {
                 contractDetails
             } = req.body
 
+            let companyLogoImg
+            if(companyDetails.companyLogo){
+                const document = companyDetails.companyLogo
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item`)
+                }
+                try {
+                    if(document.startsWith('data:')){
+                        let element = await cloudinary.uploader.upload(document, {
+                            resource_type: "auto",
+                            folder: "companyLogos",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        companyLogoImg = element?.secure_url
+                    } else {
+                        companyLogoImg = document
+                    }
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                }
+            }
+
             let updatedCompany = await Company.findByIdAndUpdate(
                 { _id: companyId },
                 {
                     $set: {
-                        companyDetails,
+                        companyDetails: {
+                            ...companyDetails,
+                            companyLogo: companyLogoImg
+                        },
                         employeeSettings,
                         contractDetails,
                         updatedAt: new Date()

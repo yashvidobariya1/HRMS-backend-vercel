@@ -10,7 +10,8 @@ exports.addContract = async (req, res) => {
             let {
                 contractName,
                 contract,
-                companyId
+                companyId,
+                fileName
             } = req.body
 
             const company = await Company.findById(companyId)
@@ -38,15 +39,14 @@ exports.addContract = async (req, res) => {
                     return res.send({ status: 400, message: "Invalid or missing contract document." });
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
                     contractFile = {
-                        fileId: element.public_id,
                         fileURL: element.secure_url,
-                        fileName: contract.fileName
+                        fileName: fileName
                     };
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
@@ -123,7 +123,7 @@ exports.getAllContractOfCompany = async (req, res) => {
                 contracts,
                 totalContracts,
                 totalPages: Math.ceil(totalContracts / limit),
-                currebtPage: page
+                currentPage: page
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -177,7 +177,8 @@ exports.updateContract = async (req, res) => {
             let {
                 contractName,
                 contract,
-                companyId 
+                companyId,
+                fileName
             } = req.body
 
             if (contractName && isExist.contractName != contractName) {
@@ -188,26 +189,27 @@ exports.updateContract = async (req, res) => {
             }
 
             let contractFile;
-            if (contract) {
+            if (contract && contract.startsWith('data:')) {
                 const document = contract
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(contract, {
+                    let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
                     contractFile = {
-                        fileId: element.public_id,
                         fileURL: element.secure_url,
-                        fileName: contract.fileName
+                        fileName
                     };
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
+            } else {
+                contractFile = isExist?.contract
             }
 
             let updatedContract = await Contract.findByIdAndUpdate(
