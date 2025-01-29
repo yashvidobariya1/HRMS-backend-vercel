@@ -1,42 +1,93 @@
 const Leave = require('../models/leaveRequest')
+const Notification = require('../models/notification')
 const User = require('../models/user')
 
 exports.leaveRequest = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+
+            const user = await User.findById(userId)
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
             const {
                 leaveType,
-                slectionDuration,
+                jobTitle,
+                selectionDuration,
                 startDate,
                 endDate,
                 leaveDays,
                 reasonOfLeave,
                 isPaidLeave,
             } = req.body
-            const leave = await Leave.findOne({ where: { userId: req.user.id, startDate, endDate } })
-            if (!leave) {
-                let firstName = req.user?.personalDetails?.firstName || ''
-                let lastName = req.user?.personalDetails?.lastName || ''
-                const newLeave = await Leave.create({
-                    userId: req.user.id,
-                    userName: `${firstName} ${lastName}`,
-                    userEmail: req.user?.personalDetails?.email,
-                    companyId: req.user?.companyId,
-                    locationId: req.user?.locationId,
-                    leaveType,
-                    slectionDuration,
-                    startDate,
-                    endDate,
-                    leaveDays,
-                    reasonOfLeave,
-                    isPaidLeave,
-                    status: 'Pending',
-                })
-                return res.send({ status:200, message: 'Leave request submitted.', newLeave })
-            } else {
-                return res.send({ status: 400, message: 'You already have a leave request for this day!' })
+
+            let jobDetail = user?.jobDetails.find((job) => job.jobTitle === jobTitle)
+            let locationId = jobDetail.location
+
+            const existLeave = await Leave.findOne({
+                userId,
+                startDate,
+                status: 'Pending'
+            })
+
+            if (existLeave) {
+                return res.status(400).json({ status: 400, message: 'You already have a leave request for this period!' });
             }
+
+            let firstName = req.user?.personalDetails?.firstName || ''
+            let lastName = req.user?.personalDetails?.lastName || ''
+
+            const newLeave = await Leave.create({
+                userId: req.user.id,
+                jobTitle,
+                userName: `${firstName} ${lastName}`,
+                userEmail: req.user?.personalDetails?.email,
+                companyId: req.user?.companyId,
+                locationId,
+                leaveType,
+                selectionDuration,
+                startDate,
+                endDate,
+                leaveDays,
+                reasonOfLeave,
+                isPaidLeave,
+                status: 'Pending',
+            })
+
+            // ---------------send notification---------------
+            let notifiedId = []
+            if (req.user.role === 'Employee') {
+                if (jobDetail && jobDetail.assignManager) {
+                    notifiedId.push(jobDetail.assignManager);
+                }
+
+                const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+                // console.log('administrator', administrator)
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                }
+            } else if (req.user.role === 'Manager') {
+                const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                }
+            } else if (req.user.role === 'Administrator' && user?.creatorId) {
+                notifiedId.push(user.creatorId);
+            }
+
+            const notification = new Notification({
+                userId,
+                notifiedId,
+                type: 'Leave request',
+                message: `${firstName} ${lastName} has submitted a ${leaveType} leave request from ${startDate} to ${endDate}.`
+            });
+            // console.log('notification/..', notification)
+            await notification.save();
+
+            return res.send({ status:200, message: 'Leave request submitted.', newLeave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while leaving request.', error)
@@ -72,6 +123,58 @@ exports.getAllOwnLeaves = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while getting all leaves requests:', error)
         res.send({ message: 'Error occurred while getting all leave requests!' })
+    }
+}
+
+exports.getAllowLeaveCount = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { jobTitle } = req.body
+            const userId = req.user._id
+            const user = await User.findById(userId)
+
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+            
+            const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
+            if (!jobExists) {
+                return res.send({ status: 404, message: 'Job title not found' });
+            }
+
+            const currentYear = new Date().getFullYear()
+            const startDate = new Date(currentYear, 0, 1, 0, 0, 0, 0)
+            const endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999)
+
+            const allLeavesOfUser = await Leave.find({
+                userId,
+                status: 'Approved',
+                jobTitle,
+                createdAt: { $gte: startDate, $lte: endDate }
+            })
+
+            const leaveCountByType = allLeavesOfUser.reduce((acc, leave) => {
+                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
+                return acc;
+            }, {});
+
+            let jobDetails = user.jobDetails.find(job => job.jobTitle === jobTitle) || user.jobDetails[0]
+            console.log('jobDetails/..', jobDetails)
+
+            const totalSickLeaves = jobDetails.sickLeavesAllow
+            const totalAllowLeaves = jobDetails.leavesAllow
+
+            let leaveCount ={
+                Causal: (leaveCountByType.Causal) ? ( totalAllowLeaves - (leaveCountByType.Causal) ) : totalAllowLeaves,
+                Sick: (leaveCountByType.Sick) ? ( totalSickLeaves - (leaveCountByType.Sick) ) : totalSickLeaves
+            }
+            
+            return res.send({ status: 200, leaveCount })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while getting leave count:', error)
+        res.send({ message: 'Error occurred while getting leave count!' })
     }
 }
 
@@ -118,7 +221,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                 let allEmployeesLR = []
                 for (const LR of allLeaveRequests) {
                     const existingUser = await User.findOne({ _id: LR.userId })
-                    if (existingUser.role === 'Manager') {
+                    if (existingUser.role === 'Employee') {
                         allEmployeesLR.push(LR)
                     }
                 }
@@ -132,7 +235,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                     currentPage: page
                 })
             }
-        } else return res.send({ status: 403, messgae: 'Access denied' })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while getting own company employees leave requests:', error)
         res.send({ message: 'Error occurred while getting own company employees leave requests!' })
@@ -158,6 +261,10 @@ exports.updateLeaveRequest = async (req, res) => {
                 return res.send({ status: 404, message: 'Leave request not found' })
             }
 
+            if(leaveRequest.status !== 'Pending'){
+                return res.send({ status: 403, message: 'Leave request is not in pending status' })
+            }
+
             const updatedLeaveRequest = await Leave.findByIdAndUpdate(
                 { _id: LRId },
                 {
@@ -174,7 +281,7 @@ exports.updateLeaveRequest = async (req, res) => {
             )
 
             return res.send({ status: 200, message: 'Leave request update successfully', updatedLeaveRequest })
-        } else return res.send({ status: 403, messgae: 'Access denied' })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating leave request:', error)
         res.send({ message: 'Error occurred while updating leave request!' })
@@ -187,15 +294,32 @@ exports.approveLeaveRequest = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { approvalReason } = req.body
+
             const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending' })
+
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
+
             leave.status = 'Approved'
             leave.approvalReason = approvalReason
             leave.approverId = req.user._id
             leave.approverRole = req.user.role
             await leave.save()
+
+            // ---------------send notification---------------
+            let firstName = req.user.personalDetails.firstName
+            let lastName = req.user.personalDetails.lastName
+
+            const notification = new Notification({
+                userId: req.user._id,
+                notifiedId: leave.userId,
+                type: 'Leave request approveral',
+                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.`
+            })
+            // console.log('notification/..', notification)
+
+            await notification.save()
             return res.send({ status: 200, message: 'Leave request approved.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -210,15 +334,32 @@ exports.rejectLeaveRequest = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body
+
             const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending' })
+
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
+
             leave.status = 'Rejected'
             leave.rejectionReason = rejectionReason
             leave.rejectorId = req.user._id
             leave.rejectorRole = req.user.role
             await leave.save()
+
+            // ---------------send notification---------------
+            let firstName = req.user.personalDetails.firstName
+            let lastName = req.user.personalDetails.lastName
+
+            const notification = new Notification({
+                userId: req.user._id,
+                notifiedId: leave.userId,
+                type: 'Leave request reject',
+                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request.`
+            })
+            // console.log('notification/..', notification)
+            
+            await notification.save()
             return res.send({ status: 200, message: 'Leave request rejected.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

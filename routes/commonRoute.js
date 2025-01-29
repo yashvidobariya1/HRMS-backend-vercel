@@ -1,8 +1,9 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getNotifications, getUnreadNotificationsCount, generateContractLetter } = require('../controllers/common')
+const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear } = require('../controllers/timeSheet')
-const { leaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllLeaveRequest, getAllOwnLeaves, updateLeaveRequest } = require('../controllers/leaveManagement')
+const { leaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllLeaveRequest, getAllOwnLeaves, updateLeaveRequest, getAllowLeaveCount } = require('../controllers/leaveManagement')
+const { getNotifications, getUnreadNotificationsCount } = require('../controllers/notification')
 
 const commonRoute = Router()
 
@@ -12,6 +13,7 @@ commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
 
+commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 
 commonRoute.post('/addUser', auth, addUser)
 commonRoute.get('/getUser/:id', auth, getUser)
@@ -32,7 +34,7 @@ commonRoute.get('/getTimesheetsByMonthAndYear', auth, getTimesheetByMonthAndYear
 commonRoute.get('/getOwnTimesheetByMonthAndYear', auth, getOwnTimesheetByMonthAndYear)
 // commonRoute.post('/generateContractLetter', generateContractLetter)
 
-commonRoute.get('/getNotifications/:id', auth, getNotifications)
+commonRoute.get('/getNotifications', auth, getNotifications)
 commonRoute.get('/getUnreadNotificationsCount/:id', auth, getUnreadNotificationsCount)
 
 // QR code scanning
@@ -45,5 +47,6 @@ commonRoute.get('/getAllLeaveRequest', auth, getAllLeaveRequest)
 commonRoute.post('/updateLeaveRequest/:id', auth, updateLeaveRequest)
 commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
 commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
+commonRoute.get('/getAllowLeaveCount', auth, getAllowLeaveCount)
 
 module.exports = commonRoute

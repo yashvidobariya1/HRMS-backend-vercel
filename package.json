@@ -34,6 +34,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pizzip": "^3.1.8",
+    "puppeteer": "^24.1.1",
     "streamifier": "^0.1.1",
     "supertest": "^7.0.0"
   }

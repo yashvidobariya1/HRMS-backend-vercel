@@ -603,7 +603,7 @@ exports.getTimesheetByMonthAndYear = async (req, res) =>{
             console.error('Error osccured while getting timesheet:', error)
             res.send({ message: 'Something went wrong while getting timesheet!' })
         }
-    } else return res.send({ status: 403, messgae: 'Access denied' })
+    } else return res.send({ status: 403, message: 'Access denied' })
 }
 
 // pending work
@@ -654,7 +654,7 @@ exports.generateQRcode = async (req, res) => {
 
             const types = ['Company', 'Location']
             if(!types.includes(qrType)){
-                return res.send({ status: 400, messgae: 'QR type is undefined, please enter valid type.' })
+                return res.send({ status: 400, message: 'QR type is undefined, please enter valid type.' })
             }
 
             let generatedQR
@@ -670,7 +670,7 @@ exports.generateQRcode = async (req, res) => {
 
             if(qrType == 'Company'){
                 const company = await Company.findById(id)
-                if(!company) return res.send({ status: 404, messgae: 'Company not found' })
+                if(!company) return res.send({ status: 404, message: 'Company not found' })
                 
                 const QRCode = await QR.create({
                     companyId: id,
@@ -681,7 +681,7 @@ exports.generateQRcode = async (req, res) => {
                 return res.send({ status: 200, message: 'Company QR generate successfully.', QRCode })
             } else if(qrType == 'Location'){
                 const location = await Location.findById(id)
-                if(!location) return res.send({ status: 404, messgae: 'Location not found' })
+                if(!location) return res.send({ status: 404, message: 'Location not found' })
                 
                 const QRCode = await QR.create({
                     companyId: location.companyId,

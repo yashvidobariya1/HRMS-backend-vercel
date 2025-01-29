@@ -2,8 +2,6 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
-const Notification = require("../models/notification");
-const { default: mongoose } = require("mongoose");
 
 exports.login = async (req, res) => {
     try {
@@ -268,7 +266,7 @@ exports.addUser = async (req, res) => {
                     try {
                         let element = await cloudinary.uploader.upload(gettedDocument, {
                             resource_type: "auto",
-                            folder: "contracts",
+                            folder: "userDocuments",
                         });
                         // console.log('Cloudinary response:', element);
                         documentDetailsFile.push({
@@ -292,7 +290,7 @@ exports.addUser = async (req, res) => {
                 try {
                     let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
-                        folder: "contracts",
+                        folder: "userContracts",
                     });
                     // console.log('Cloudinary response:', element);
                     contractDetailsFile = {
@@ -383,7 +381,7 @@ exports.addUser = async (req, res) => {
             // console.log('new user', newUser)
             const user = await User.create(newUser)
 
-            return res.send({ status: 200, message: `User created successfully.`, user })
+            return res.send({ status: 200, message: `${user.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding user:", error);
@@ -500,7 +498,7 @@ exports.updateUserDetails = async (req, res) => {
                         if(gettedDocument.startsWith('data:')){
                             let element = await cloudinary.uploader.upload(gettedDocument, {
                                 resource_type: "auto",
-                                folder: "contracts",
+                                folder: "userDocuments",
                             });
                             // console.log('Cloudinary response:', element);
                             documentDetailsFile.push({
@@ -532,7 +530,7 @@ exports.updateUserDetails = async (req, res) => {
                     if(document.startsWith('data:')){
                         let element = await cloudinary.uploader.upload(document, {
                             resource_type: "auto",
-                            folder: "contracts",
+                            folder: "userContracts",
                         });
                         // console.log('Cloudinary response:', element);
                         contractDetailsFile = {
@@ -575,7 +573,7 @@ exports.updateUserDetails = async (req, res) => {
                 }, { new: true }
             )
 
-            return res.send({ status: 200, message: `${jobDetails.role} details updated successfully.`, updatedUser })
+            return res.send({ status: 200, message: `${updatedUser.role} details updated successfully.`, updatedUser })
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -605,7 +603,7 @@ exports.deleteUserDetails = async (req, res) => {
                 }
             })
 
-            return res.send({ status: 200, message: 'User deleted successfully.', deletedUser })
+            return res.send({ status: 200, message: `${deletedUser.role} deleted successfully.`, deletedUser })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing user:", error);
@@ -613,124 +611,30 @@ exports.deleteUserDetails = async (req, res) => {
     }
 }
 
-exports.getNotifications = async (req, res) => {
+exports.getUserJobTitles = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
-        if (allowedRoles.includes(req.user.role)) {
-            let notifiedId = req.params.id
-            let companyId = req.query.companyId
-            let locationId = req.query.locationId
-            // console.log(notifiedId);
-
-            if (!notifiedId || notifiedId == 'undefined' || notifiedId == 'null') {
-                return res.send({ status: 404, message: 'Notification not found' })
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+            const user = await User.findById(userId)
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
             }
-
-            let notifications = await Notification.aggregate([
-                {
-                    $lookup: {
-                        from: "users",
-                        localField: "userId",
-                        foreignField: "_id",
-                        as: "user_id",
-                    },
-                }, {
-                    $unwind: "$user_id"
-                }, {
-                    $match: {
-                        "user_id.isDeleted": false,
-                        notifiedId: new mongoose.Types.ObjectId(notifiedId),
-                        ...(companyId && { "user_id.companyId": new mongoose.Types.ObjectId(companyId) }),
-                        ...(locationId && { "user_id.locationId": new mongoose.Types.ObjectId(locationId) }),
-                    }
-                },
-                {
-                    $project: {
-                        "user._id": "$user_id._id",
-                        "user.firstName": "$user_id.personalDetails.firstName",
-                        "user.middleName": "$user_id.personalDetails.middleName",
-                        "user.lastName": "$user_id.personalDetails.lastName",
-                        "notifiedId": "$user_id.creatorId",
-                        "notifiedRole": "$user_id.createdBy",
-                        type: 1,
-                        message: 1,
-                        isRead: 1,
-                        createdAt: 1,
-                        updatedAt: 1
-                    }
-                },
-                {
-                    $sort: { createdAt: -1 }
-                },
-            ]);
-            // console.log("notifications", notifications);
-
-            const notificationIds = notifications.map((notification) => notification._id);
-            if (notificationIds.length > 0) {
-                await Notification.updateMany(
-                    { _id: { $in: notificationIds } },
-                    { $set: { isRead: true } }
-                );
+            const jobTitle = []
+            user?.jobDetails.map((job) => {
+                jobTitle.push(job.jobTitle)
+            })
+            if(jobTitle.length > 1){
+                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: true, jobTitle })
+            } else {
+                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: false, jobTitle })
             }
-
-            res.send({ status: 200, message: "Notification get successfully.", notifications });
-        } else return res.send({ status: 403, message: "Access denied" })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error fetching notifications:', error);
-        res.status(500).send({ message: 'Error fetching notifications' });
+        console.error('Error occurred while finding user job type:', error)
+        res.send({ message: 'Error occurred while finding user role job type!' })
     }
-};
-
-exports.getUnreadNotificationsCount = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
-        if (allowedRoles.includes(req.user.role)) {
-            const notifiedId = req.params.id;
-            const companyId = req.query.companyId;
-            const locationId = req.query.locationId;
-
-            if (!notifiedId || notifiedId == 'undefined' || notifiedId == 'null') {
-                return res.send({ status: 404, message: 'Notification not found' })
-            }
-
-            const unreadCount = await Notification.aggregate([
-                {
-                    $lookup: {
-                        from: "users",
-                        localField: "userId",
-                        foreignField: "_id",
-                        as: "user_id",
-                    },
-                },
-                {
-                    $unwind: "$user_id"
-                },
-                {
-                    $match: {
-                        "user_id.isDeleted": false,
-                        notifiedId: new mongoose.Types.ObjectId(notifiedId),
-                        isRead: false,
-                        ...(companyId && { "user_id.companyId": new mongoose.Types.ObjectId(companyId) }),
-                        ...(locationId && { "user_id.locationId": new mongoose.Types.ObjectId(locationId) }),
-                    }
-                },
-                {
-                    $count: "unreadCount"
-                }
-            ]);
-
-            const count = unreadCount.length > 0 ? unreadCount[0].unreadCount : 0;
-
-            res.send({ status: 200, message: "New NotificationCount get successfully.", unreadCount: count });
-        } else {
-            return res.send({ status: 403, message: "Access denied" });
-        }
-    } catch (error) {
-        console.error("Error fetching unread notifications count:", error);
-        res.status(500).send({ message: "Error fetching unread notifications count" });
-    }
-};
-
+}
 
 
 
@@ -740,10 +644,10 @@ exports.getUnreadNotificationsCount = async (req, res) => {
 
 // =================================================================pending work for generating the offer letter===========================================================
 
-const { PDFDocument, StandardFonts } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const axios = require("axios");
-const Docxtemplater = require("docxtemplater");
-const PizZip = require("pizzip");
+const pdf = require('pdf-parse');
+const puppeteer = require('puppeteer');
 const streamifier = require("streamifier");
 const Contract = require("../models/contract");
 
@@ -894,59 +798,418 @@ const getContractById = async (contractId) => {
 }
 
 
-exports.generateContractLetter = async (req, res) => {
+
+// exports.generateContractLetter = async (req, res) => {
+//     try {
+//         const { name, position, company, joiningDate, email, contractId } = req.body;
+    
+//         if (!name || !position || !company || !joiningDate || !email) {
+//             return res.status(400).send({ error: 'All fields are required!' })
+//         }
+
+//         const gettedContract = await getContractById(contractId)
+//         if(!gettedContract){
+//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//         }
+//         const cloudinaryUrl = gettedContract?.contractURL;
+//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
+//         const content = response.data;
+
+//         const data = await pdf(content);
+
+//         // Generate HTML content
+//         const htmlContent = `
+//             <!DOCTYPE html>
+//             <html lang="en">
+//             <head>
+//                 <meta charset="UTF-8">
+//                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//                 <title>PDF to HTML</title>
+//             </head>
+//             <body>
+//                 <pre>${data.text}</pre>
+//             </body>
+//             </html>
+//         `;
+
+//         fs.writeFileSync('contractLetter.html', htmlContent, 'utf8')
+
+//         // const uploadToCloudinary = async (pdfBytes) => {
+//         //     return new Promise((resolve, reject) => {
+//         //         const uploadStream = cloudinary.uploader.upload_stream(
+//         //             { resource_type: "auto", folder: "employeeContract" },
+//         //             (error, result) => {
+//         //                 if (error) reject(error);
+//         //                 else resolve(result);
+//         //             }
+//         //         );
+//         //         streamifier.createReadStream(pdfBytes).pipe(uploadStream);
+//         //     });
+//         // };
+
+//         // const uploadResult = await uploadToCloudinary(pdfBytes)
+//         // const generatedUrl = uploadResult.secure_url
+
+//         return res.send({
+//             status: 200,
+//             message: 'Contract letter generated successfully for user.',
+//             // employeeContractForm: generatedUrl
+//         })
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send({ error: 'Something went wrong!' });
+//     }
+// };
+
+
+exports.generateContractLetterLLLLL = async (req, res) => {
     try {
         const { name, position, company, joiningDate, email, contractId } = req.body;
-    
+
+        // Validate input
         if (!name || !position || !company || !joiningDate || !email) {
-            return res.status(400).send({ error: 'All fields are required!' })
+            return res.status(400).send({ error: "All fields are required!" });
         }
 
-        const gettedContract = await getContractById(contractId)
-        if(!gettedContract){
-            return res.send({ status: 404, messgae: 'Contract not found!' })
+        // Fetch contract by ID
+        const gettedContract = await getContractById(contractId);
+        if (!gettedContract) {
+            return res.status(404).send({ message: "Contract not found!" });
         }
-        console.log('gettedContract', gettedContract)
-        const cloudinaryUrl = gettedContract?.contractURL; // e.g., "https://res.cloudinary.com/your-cloud-name/raw/upload/v123456789/fulltime-contract.docx"
-        console.log('cloudinary url: ' + cloudinaryUrl)
+
+        // Fetch the PDF from Cloudinary
+        const cloudinaryUrl = gettedContract?.contractURL;
         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-        const content = response.data;
+        const pdfBytes = response.data;
 
-        const zip = new PizZip(content);
-        const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+        // Load the existing PDF
+        const pdfDoc = await PDFDocument.load(pdfBytes);
 
-        // Replace placeholders with user data
-        doc.render({ name, position, company, joiningDate, email });
+        // Embed a font for adding text
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-        // Generate the filled contract
-        const buffer = doc.getZip().generate({ type: "nodebuffer" });
+        // Get the first page of the document
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
 
-        const uploadToCloudinary = async (buffer) => {
+        // Set the coordinates for where the new data will be placed
+        const contentX = 50; // X coordinate
+        let contentY = 700; // Starting Y coordinate
+
+        // Add dynamic content to the PDF
+        const lineHeight = 20; // Spacing between lines
+        const content = [
+            `Name: ${name}`,
+            `Position: ${position}`,
+            `Company: ${company}`,
+            `Joining Date: ${joiningDate}`,
+            `Email: ${email}`,
+        ];
+
+        // Draw each line of content
+        content.forEach((line) => {
+            firstPage.drawText(line, {
+                x: contentX,
+                y: contentY,
+                size: 12,
+                font: helveticaFont,
+                color: rgb(0, 0, 0),
+            });
+            contentY -= lineHeight;
+        });
+
+        // Serialize the PDF to bytes
+        const updatedPdfBytes = await pdfDoc.save();
+
+        // Upload the updated PDF to Cloudinary
+        const uploadToCloudinary = async (pdfBuffer) => {
             return new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
-                    { resource_type: "raw", folder: "employeeContract" },
+                    { resource_type: "auto", folder: "employeeContract" },
                     (error, result) => {
                         if (error) reject(error);
                         else resolve(result);
                     }
                 );
-                streamifier.createReadStream(buffer).pipe(uploadStream);
+                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
             });
         };
 
-        const uploadResult = await uploadToCloudinary(buffer)
-        const generatedUrl = uploadResult.secure_url
+        const uploadResult = await uploadToCloudinary(updatedPdfBytes);
+        const generatedUrl = uploadResult.secure_url;
 
         return res.send({
             status: 200,
-            message: 'Contract letter generated successfully for user.',
-            employeeContractForm: generatedUrl
-        })
+            message: "Contract letter generated and uploaded successfully.",
+            employeeContractForm: generatedUrl,
+        });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ error: 'Something went wrong!' });
+        res.status(500).send({ error: "Something went wrong!" });
+    }
+}
+
+exports.generateContractLetter = async (req, res) => {
+    try {
+        const { name, position, company, joiningDate, email, contractId } = req.body;
+
+        // Validate input
+        if (!name || !position || !company || !joiningDate || !email) {
+            return res.status(400).send({ error: "All fields are required!" });
+        }
+
+        // Fetch contract by ID
+        const gettedContract = await getContractById(contractId);
+        if (!gettedContract) {
+            return res.status(404).send({ message: "Contract not found!" });
+        }
+
+        // Fetch the PDF from Cloudinary
+        const cloudinaryUrl = gettedContract?.contractURL;
+        const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
+        const pdfBytes = response.data;
+
+        // Load the existing PDF
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+
+        // Embed a font for adding text
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        // Get the first page of the document
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+
+        // Set the coordinates for where the new data will be placed
+        const contentX = 50; // X coordinate
+        let contentY = 700; // Starting Y coordinate
+        const lineHeight = 20; // Spacing between lines
+
+        // Define the content to add
+        const content = [
+            `Name: ${name}`,
+            `Position: ${position}`,
+            `Company: ${company}`,
+            `Joining Date: ${joiningDate}`,
+            `Email: ${email}`,
+        ];
+
+        // Helper function to calculate font size dynamically
+        const calculateFontSize = (text, maxWidth, font) => {
+            let fontSize = 12; // Default size
+            while (font.widthOfTextAtSize(text, fontSize) > maxWidth && fontSize > 6) {
+                fontSize -= 1; // Decrease font size until it fits
+            }
+            return fontSize;
+        };
+
+        // Clear placeholder area and add text dynamically
+        content.forEach((line) => {
+            // Calculate font size to fit text
+            const fontSize = calculateFontSize(line, 300, helveticaFont);
+
+            // Clear the placeholder area
+            firstPage.drawRectangle({
+                x: contentX - 5,
+                y: contentY - 5,
+                width: 300,
+                height: lineHeight,
+                color: rgb(1, 1, 1), // White background
+            });
+
+            // Add the text
+            firstPage.drawText(line, {
+                x: contentX,
+                y: contentY,
+                size: fontSize,
+                font: helveticaFont,
+                color: rgb(0, 0, 0), // Black text
+            });
+
+            contentY -= lineHeight; // Move down for the next line
+        });
+
+        // Serialize the PDF to bytes
+        const updatedPdfBytes = await pdfDoc.save();
+
+        // Upload the updated PDF to Cloudinary
+        const uploadToCloudinary = async (pdfBuffer) => {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { resource_type: "auto", folder: "employeeContract" },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+            });
+        };
+
+        const uploadResult = await uploadToCloudinary(updatedPdfBytes);
+        const generatedUrl = uploadResult.secure_url;
+
+        return res.send({
+            status: 200,
+            message: "Contract letter generated and uploaded successfully.",
+            employeeContractForm: generatedUrl,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ error: "Something went wrong!" });
     }
 };
+
+// with using puppeteer
+// exports.generateContractLetter = async (req, res) => {
+//     try {
+//         const { name, position, company, joiningDate, email, contractId } = req.body;
+
+//         if (!name || !position || !company || !joiningDate || !email) {
+//             return res.status(400).send({ error: 'All fields are required!' });
+//         }
+
+//         const gettedContract = await getContractById(contractId);
+//         if (!gettedContract) {
+//             return res.status(404).send({ message: 'Contract not found!' });
+//         }
+
+//         const cloudinaryUrl = gettedContract?.contractURL;
+//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
+//         const content = response.data;
+
+//         const pdfData = await pdf(content);
+//         console.log('pdfData:', pdfData)
+//         let pdfText = pdfData.text;
+
+//         pdfText = pdfText
+//             .replace(/{name}/g, name)
+//             .replace(/{email}/g, email)
+//             .replace(/{position}/g, position)
+//             .replace(/{joiningDate}/g, joiningDate)
+//             .replace(/{company}/g, company);
+
+//         const htmlContent = `
+//             <!DOCTYPE html>
+//             <html lang="en">
+//             <head>
+//                 <meta charset="UTF-8">
+//                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//                 <title>Contract Letter</title>
+//                 <style>
+//                     body {
+//                         font-family: Arial, sans-serif;
+//                         line-height: 1.6;
+//                         margin: 20px;
+//                         padding: 0;
+//                     }
+//                     h1 {
+//                         color: #333;
+//                     }
+//                     .content {
+//                         border: 1px solid #ccc;
+//                         padding: 20px;
+//                         border-radius: 10px;
+//                         background: #f9f9f9;
+//                     }
+//                 </style>
+//             </head>
+//             <body>
+//                 <div class="content">
+//                     <pre>${pdfText}</pre>
+//                 </div>
+//             </body>
+//             </html>
+//         `;
+
+//         const browser = await puppeteer.launch();
+//         const page = await browser.newPage();
+//         await page.setContent(htmlContent, { waitUntil: 'load' });
+
+//         const pdfBuffer = await page.pdf({ format: 'A4' });
+//         await browser.close();
+
+//         const uploadToCloudinary = async (pdfBuffer) => {
+//             return new Promise((resolve, reject) => {
+//                 const uploadStream = cloudinary.uploader.upload_stream(
+//                     { resource_type: 'auto', folder: 'employeeContract' },
+//                     (error, result) => {
+//                         if (error) reject(error);
+//                         else resolve(result);
+//                     }
+//                 );
+//                 streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+//             });
+//         };
+
+//         const uploadResult = await uploadToCloudinary(pdfBuffer);
+//         const generatedUrl = uploadResult.secure_url;
+
+//         return res.send({
+//             status: 200,
+//             message: 'Contract letter generated and uploaded successfully.',
+//             employeeContractForm: generatedUrl,
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send({ error: 'Something went wrong!' });
+//     }
+// }
+
+// this function complete worked but text was overlapping
+// exports.generateContractLetter = async (req, res) => {
+//     try {
+//         const { name, position, company, joiningDate, email, contractId } = req.body;
+    
+//         if (!name || !position || !company || !joiningDate || !email) {
+//             return res.status(400).send({ error: 'All fields are required!' })
+//         }
+
+//         const gettedContract = await getContractById(contractId)
+//         if(!gettedContract){
+//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//         }
+//         const cloudinaryUrl = gettedContract?.contractURL;
+//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
+//         const content = response.data;
+
+//         const pdfDoc = await PDFDocument.load(content);
+
+//         const pages = pdfDoc.getPages();
+//         const firstPage = pages[0];
+//         firstPage.drawText(`Name: ${name}`, { x: 50, y: 700, size: 12 });
+//         firstPage.drawText(`Position: ${position}`, { x: 50, y: 680, size: 12 });
+//         firstPage.drawText(`Company: ${company}`, { x: 50, y: 660, size: 12 });
+//         firstPage.drawText(`Joining Date: ${joiningDate}`, { x: 50, y: 640, size: 12 });
+//         firstPage.drawText(`Email: ${email}`, { x: 50, y: 620, size: 12 });
+
+//         const pdfBytes = await pdfDoc.save();
+
+//         const uploadToCloudinary = async (pdfBytes) => {
+//             return new Promise((resolve, reject) => {
+//                 const uploadStream = cloudinary.uploader.upload_stream(
+//                     { resource_type: "auto", folder: "employeeContract" },
+//                     (error, result) => {
+//                         if (error) reject(error);
+//                         else resolve(result);
+//                     }
+//                 );
+//                 streamifier.createReadStream(pdfBytes).pipe(uploadStream);
+//             });
+//         };
+
+//         const uploadResult = await uploadToCloudinary(pdfBytes)
+//         const generatedUrl = uploadResult.secure_url
+
+//         return res.send({
+//             status: 200,
+//             message: 'Contract letter generated successfully for user.',
+//             employeeContractForm: generatedUrl
+//         })
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send({ error: 'Something went wrong!' });
+//     }
+// };
 
 // exports.generateOfferLetter = async (req, res) => {
 //     try {

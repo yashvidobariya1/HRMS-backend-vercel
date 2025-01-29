@@ -11,7 +11,7 @@ exports.addContract = async (req, res) => {
                 contractName,
                 contract,
                 companyId,
-                fileName
+                contractFileName
             } = req.body
 
             const company = await Company.findById(companyId)
@@ -30,7 +30,6 @@ exports.addContract = async (req, res) => {
                 }
             }
 
-            let contractFile;
             if (contract) {
                 const document = contract;
 
@@ -44,10 +43,7 @@ exports.addContract = async (req, res) => {
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
-                    contractFile = {
-                        fileURL: element.secure_url,
-                        fileName: fileName
-                    };
+                    contract = element.secure_url
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -58,7 +54,8 @@ exports.addContract = async (req, res) => {
             const name = [firstName, lastName].filter(Boolean).join(" ");
             const contractForm = {
                 contractName,
-                contract: contractFile,
+                contract,
+                contractFileName,
                 createdRole: req.user.role,
                 creatorId: req.user._id,
                 uploadBy: name,
@@ -178,7 +175,7 @@ exports.updateContract = async (req, res) => {
                 contractName,
                 contract,
                 companyId,
-                fileName
+                contractFileName
             } = req.body
 
             if (contractName && isExist.contractName != contractName) {
@@ -188,7 +185,6 @@ exports.updateContract = async (req, res) => {
                 }
             }
 
-            let contractFile;
             if (contract && contract.startsWith('data:')) {
                 const document = contract
                 if (!document || typeof document !== 'string') {
@@ -200,16 +196,13 @@ exports.updateContract = async (req, res) => {
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
-                    contractFile = {
-                        fileURL: element.secure_url,
-                        fileName
-                    };
+                    contract = element.secure_url
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             } else {
-                contractFile = isExist?.contract
+                contract = isExist?.contract
             }
 
             let updatedContract = await Contract.findByIdAndUpdate(
@@ -217,7 +210,8 @@ exports.updateContract = async (req, res) => {
                 {
                     $set: {
                         contractName,
-                        contract: contractFile,
+                        contract,
+                        contractFileName,
                         companyId,
                         updatedAt: new Date()
                     }

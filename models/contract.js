@@ -6,10 +6,8 @@ const contractSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    contract: {
-        fileName: String,
-        fileURL: String,
-    },
+    contract: String,
+    contractFileName: String,
     createdRole: {
         type: String
     },
