@@ -24,7 +24,8 @@ const leaveRequestSchema = new mongoose.Schema({
     approvalReason: String,
     rejectorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     rejectorRole: String,
-    rejectionReason: String
+    rejectionReason: String,
+    isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('LeaveRequest', leaveRequestSchema);

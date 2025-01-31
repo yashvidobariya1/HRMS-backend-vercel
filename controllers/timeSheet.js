@@ -21,6 +21,8 @@ const Leave = require("../models/leaveRequest");
 //                 return res.send({ status: 404, message: "User not found" })
 //             }
 
+//             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
+
 //             if (!location || !location.latitude || !location.longitude) {
 //                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
 //             }
@@ -118,14 +120,55 @@ const Leave = require("../models/leaveRequest");
 //             await timesheet.save()
 
 //             //------entry notification-----------
-//             const notifiedId = existUser?.creatorId;
-//             const { firstName, middleName, lastName } = existUser.personalDetails;
-//             const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+//             let notifiedId = []
+//             let readBy = []
+//             if (existUser.role === 'Employee') {
+//                 if (jobDetail && jobDetail.assignManager) {
+//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+//                     // console.log('assignManager', assignManager)
+//                     notifiedId.push(jobDetail.assignManager);
+//                     readBy.push({
+//                         userId: jobDetail.assignManager,
+//                         role: assignManager[0].role
+//                     })
+//                     // console.log('readBy1/..', readBy)
+//                 }
+
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 // console.log('administrator', administrator)
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Manager') {
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Administrator') {
+//                 notifiedId.push(existUser.creatorId)
+//                 readBy.push({
+//                     userId: existUser.creatorId,
+//                     role: existUser.createdBy
+//                 })
+//             }
+
+//             const { firstName, lastName } = existUser.personalDetails;
+//             const name = [firstName, lastName].filter(Boolean).join(" ");
 //             const notification = new Notification({
 //                 userId,
+//                 userName: `${name}`,
 //                 notifiedId,
-//                 type: 'Clockin',
-//                 message: `User ${name} entered the geofence at ${currentDate}`
+//                 type: 'ClockIn',
+//                 message: `User ${name} entered the geofence at ${currentDate}`,
+//                 readBy
 //             });
 //             await notification.save();
 
@@ -147,6 +190,8 @@ const Leave = require("../models/leaveRequest");
 //             if (!existUser) {
 //                 return res.send({ status: 404, message: "User not found" });
 //             }
+
+//             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
 
 //             if (!location || !location.latitude || !location.longitude) {
 //                 return res.send({ status: 400, message: "Location coordinator data is not found!" });
@@ -302,14 +347,55 @@ const Leave = require("../models/leaveRequest");
 //             await timesheet.save();
 
 //             //------exit notification-----------
-//             const notifiedId = existUser?.creatorId;
-//             const { firstName, middleName, lastName } = existUser.personalDetails;
-//             const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+//             let notifiedId = []
+//             let readBy = []
+//             if (existUser.role === 'Employee') {
+//                 if (jobDetail && jobDetail.assignManager) {
+//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+//                     // console.log('assignManager', assignManager)
+//                     notifiedId.push(jobDetail.assignManager);
+//                     readBy.push({
+//                         userId: jobDetail.assignManager,
+//                         role: assignManager[0].role
+//                     })
+//                     // console.log('readBy1/..', readBy)
+//                 }
+
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 // console.log('administrator', administrator)
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Manager') {
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Administrator') {
+//                 notifiedId.push(existUser.creatorId)
+//                 readBy.push({
+//                     userId: existUser.creatorId,
+//                     role: existUser.createdBy
+//                 })
+//             }
+
+//             const { firstName, lastName } = existUser.personalDetails;
+//             const name = [firstName, lastName].filter(Boolean).join(" ");
 //             const notification = new Notification({
 //                 userId,
+//                 userName: `${name}`,
 //                 notifiedId,
-//                 type: 'Clockout',
-//                 message: `User ${name} exited the geofence at ${currentDateStr}`
+//                 type: 'ClockOut',
+//                 message: `User ${name} exited the geofence at ${currentDate}`,
+//                 readBy
 //             });
 //             await notification.save();
 
@@ -327,12 +413,14 @@ exports.clockInFunc = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             // console.log('req.user.role/...', req.user.role)
-            const { userId, location } = req.body
+            const { userId, location, jobTitle } = req.body
 
             const existUser = await User.findById(userId)
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
             }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -389,6 +477,59 @@ exports.clockInFunc = async (req, res) => {
             timesheet.isTimerOn = true
             await timesheet.save()
 
+            //------entry notification-----------
+            let notifiedId = []
+            let readBy = []
+            if (existUser.role === 'Employee') {
+                if (jobDetail && jobDetail.assignManager) {
+                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    // console.log('assignManager', assignManager)
+                    notifiedId.push(jobDetail.assignManager);
+                    readBy.push({
+                        userId: jobDetail.assignManager,
+                        role: assignManager[0].role
+                    })
+                    // console.log('readBy1/..', readBy)
+                }
+
+                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                // console.log('administrator', administrator)
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
+                }
+            } else if (existUser.role === 'Manager') {
+                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
+                }
+            } else if (existUser.role === 'Administrator') {
+                notifiedId.push(existUser.creatorId)
+                readBy.push({
+                    userId: existUser.creatorId,
+                    role: existUser.createdBy
+                })
+            }
+
+            const { firstName, lastName } = existUser.personalDetails;
+            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const notification = new Notification({
+                userId,
+                userName: `${name}`,
+                notifiedId,
+                type: 'ClockIn',
+                message: `User ${name} entered the geofence at ${currentDate}`,
+                readBy
+            });
+            await notification.save();
+
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -402,12 +543,14 @@ exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const { userId, location } = req.body
+            const { userId, location, jobTitle } = req.body
 
             const existUser = await User.findById(userId)
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
             }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Something went wrong, Please try again!" })
@@ -481,6 +624,59 @@ exports.clockOutFunc = async (req, res) => {
             timesheet.isTimerOn = false
 
             await timesheet.save()
+
+            //------exit notification-----------
+            let notifiedId = []
+            let readBy = []
+            if (existUser.role === 'Employee') {
+                if (jobDetail && jobDetail.assignManager) {
+                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    // console.log('assignManager', assignManager)
+                    notifiedId.push(jobDetail.assignManager);
+                    readBy.push({
+                        userId: jobDetail.assignManager,
+                        role: assignManager[0].role
+                    })
+                    // console.log('readBy1/..', readBy)
+                }
+
+                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                // console.log('administrator', administrator)
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
+                }
+            } else if (existUser.role === 'Manager') {
+                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                if (administrator.length > 0) {
+                    notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
+                }
+            } else if (existUser.role === 'Administrator') {
+                notifiedId.push(existUser.creatorId)
+                readBy.push({
+                    userId: existUser.creatorId,
+                    role: existUser.createdBy
+                })
+            }
+
+            const { firstName, lastName } = existUser.personalDetails;
+            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const notification = new Notification({
+                userId,
+                userName: `${name}`,
+                notifiedId,
+                type: 'ClockOut',
+                message: `User ${name} exited the geofence at ${currentDate}`,
+                readBy
+            });
+            await notification.save();
 
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -666,6 +862,7 @@ exports.generateQRcode = async (req, res) => {
                 qrId: element.public_id,
                 qrURL: element.secure_url,
                 qrValue,
+                qrType
             }
 
             if(qrType == 'Company'){

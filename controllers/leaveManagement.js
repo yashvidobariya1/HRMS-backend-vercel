@@ -59,30 +59,52 @@ exports.leaveRequest = async (req, res) => {
 
             // ---------------send notification---------------
             let notifiedId = []
+            let readBy = []
             if (req.user.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
+                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
+                    readBy.push({
+                        userId: jobDetail.assignManager,
+                        role: assignManager[0].role
+                    })
+                    // console.log('readBy1/..', readBy)
                 }
 
                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 // console.log('administrator', administrator)
                 if (administrator.length > 0) {
                     notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
                 }
             } else if (req.user.role === 'Manager') {
                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
                     notifiedId.push(administrator[0]._id);
+                    readBy.push({
+                        userId: administrator[0]._id,
+                        role: administrator[0].role
+                    })
                 }
             } else if (req.user.role === 'Administrator' && user?.creatorId) {
                 notifiedId.push(user.creatorId);
+                readBy.push({
+                    userId: user.creatorId,
+                    role: user.createdBy
+                })
             }
 
             const notification = new Notification({
                 userId,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request',
-                message: `${firstName} ${lastName} has submitted a ${leaveType} leave request from ${startDate} to ${endDate}.`
+                message: `${firstName} ${lastName} has submitted a ${leaveType} leave request from ${startDate} to ${endDate}.`,
+                readBy
             });
             // console.log('notification/..', notification)
             await notification.save();
@@ -189,7 +211,7 @@ exports.getAllLeaveRequest = async (req, res) => {
             
             if(req.user.role == 'Superadmin'){
                 // superadmin can get all leave requests
-                const allLeaveRequests = await Leave.find().skip(skip).limit(limit)
+                const allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
                 const totalLeaveRequests = await Leave.countDocuments()
                 if(!allLeaveRequests){
@@ -205,7 +227,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                 })
             } else if(req.user.role == 'Administrator'){
                 // administrator can get all leave requests of own company
-                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId }).skip(skip).limit(limit)
+                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
                 const totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
                 return res.send({
                     status: 200,
@@ -217,7 +239,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                 })
             } else if(req.user.role == 'Manager'){
                 // manager can get all leave requests of thier company
-                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId })
+                const allLeaveRequests = await Leave.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
                 let allEmployeesLR = []
                 for (const LR of allLeaveRequests) {
                     const existingUser = await User.findOne({ _id: LR.userId })
@@ -244,7 +266,7 @@ exports.getAllLeaveRequest = async (req, res) => {
 
 exports.updateLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const LRId = req.params.id
             const {
@@ -288,6 +310,32 @@ exports.updateLeaveRequest = async (req, res) => {
     }
 }
 
+// pending work
+exports.deleteLeaveRequest = async (req, res) => {
+    // try {
+    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const leaveRequestId = req.params.id
+
+    //         const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
+    //         if(!leave){
+    //             return res.send({ status: 404, messgae: 'Leave request not found' })
+    //         }
+    //         if(leave.status !== 'Pending'){
+    //             return res.send({ status: 403, message: 'Leave request is not in pending status' })
+    //         }
+
+    //         leave.isDeleted = true
+    //         await leave.save()
+
+    //         return res.send({ status: 200, messgae: 'Leave reuqest deleted successfully.' })
+    //     } else return res.send({ status: 403, messgae: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while deleting leave reqest:', error)
+    //     res.send({ messgae: 'Error occurred while deleting leave request!' })
+    // }
+}
+
 exports.approveLeaveRequest = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -311,11 +359,26 @@ exports.approveLeaveRequest = async (req, res) => {
             let firstName = req.user.personalDetails.firstName
             let lastName = req.user.personalDetails.lastName
 
+            let notifiedId = []
+            let readBy = []
+
+            const existingUser = await User.findById(leave.userId)
+            if(!existingUser){
+                return res.send({ status: 404, message: 'User not found.' })
+            }
+
+            notifiedId.push(existingUser?._id)
+            readBy.push({
+                userId: existingUser?._id,
+                role: existingUser?.role
+            })
+
             const notification = new Notification({
                 userId: req.user._id,
-                notifiedId: leave.userId,
+                notifiedId,
                 type: 'Leave request approveral',
-                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.`
+                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.`,
+                readBy
             })
             // console.log('notification/..', notification)
 
@@ -351,11 +414,26 @@ exports.rejectLeaveRequest = async (req, res) => {
             let firstName = req.user.personalDetails.firstName
             let lastName = req.user.personalDetails.lastName
 
+            let notifiedId = []
+            let readBy = []
+
+            const existingUser = await User.findById(leave.userId)
+            if(!existingUser){
+                return res.send({ status: 404, message: 'User not found.' })
+            }
+
+            notifiedId.push(existingUser?._id)
+            readBy.push({
+                userId: existingUser?._id,
+                role: existingUser?.role
+            })
+
             const notification = new Notification({
                 userId: req.user._id,
-                notifiedId: leave.userId,
+                notifiedId,
                 type: 'Leave request reject',
-                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request.`
+                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request.`,
+                readBy
             })
             // console.log('notification/..', notification)
             

@@ -25,6 +25,7 @@ const QRCodeSchema = new mongoose.Schema({
         qrId: String,
         qrURL: String,
         qrValue: String,
+        qrType: String,
     },
 }, { timestamps: true });
 

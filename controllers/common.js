@@ -425,9 +425,9 @@ exports.getAllUsers = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const users = await User.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-            const totalUsers = await User.countDocuments({ isDeleted: { $ne: true } })
+            const totalUsers = await User.countDocuments({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } })
 
             return res.send({
                 status: 200,

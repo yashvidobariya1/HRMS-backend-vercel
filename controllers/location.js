@@ -123,7 +123,7 @@ exports.getCompanyLocations = async (req, res) => {
 
             const companiesAllLocations = await Promise.all(
                 locations.map(async (loc) => {
-                    const allManagers = await User.find({
+                    const managers = await User.find({
                         companyId,
                         locationId: loc._id,
                         role: 'Manager',
@@ -132,12 +132,49 @@ exports.getCompanyLocations = async (req, res) => {
                         managers.map((manager) => ({
                             _id: manager._id,
                             managerName: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName}`,
+                            role: manager.role
                         }))
                     )        
+
+                    const administrator = await User.find({
+                        companyId,
+                        locationId: loc._id,
+                        role: 'Administrator',
+                        isDeleted: false,
+                    })
+                    // console.log('administrator:', administrator)
+                    .then((administrator) =>
+                        administrator.map((admin) => ({
+                            _id: admin._id,
+                            administratorName: `${admin.personalDetails.firstName} ${admin.personalDetails.lastName}`,
+                            role: admin.role
+                        }))
+                    )
+
+                    let assigning = []
+                    assigning.push(
+                        ...managers,
+                        administrator[0],
+                        superAdmin = {
+                            _id: req.user._id,
+                            superAdminName: `${req.user.personalDetails.firstName} ${req.user.personalDetails.lastName}`,
+                            role: req.user.role
+                        }
+                    )
+
                     return {
                         _id: loc._id,
                         locationName: loc.locationName,
-                        managers: allManagers,
+                        assigning
+                        // assigning: {
+                        //     managers,
+                        //     administrator: administrator[0],
+                        //     superAdmin: {
+                        //         _id: req.user._id,
+                        //         superAdminName: `${req.user.personalDetails.firstName} ${req.user.personalDetails.lastName}`,
+                        //         role: req.user.role
+                        //     }
+                        // }
                     }
                 })
             )
