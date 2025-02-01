@@ -47,7 +47,7 @@ exports.addCompany = async (req, res) => {
             const newLocation = {
                 companyId: company._id,
                 payeReferenceNumber: company?.companyDetails?.payeReferenceNumber,
-                locationName: company?.companyDetails?.locationName || "",
+                locationName: company?.companyDetails?.locationName || "Head Office",
                 address: company?.companyDetails?.address,
                 addressLine2: company?.companyDetails?.addressLine2,
                 city: company?.companyDetails?.city,

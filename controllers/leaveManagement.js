@@ -383,6 +383,16 @@ exports.approveLeaveRequest = async (req, res) => {
                 role: existingUser?.role
             })
 
+            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+            superAdmin.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
+
             const notification = new Notification({
                 userId: req.user._id,
                 notifiedId,
@@ -436,6 +446,16 @@ exports.rejectLeaveRequest = async (req, res) => {
             readBy.push({
                 userId: existingUser?._id,
                 role: existingUser?.role
+            })
+
+            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+            superAdmin.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
             })
 
             const notification = new Notification({
