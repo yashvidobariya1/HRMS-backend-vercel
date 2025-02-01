@@ -1,4 +1,5 @@
-const Company = require("../models/company")
+const Company = require("../models/company");
+const Location = require("../models/location");
 const cloudinary = require('../utils/cloudinary')
 
 exports.addCompany = async (req, res) => {
@@ -41,6 +42,20 @@ exports.addCompany = async (req, res) => {
 
             // console.log('new company', newCompany)
             const company = await Company.create(newCompany)
+            // console.log('company/...', company)
+
+            const newLocation = {
+                companyId: company._id,
+                payeReferenceNumber: company?.companyDetails?.payeReferenceNumber,
+                locationName: company?.companyDetails?.locationName || "Head Office",
+                address: company?.companyDetails?.address,
+                addressLine2: company?.companyDetails?.addressLine2,
+                city: company?.companyDetails?.city,
+                postcode: company?.companyDetails?.postCode,
+                country: company?.companyDetails?.country
+            }
+            // console.log('location:', newLocation)
+            await Location.create(newLocation)
 
             return res.send({ status: 200, message: 'Company created successfully.', company })
         } else return res.send({ status: 403, message: "Access denied" })

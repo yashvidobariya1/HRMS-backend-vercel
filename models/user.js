@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
     sickLeavesAllow: Number,
     leavesAllow: Number,
     location: String,
-    assignManager: String,
+    assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     role: String
   }],
   immigrationDetails: {

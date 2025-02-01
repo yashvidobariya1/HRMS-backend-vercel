@@ -17,14 +17,17 @@ const QRCodeSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'
     },
+    companyName: String,
     locationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Location'
     },
+    locationName: String,
     valueOfQRCode: {
         qrId: String,
         qrURL: String,
         qrValue: String,
+        qrType: String,
     },
 }, { timestamps: true });
 

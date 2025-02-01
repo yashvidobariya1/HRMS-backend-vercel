@@ -15,7 +15,7 @@ const locationSchema = new mongoose.Schema({
     city: String,
     postcode: String,
     country: String,
-    ukviApproved: Boolean,
+    ukviApproved: { type: Boolean, default: false },
     canceledAt: Date,
 }, { timestamps: true });
 
