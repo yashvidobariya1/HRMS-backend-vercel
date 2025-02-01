@@ -871,6 +871,7 @@ exports.generateQRcode = async (req, res) => {
                 
                 const QRCode = await QR.create({
                     companyId: id,
+                    // companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
                     valueOfQRCode: generatedQR
                 })
@@ -882,6 +883,8 @@ exports.generateQRcode = async (req, res) => {
                 
                 const QRCode = await QR.create({
                     companyId: location.companyId,
+                    // companyName,
+                    // locationName: location?.locationName,
                     locationId: id,
                     isLocationQR: true,
                     valueOfQRCode: generatedQR

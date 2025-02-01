@@ -131,6 +131,11 @@ exports.getNotifications = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
             const userId = req.user._id
             let matchStage = {}
     
@@ -178,6 +183,30 @@ exports.getNotifications = async (req, res) => {
                 { $match: matchStage },
                 { $sort: { createdAt: -1 } },
                 {
+                    $addFields: {
+                        isRead: {
+                            $let: {
+                                vars: {
+                                    matchingReadBy: {
+                                        $arrayElemAt: [
+                                            {
+                                                $filter: {
+                                                    input: "$readBy",
+                                                    as: "item",
+                                                    cond: { 
+                                                        $eq: ["$$item.userId", new mongoose.Types.ObjectId(String(userId))] }
+                                                }
+                                            },
+                                            0
+                                        ]
+                                    }
+                                },
+                                in: { $ifNull: ["$$matchingReadBy.isRead", false] }
+                            }
+                        }
+                    }
+                },
+                {
                     $project: {
                         userId: 1,
                         userName: 1,
@@ -186,10 +215,15 @@ exports.getNotifications = async (req, res) => {
                         message: 1,
                         readBy: 1,
                         createdAt: 1,
-                        updatedAt: 1
+                        updatedAt: 1,
+                        isRead: 1
                     }
                 }
-            ])
+            ]).skip(skip).limit(limit)
+
+            // console.log('notifications:', notifications)
+
+            const totalNotifications = notifications.length
 
             const unreadNotifications = await Notification.aggregate([
                 {
@@ -222,7 +256,15 @@ exports.getNotifications = async (req, res) => {
             let unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
             // console.log('unread notification count:', unreadNotificationsCount)
     
-            res.send({ status: 200, message: 'All notifications getted successfully.', unreadNotificationsCount, notifications })
+            res.send({
+                status: 200,
+                message: 'All notifications getted successfully.',
+                unreadNotificationsCount,
+                notifications,
+                totalNotifications,
+                totalPages: Math.ceil(totalNotifications / limit),
+                currentPage: page
+            })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
