@@ -129,7 +129,7 @@ const User = require("../models/user");
 
 exports.getNotifications = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
@@ -137,11 +137,13 @@ exports.getNotifications = async (req, res) => {
             const skip = (page - 1) * limit
 
             const userId = req.user._id
+
             let matchStage = {}
-    
-            // if (req.user.role === "Superadmin") {
-            //     matchStage = {}
-            // } else {
+            let useMatchStage = true
+
+            if (req.user.role === "Superadmin") {
+                useMatchStage = false
+            } else {
                 const existingUser = await User.findById(userId).select("companyId")
     
                 if (!existingUser) {
@@ -149,8 +151,15 @@ exports.getNotifications = async (req, res) => {
                 }
     
                 if (req.user.role === "Administrator") {
-                    matchStage = { "user.companyId": existingUser.companyId }
-                } else if (req.user.role === "Manager") {
+                    matchStage = {
+                        "user.companyId": existingUser.companyId,
+                        "readBy": {
+                            $elemMatch: {
+                                userId: new mongoose.Types.ObjectId(String(userId))
+                            }
+                        }
+                    }
+                } else if(req.user.role === "Manager") {
                     matchStage = {
                         "user.companyId": existingUser.companyId,
                         "user.role": 'Employee',
@@ -165,12 +174,10 @@ exports.getNotifications = async (req, res) => {
                         "notifiedId": userId
                     }
                 }
-            // }
+            }
             // console.log('matchStage', matchStage)
 
-           
-    
-            const notifications = await Notification.aggregate([
+            let pipeline = [
                 {
                     $lookup: {
                         from: "users",
@@ -179,29 +186,32 @@ exports.getNotifications = async (req, res) => {
                         as: "user"
                     }
                 },
-                { $unwind: "$user" },
-                { $match: matchStage },
+                { $unwind: "$user" }
+            ]
+
+            if (useMatchStage) {
+                pipeline.push({ $match: matchStage })
+            }
+
+            pipeline.push(
                 { $sort: { createdAt: -1 } },
                 {
                     $addFields: {
                         isRead: {
-                            $let: {
-                                vars: {
-                                    matchingReadBy: {
-                                        $arrayElemAt: [
-                                            {
-                                                $filter: {
-                                                    input: "$readBy",
-                                                    as: "item",
-                                                    cond: { 
-                                                        $eq: ["$$item.userId", new mongoose.Types.ObjectId(String(userId))] }
-                                                }
-                                            },
-                                            0
-                                        ]
-                                    }
-                                },
-                                in: { $ifNull: ["$$matchingReadBy.isRead", false] }
+                            $max: {
+                                $map: {
+                                    input: {
+                                        $filter: {
+                                            input: "$readBy",
+                                            as: "item",
+                                            cond: { 
+                                                $eq: ["$$item.userId", new mongoose.Types.ObjectId(String(userId))] 
+                                            }
+                                        }
+                                    },
+                                    as: "match",
+                                    in: "$$match.isRead"
+                                }
                             }
                         }
                     }
@@ -219,43 +229,67 @@ exports.getNotifications = async (req, res) => {
                         isRead: 1
                     }
                 }
-            ]).skip(skip).limit(limit)
+            )
 
-            // console.log('notifications:', notifications)
+            const notifications = await Notification.aggregate(pipeline).skip(skip).limit(limit)
 
-            const totalNotifications = notifications.length
+            const totalNotificationsResult = await Notification.aggregate([...pipeline, { $count: "total" }])
+            const totalNotifications = totalNotificationsResult.length > 0 ? totalNotificationsResult[0].total : 0;
 
-            const unreadNotifications = await Notification.aggregate([
-                {
-                    $lookup: {
-                        from: "users",
-                        localField: "userId",
-                        foreignField: "_id",
-                        as: "user"
-                    }
-                },
-                { $unwind: "$user" },
-                { 
-                    $match: {
-                        ...matchStage,
-                        readBy: {
-                            $elemMatch: {
-                                userId: new mongoose.Types.ObjectId(String(userId)),
-                                isRead: false,
+            let unreadNotificationsCount = 0
+            if (useMatchStage) {
+                const unreadNotifications = await Notification.aggregate([
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "userId",
+                            foreignField: "_id",
+                            as: "user"
+                        }
+                    },
+                    { $unwind: "$user" },
+                    { 
+                        $match: {
+                            ...matchStage,
+                            readBy: {
+                                $elemMatch: {
+                                    userId: new mongoose.Types.ObjectId(String(userId)),
+                                    isRead: false,
+                                }
                             }
                         }
-                    }
-                },
-                { $sort: { createdAt: -1 } },
-                {
-                    $count: 'unreadNotificationsCount'
-                }
-            ])
-            // console.log('unread notification:', unreadNotifications)
-            
-            let unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
-            // console.log('unread notification count:', unreadNotificationsCount)
-    
+                    },
+                    { $count: 'unreadNotificationsCount' }
+                ])
+
+                unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
+            } else {
+                const unreadNotifications = await Notification.aggregate([
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "userId",
+                            foreignField: "_id",
+                            as: "user"
+                        }
+                    },
+                    { $unwind: "$user" },
+                    { 
+                        $match: {
+                            readBy: {
+                                $elemMatch: {
+                                    userId: new mongoose.Types.ObjectId(String(userId)),
+                                    isRead: false,
+                                }
+                            }
+                        }
+                    },
+                    { $count: 'unreadNotificationsCount' }
+                ])
+
+                unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
+            }
+
             res.send({
                 status: 200,
                 message: 'All notifications getted successfully.',

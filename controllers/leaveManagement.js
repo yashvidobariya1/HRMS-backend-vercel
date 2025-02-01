@@ -98,6 +98,16 @@ exports.leaveRequest = async (req, res) => {
                 })
             }
 
+            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+            superAdmin.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
+
             const notification = new Notification({
                 userId,
                 userName: `${firstName} ${lastName}`,
@@ -312,28 +322,28 @@ exports.updateLeaveRequest = async (req, res) => {
 
 // pending work
 exports.deleteLeaveRequest = async (req, res) => {
-    // try {
-    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
-    //     if(allowedRoles.includes(req.user.role)){
-    //         const leaveRequestId = req.params.id
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const leaveRequestId = req.params.id
 
-    //         const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
-    //         if(!leave){
-    //             return res.send({ status: 404, messgae: 'Leave request not found' })
-    //         }
-    //         if(leave.status !== 'Pending'){
-    //             return res.send({ status: 403, message: 'Leave request is not in pending status' })
-    //         }
+            const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
+            if(!leave){
+                return res.send({ status: 404, messgae: 'Leave request not found' })
+            }
+            if(leave.status !== 'Pending'){
+                return res.send({ status: 403, message: 'Leave request is not in pending status' })
+            }
 
-    //         leave.isDeleted = true
-    //         await leave.save()
+            leave.isDeleted = true
+            await leave.save()
 
-    //         return res.send({ status: 200, messgae: 'Leave reuqest deleted successfully.' })
-    //     } else return res.send({ status: 403, messgae: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error occurred while deleting leave reqest:', error)
-    //     res.send({ messgae: 'Error occurred while deleting leave request!' })
-    // }
+            return res.send({ status: 200, messgae: 'Leave reuqest deleted successfully.' })
+        } else return res.send({ status: 403, messgae: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deleting leave reqest:', error)
+        res.send({ messgae: 'Error occurred while deleting leave request!' })
+    }
 }
 
 exports.approveLeaveRequest = async (req, res) => {

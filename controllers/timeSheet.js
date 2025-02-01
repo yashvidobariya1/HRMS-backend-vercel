@@ -160,6 +160,16 @@ const Leave = require("../models/leaveRequest");
 //                 })
 //             }
 
+//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+//             superAdmin.map((sa) => {
+//                 notifiedId.push(sa?._id)
+//                 readBy.push({
+//                     userId: sa?._id,
+//                     role: sa?.role
+//                 })
+//             })
+
 //             const { firstName, lastName } = existUser.personalDetails;
 //             const name = [firstName, lastName].filter(Boolean).join(" ");
 //             const notification = new Notification({
@@ -387,6 +397,16 @@ const Leave = require("../models/leaveRequest");
 //                 })
 //             }
 
+//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+//             superAdmin.map((sa) => {
+//                 notifiedId.push(sa?._id)
+//                 readBy.push({
+//                     userId: sa?._id,
+//                     role: sa?.role
+//                 })
+//             })
+
 //             const { firstName, lastName } = existUser.personalDetails;
 //             const name = [firstName, lastName].filter(Boolean).join(" ");
 //             const notification = new Notification({
@@ -517,6 +537,16 @@ exports.clockInFunc = async (req, res) => {
                     role: existUser.createdBy
                 })
             }
+
+            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+            superAdmin.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
 
             const { firstName, lastName } = existUser.personalDetails;
             const name = [firstName, lastName].filter(Boolean).join(" ");
@@ -665,6 +695,16 @@ exports.clockOutFunc = async (req, res) => {
                     role: existUser.createdBy
                 })
             }
+
+            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+            superAdmin.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
 
             const { firstName, lastName } = existUser.personalDetails;
             const name = [firstName, lastName].filter(Boolean).join(" ");
@@ -871,7 +911,7 @@ exports.generateQRcode = async (req, res) => {
                 
                 const QRCode = await QR.create({
                     companyId: id,
-                    // companyName: company?.companyDetails?.businessName,
+                    companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
                     valueOfQRCode: generatedQR
                 })
@@ -880,11 +920,14 @@ exports.generateQRcode = async (req, res) => {
             } else if(qrType == 'Location'){
                 const location = await Location.findById(id)
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
+
+                const company = await Company.findById(location?.companyId)
+                if(!company) return res.send({ status: 404, message: 'Company not found' })
                 
                 const QRCode = await QR.create({
                     companyId: location.companyId,
-                    // companyName,
-                    // locationName: location?.locationName,
+                    companyName: company?.companyDetails?.businessName,
+                    locationName: location?.locationName,
                     locationId: id,
                     isLocationQR: true,
                     valueOfQRCode: generatedQR
@@ -896,6 +939,28 @@ exports.generateQRcode = async (req, res) => {
     } catch (error) {
         console.error('Error occured while generating QR code:', error)
         res.send({ message: 'Error occured while generating QR code!' })
+    }
+}
+
+exports.getAllQRCodesOfCompany = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const companyId = req.params.id
+
+            const company = await Company.findById(companyId)
+            if(!company){
+                return res.send({ status: 404, message: 'Compnay not found.' })
+            }
+
+            const QRCodes = await QR.find({ companyId, isDeleted: { $ne: true } })
+
+            return res.send({ status: 200, message: 'QR codes getted successfully.', QRCodes })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while getting company QR codes:', error)
+        res.send({ message: 'Error occurred while getting QR codes!' })
     }
 }
 

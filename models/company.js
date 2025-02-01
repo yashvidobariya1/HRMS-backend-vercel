@@ -24,7 +24,7 @@ const companySchema = new mongoose.Schema({
         adminToReceiveNotification: String,
         additionalEmailsForCompliance: String,
         pensionProvider: String,
-        // locationName: String
+        locationName: String
     },
     employeeSettings: {
         payrollFrequency: String,
