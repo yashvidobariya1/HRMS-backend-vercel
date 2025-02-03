@@ -2,7 +2,7 @@ const Notification = require("../models/notification");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
 
-// manager or administartor : get all their notifications pending work
+// manager or administrator : get all their notifications pending work
 // exports.getNotifications = async (req, res) => {
 //     try {
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];

@@ -44,12 +44,12 @@ commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 
 // leave request
 commonRoute.post('/leaveRequest', auth, leaveRequest)
-commonRoute.get('/getAllOwnLeaves', auth, getAllOwnLeaves)
+commonRoute.post('/getAllOwnLeaves', auth, getAllOwnLeaves)
 commonRoute.get('/getAllLeaveRequest', auth, getAllLeaveRequest)
 commonRoute.post('/updateLeaveRequest/:id', auth, updateLeaveRequest)
 commonRoute.post('/deleteLeaveRequest/:id', auth, deleteLeaveRequest)
 commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
 commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
-commonRoute.get('/getAllowLeaveCount', auth, getAllowLeaveCount)
+commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
 
 module.exports = commonRoute

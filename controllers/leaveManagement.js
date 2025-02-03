@@ -25,7 +25,7 @@ exports.leaveRequest = async (req, res) => {
             } = req.body
 
             let jobDetail = user?.jobDetails.find((job) => job.jobTitle === jobTitle)
-            let locationId = jobDetail.location
+            let locationId = jobDetail?.location
 
             const existLeave = await Leave.findOne({
                 userId,
@@ -136,7 +136,19 @@ exports.getAllOwnLeaves = async (req, res) => {
 
             const skip = ( page - 1 ) * limit
             const userId = req.user._id
-            const allLeaves = await Leave.find({ userId }).skip(skip).limit(limit)
+            const { jobTitle } = req.body
+
+            const user = await User.findById(userId)
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
+            if (!jobExists) {
+                return res.send({ status: 404, message: 'Job title not found' });
+            }
+
+            const allLeaves = await Leave.find({ userId, jobTitle }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
             const totalLeaves = await Leave.countDocuments({ userId })
 

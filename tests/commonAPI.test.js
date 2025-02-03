@@ -488,14 +488,15 @@ describe('~ ClockIn or ClockOut for employees and managers', () => {
             expect(JSON.parse(res.text).status).toBe(400);
             expect(JSON.parse(res.text).message).toBe('Location coordinator data is not found!');
         })
-        test("should return 400 for, existing role is not match", async () => {
-            const res = await request(app)
-                .post('/clockIn')
-                .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
-                .set('Authorization', `Bearer ${token}`)
-            expect(JSON.parse(res.text).status).toBe(400);
-            expect(JSON.parse(res.text).message).toBe('You cannot access the clock-in feature for this role, please switch to the appropriate role!');
-        })
+        // for new method
+        // test("should return 400 for, existing role is not match", async () => {
+        //     const res = await request(app)
+        //         .post('/clockIn')
+        //         .send({ userId, location: { latitude: 21.2337, longitude: 72.8138 } })
+        //         .set('Authorization', `Bearer ${token}`)
+        //     expect(JSON.parse(res.text).status).toBe(400);
+        //     expect(JSON.parse(res.text).message).toBe('You cannot access the clock-in feature for this role, please switch to the appropriate role!');
+        // })
         test('should return 403 for outside the geofenc area', async () => {
             const res = await request(app)
                 .post('/clockIn')

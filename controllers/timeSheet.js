@@ -14,11 +14,24 @@ const Leave = require("../models/leaveRequest");
 //     try {
 //         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
 //         if (allowedRoles.includes(req.user.role)) {
-//             const { userId, location, jobTitle } = req.body
+//             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
 //             const existUser = await User.findById(userId)
 //             if (!existUser) {
 //                 return res.send({ status: 404, message: "User not found" })
+//             }
+
+//             if(isMobile === true) {
+//                 let companyId = existUser?.companyId.toString()
+//                 // let locationId = existUser?.locationId.toString(     
+//                 const qrCode = await QR.findOne({
+//                     'valueOfQRCode.qrValue': qrValue,
+//                     companyId,
+//                     // locationId,
+//                 })      
+//                 if (!qrCode) {
+//                     return res.send({ status: 400, message: 'Invalid QR code' })
+//                 }
 //             }
 
 //             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
@@ -194,126 +207,141 @@ const Leave = require("../models/leaveRequest");
 //     try {
 //         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
 //         if (allowedRoles.includes(req.user.role)) {
-//             const { userId, location, jobTitle } = req.body;
+//             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
-//             const existUser = await User.findById(userId);
+//             const existUser = await User.findById(userId)
 //             if (!existUser) {
-//                 return res.send({ status: 404, message: "User not found" });
+//                 return res.send({ status: 404, message: "User not found" })
+//             }
+
+//             if(isMobile === true) {
+//                 let companyId = existUser?.companyId.toString()
+//                 // let locationId = existUser?.locationId.toString()
+
+//                 const qrCode = await QR.findOne({
+//                     'valueOfQRCode.qrValue': qrValue,
+//                     companyId,
+//                     // locationId,
+//                 })
+                
+//                 if (!qrCode) {
+//                     return res.send({ status: 400, message: 'Invalid QR code' })
+//                 }
 //             }
 
 //             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
 
 //             if (!location || !location.latitude || !location.longitude) {
-//                 return res.send({ status: 400, message: "Location coordinator data is not found!" });
+//                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
 //             }
 
-//             let currentDate = new Date();
-//             let currentDateStr = currentDate.toISOString().slice(0, 10);
+//             let currentDate = new Date()
+//             let currentDateStr = currentDate.toISOString().slice(0, 10)
 
-//             const timesheet = await Timesheet.findOne({ userId, date: currentDateStr });
+//             const timesheet = await Timesheet.findOne({ userId, date: currentDateStr })
 //             if (!timesheet) {
-//                 return res.send({ status: 404, message: "No timesheet found for today." });
+//                 return res.send({ status: 404, message: "No timesheet found for today." })
 //             }
 
-//             const jobSheet = timesheet.sheets.find(sheet => sheet.jobTitle === jobTitle);
+//             const jobSheet = timesheet.sheets.find(sheet => sheet.jobTitle === jobTitle)
 //             if (!jobSheet) {
-//                 return res.send({ status: 404, message: `No timesheet found for job title: ${jobTitle}` });
+//                 return res.send({ status: 404, message: `No timesheet found for job title: ${jobTitle}` })
 //             }
 
 //             const lastClockin = jobSheet.clockinTime[jobSheet.clockinTime.length - 1];
 //             if (!lastClockin || lastClockin.clockOut) {
-//                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." });
+//                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
 //             }
 
-//             lastClockin.clockOut = currentDate;
-//             lastClockin.isClockin = false;
+//             lastClockin.clockOut = currentDate
+//             lastClockin.isClockin = false
 
-//             const clockInTime = new Date(lastClockin.clockIn);
-//             const clockOutTime = new Date(lastClockin.clockOut);
+//             const clockInTime = new Date(lastClockin.clockIn)
+//             const clockOutTime = new Date(lastClockin.clockOut)
 
 //             const formatDuration = (clockInTime, clockOutTime) => {
-//                 let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000);
-//                 const hours = Math.floor(diffInSeconds / 3600);
-//                 diffInSeconds %= 3600;
-//                 const minutes = Math.floor(diffInSeconds / 60);
-//                 const seconds = diffInSeconds % 60;
+//                 let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
+//                 const hours = Math.floor(diffInSeconds / 3600)
+//                 diffInSeconds %= 3600
+//                 const minutes = Math.floor(diffInSeconds / 60)
+//                 const seconds = diffInSeconds % 60
 
-//                 return `${hours}h ${minutes}m ${seconds}s`;
+//                 return `${hours}h ${minutes}m ${seconds}s`
 //             };
 //             const parseTime = (duration) => {
-//                 const regex = /(\d+)h|(\d+)m|(\d+)s/g;
-//                 let hours = 0, minutes = 0, seconds = 0;
-//                 let match;
+//                 const regex = /(\d+)h|(\d+)m|(\d+)s/g
+//                 let hours = 0, minutes = 0, seconds = 0
+//                 let match
 
 //                 while ((match = regex.exec(duration)) !== null) {
-//                     if (match[1]) hours = parseInt(match[1], 10);
-//                     if (match[2]) minutes = parseInt(match[2], 10);
-//                     if (match[3]) seconds = parseInt(match[3], 10);
+//                     if (match[1]) hours = parseInt(match[1], 10)
+//                     if (match[2]) minutes = parseInt(match[2], 10)
+//                     if (match[3]) seconds = parseInt(match[3], 10)
 //                 }
 
-//                 return { hours, minutes, seconds };
+//                 return { hours, minutes, seconds }
 //             };
 
-//             const duration = formatDuration(clockInTime, clockOutTime);
-//             lastClockin.totalTiming = duration;
+//             const duration = formatDuration(clockInTime, clockOutTime)
+//             lastClockin.totalTiming = duration
 
 //             const addDurations = (duration1, duration2) => {
 //                 const parseTime = (duration) => {
-//                     const regex = /(\d+)h|(\d+)m|(\d+)s/g;
-//                     let hours = 0, minutes = 0, seconds = 0;
+//                     const regex = /(\d+)h|(\d+)m|(\d+)s/g
+//                     let hours = 0, minutes = 0, seconds = 0
 //                     let match;
 
 //                     while ((match = regex.exec(duration)) !== null) {
-//                         if (match[1]) hours = parseInt(match[1], 10);
-//                         if (match[2]) minutes = parseInt(match[2], 10);
-//                         if (match[3]) seconds = parseInt(match[3], 10);
+//                         if (match[1]) hours = parseInt(match[1], 10)
+//                         if (match[2]) minutes = parseInt(match[2], 10)
+//                         if (match[3]) seconds = parseInt(match[3], 10)
 //                     }
 
-//                     return { hours, minutes, seconds };
-//                 };
+//                     return { hours, minutes, seconds }
+//                 }
 
-//                 const time1 = parseTime(duration1);
-//                 const time2 = parseTime(duration2);
+//                 const time1 = parseTime(duration1)
+//                 const time2 = parseTime(duration2)
 
-//                 let totalSeconds = time1.seconds + time2.seconds;
-//                 let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60);
-//                 let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60);
+//                 let totalSeconds = time1.seconds + time2.seconds
+//                 let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+//                 let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
 
-//                 totalSeconds %= 60;
-//                 totalMinutes %= 60;
+//                 totalSeconds %= 60
+//                 totalMinutes %= 60
 
-//                 return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`;
-//             };
+//                 return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+//             }
 
-//             jobSheet.totalHours = jobSheet.totalHours === '0h 0m 0s' ? duration : addDurations(jobSheet.totalHours, duration);
+//             jobSheet.totalHours = jobSheet.totalHours === '0h 0m 0s' ? duration : addDurations(jobSheet.totalHours, duration)
 
 //             // ----- Weekly Reset and Overtime Calculation -----
-//             const startOfWeek = new Date(currentDate);
-//             startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
-//             startOfWeek.setHours(0, 0, 0, 0);
+//             const startOfWeek = new Date(currentDate)
+//             startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1)
+//             startOfWeek.setHours(0, 0, 0, 0)
 
-//             const endOfWeek = new Date(startOfWeek);
-//             endOfWeek.setDate(startOfWeek.getDate() + 6);
-//             endOfWeek.setHours(23, 59, 59, 999);
+//             const endOfWeek = new Date(startOfWeek)
+//             endOfWeek.setDate(startOfWeek.getDate() + 6)
+//             endOfWeek.setHours(23, 59, 59, 999)
 
 //             if (currentDate.getDay() === 1) {
 //                 const weeklyTimesheets = await Timesheet.find({
 //                     userId,
 //                     date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
-//                 });
+//                 })
 
 //                 for (const sheet of weeklyTimesheets) {
 //                     for (const js of sheet.sheets) {
-//                         js.overTime = '0h 0m 0s';
+//                         js.overTime = '0h 0m 0s'
 //                     }
-//                     await sheet.save();
+//                     await sheet.save()
 //                 }
 //             }
 
 //             const weeklyTimesheets = await Timesheet.find({
 //                 userId,
 //                 date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
-//             });
+//             })
 
 //             let totalWeeklyHours = 0;
 //             for (const sheet of weeklyTimesheets) {
@@ -324,15 +352,15 @@ const Leave = require("../models/leaveRequest");
 //             }console.log('existUser?.jobDetails.length', existUser?.jobDetails.length)
 
 //             if(existUser?.jobDetails.length > 1){
-//                 console.log('if condition')
+//                 // console.log('if condition')
 //                 let jobTitles = existUser.jobDetails
-//                 console.log('jobTitle', jobTitle)
+//                 // console.log('jobTitle', jobTitle)
 //                 jobTitles.forEach((job) => {
-//                     console.log('job', job)
+//                     // console.log('job', job)
 //                     if(job.jobTitle == jobTitle){
 //                         const weeklyLimit = job.weeklyWorkingHours
-//                         console.log('totalWeeklyHours', totalWeeklyHours)
-//                         console.log('weeklyLimit', weeklyLimit)
+//                         // console.log('totalWeeklyHours', totalWeeklyHours)
+//                         // console.log('weeklyLimit', weeklyLimit)
 //                         if(totalWeeklyHours > weeklyLimit){
 //                             const overtimeHours = totalWeeklyHours - weeklyLimit;
 //                             jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
@@ -342,10 +370,10 @@ const Leave = require("../models/leaveRequest");
 //                     }
 //                 })
 //             } else {
-//                 console.log('else part')
+//                 // console.log('else part')
 //                 const weeklyLimit = existUser?.jobDetails[0]?.weeklyWorkingHours
-//                 console.log('weeklyLimit', weeklyLimit)
-//                 console.log('totalWeeklyHours', totalWeeklyHours)
+//                 // console.log('weeklyLimit', weeklyLimit)
+//                 // console.log('totalWeeklyHours', totalWeeklyHours)
 //                 if (totalWeeklyHours > weeklyLimit) {
 //                     const overtimeHours = totalWeeklyHours - weeklyLimit;
 //                     jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
@@ -354,7 +382,7 @@ const Leave = require("../models/leaveRequest");
 //                 }
 //             }
 
-//             await timesheet.save();
+//             await timesheet.save()
 
 //             //------exit notification-----------
 //             let notifiedId = []
@@ -416,11 +444,11 @@ const Leave = require("../models/leaveRequest");
 //                 type: 'ClockOut',
 //                 message: `User ${name} exited the geofence at ${currentDate}`,
 //                 readBy
-//             });
-//             await notification.save();
+//             })
+//             await notification.save()
 
-//             return res.send({ status: 200, timesheet });
-//         } else return res.send({ status: 403, message: "Access denied" });
+//             return res.send({ status: 200, timesheet })
+//         } else return res.send({ status: 403, message: "Access denied" })
 //     } catch (error) {
 //         console.error("Error occurred while clocking out:", error);
 //         res.send({ message: "Something went wrong while clocking out!" });
@@ -433,11 +461,26 @@ exports.clockInFunc = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             // console.log('req.user.role/...', req.user.role)
-            const { userId, location, jobTitle } = req.body
+            const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
             const existUser = await User.findById(userId)
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
+            }
+
+            if(isMobile === true) {
+                let companyId = existUser?.companyId.toString()
+                // let locationId = existUser?.locationId.toString()
+
+                const qrCode = await QR.findOne({
+                    'valueOfQRCode.qrValue': qrValue,
+                    companyId,
+                    // locationId,
+                })
+                
+                if (!qrCode) {
+                    return res.send({ status: 400, message: 'Invalid QR code' })
+                }
             }
 
             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
@@ -573,17 +616,32 @@ exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const { userId, location, jobTitle } = req.body
+            const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
             const existUser = await User.findById(userId)
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
             }
 
+            if(isMobile === true) {
+                let companyId = existUser?.companyId.toString()
+                // let locationId = existUser?.locationId.toString()
+
+                const qrCode = await QR.findOne({
+                    'valueOfQRCode.qrValue': qrValue,
+                    companyId,
+                    // locationId,
+                })
+                
+                if (!qrCode) {
+                    return res.send({ status: 400, message: 'Invalid QR code' })
+                }
+            }
+
             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
 
             if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Something went wrong, Please try again!" })
+                return res.send({ status: 400, message: "Location coordinator data is not found!" })
             }
 
             const currentDate = new Date().toISOString().slice(0, 10);
@@ -942,20 +1000,28 @@ exports.generateQRcode = async (req, res) => {
     }
 }
 
-exports.getAllQRCodesOfCompany = async (req, res) => {
+exports.getAllQRCodesOfLocation = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
-            const companyId = req.params.id
+            const locationId = req.params.id
 
+            const location = await Location.findById(locationId)
+            if(!location){
+                return res.send({ status: 404, message: 'Location not found.' })
+            }
+
+            const companyId = location?.companyId
             const company = await Company.findById(companyId)
             if(!company){
                 return res.send({ status: 404, message: 'Compnay not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, isDeleted: { $ne: true } })
+            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } })
 
-            return res.send({ status: 200, message: 'QR codes getted successfully.', QRCodes })
+            let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
+
+            return res.send({ status: 200, message: 'QR codes getted successfully.', qrValue, QRCodes })
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

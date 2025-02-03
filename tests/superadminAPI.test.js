@@ -242,22 +242,48 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
         })
         test('should return 200 for update company details', async () => {
             const updateResponse = await request(app).post(`/updateCompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`).send({
-                "personalDetails": {
-                    "firstName": "update first name",
-                    "middleName": "update middle name",
-                    "lastName": "update last name",
-                    "email": "update@example.com"
+                "companyDetails": {
+                    "companyCode": "COMP001",
+                    "businessName": "XYZ Ltd.",
+                    "companyLogo": "",
+                    "companyRegistrationNumber": "456789",
+                    "payeReferenceNumber": "PAYE456",
+                    "address": "159 Street",
+                    "addressLine2": "Suite 100",
+                    "city": "Cityville",
+                    "postCode": "56789",
+                    "country": "Countryland",
+                    "timeZone": "GMT+1",
+                    "contactPersonFirstname": "newJohn",
+                    "contactPersonMiddlename": "A.",
+                    "contactPersonLastname": "Doe",
+                    "contactPersonEmail": "newJohn.doe@example.com",
+                    "contactPhone": "9876543210",
+                    "adminToReceiveNotification": "admin@example.com",
+                    "additionalEmailsForCompliance": "compliance@example.com",
+                    "pensionProvider": "Provider Inc."
                 },
-                "addressDetails": {
-                    "address": "updated address",
-                    "city": "updated city",
-                    "postCode": "updated post code",
+                "employeeSettings": {
+                    "payrollFrequency": "Weekly",
+                    "immigrationReminders": {
+                        "day1st": "5",
+                        "day2nd": "10",
+                        "day3rd": "15"
+                    },
+                    "holidayYear": "Jan-Dec",
+                    "noticePeriodDays": "25",
+                    "contactConfirmationDays": "17",
+                    "rightToWorkCheckReminder": "58",
+                    "leaveEntitlements": {
+                        "holidaysExcludingBank": "20",
+                        "sickLeaves": "10"
+                    }
                 },
-                "kinDetails": {
-                    "kinName": "updated kinName",
-                    "address": "updated address",
-                    "emergencyContactNumber": "updated emergency contact number",
-                },
+                "contractDetails": {
+                    "startDate": "2025-01-01",
+                    "endDate": "2025-12-31",
+                    "maxEmployeesAllowed": "100"
+                }
             })
             expect(JSON.parse(updateResponse.text).status).toBe(200);
             expect(JSON.parse(updateResponse.text).message).toBe('Company details updated successfully.');
@@ -593,46 +619,48 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
 
 describe('**Crud Contract Test**', () => {
     let newToken
-    test('should return 401 for Unauthorized: Invalid API key', async () => {
-        const hashedPassword = await bcrypt.hash('Testeruser@123', 10);
-        await User.create({
-            personalDetails: {
-                email: 'testeruser@gmail.com',
-            },
-            jobDetails: [{
-                role: 'Superadmin'
-            }],
-            role: 'Superadmin',
-            password: hashedPassword
-        })
-        const loginUser = await request(app)
-            .post('/login')
-            .send({
-                email: 'testeruser@gmail.com',
-                password: 'Testeruser@123'
+    describe('~ For add contract', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const hashedPassword = await bcrypt.hash('Testeruser@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'testeruser@gmail.com',
+                },
+                jobDetails: [{
+                    role: 'Superadmin',
+                }],
+                role: 'Superadmin',
+                password: hashedPassword
             })
-        newToken = JSON.parse(loginUser.text).token
-        const res = await request(app)
-            .post('/addContract')
-            .send({ companyId: '', contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50' })
-        expect(JSON.parse(res.text).status).toBe(401)
-        expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
-    })
-    test('should return invalid or expairy token when token is invalid', async () =>{
+            const loginUser = await request(app)
+                .post('/login')
+                .send({
+                    email: 'testeruser@gmail.com',
+                    password: 'Testeruser@123'
+                })
+            newToken = await JSON.parse(loginUser.text).token
+            const res = await request(app)
+                .post('/addContract')
+                .send({ companyId: '', contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50' })
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return invalid or expairy token when token is invalid', async () =>{
 
-        const res = await request(app)
-            .post('/addContract')
-            .set('Authorization', `Bearer abcdefghABCDEijklmnrsLNOPQRStuvwxyzFGHIJKopqVWXYZ`)
-            .send({ companyId: createdCompanyId, contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50'})
-        expect(JSON.parse(res.text).message).toBe('Invalid or expiry token!')
+            const res = await request(app)
+                .post('/addContract')
+                .set('Authorization', `Bearer abcdefghABCDEijklmnrsLNOPQRStuvwxyzFGHIJKopqVWXYZ`)
+                .send({ companyId: createdCompanyId, contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50'})
+            expect(JSON.parse(res.text).message).toBe('Invalid or expiry token!')
+        })
+        test('should return 404 for company not found', async () => {
+            const res = await request(app)
+                .post('/addContract')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({ companyId: '677f6d67d8500bff50846f29' })
+                console.log('res/..', JSON.parse(res.text))
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Company not found')
+        })
     })
-    // test('should return 404 for company not found', async () => {
-    //     const res = await request(app)
-    //         .post('/addContract')
-    //         .set('Authorization', `Bearer ${newToken}`)
-    //         .send({ companyId: '677f6d67d8500bff50846f29' })
-    //         console.log('res/..', JSON.parse(res.text))
-    //     expect(JSON.parse(res.text).status).toBe(404)
-    //     expect(JSON.parse(res.text).message).toBe('Company not found')
-    // })
 });
