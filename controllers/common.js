@@ -224,6 +224,65 @@ exports.getDetails = async (req, res) => {
     }
 }
 
+exports.updateProfileDetails = async (req, res) => {
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const userId = req.user._id
+
+    //         const {
+    //             firstName,
+    //             middleName,
+    //             lastName,
+    //             dateOfBirth,
+    //             gender,
+    //             maritalStatus,
+    //             phone,
+    //             homeTelephone,
+    //             email,
+    //         } = req.body
+
+    //         const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    //         if(!user){
+    //             return res.send({ status: 404, messgae: 'User not found' })
+    //         }
+
+    //         const updatedUser = await User.findByIdAndUpdate(
+    //             { _id: user._id, isDeleted: { $ne: true } },
+    //             {
+    //                 $set: {
+    //                     personalDetails: {
+    //                         firstName,
+    //                         middleName,
+    //                         lastName,
+    //                         dateOfBirth,
+    //                         gender,
+    //                         maritalStatus,
+    //                         phone,
+    //                         homeTelephone,
+    //                         email,
+    //                         niNumber: user?.personalDetails?.niNumber,
+    //                         sendRegistrationLink: user?.personalDetails?.sendRegistrationLink,
+    //                     },
+    //                     addressDetails: user?.addressDetails,
+    //                     kinDetails: user?.kinDetails,
+    //                     financialDetails: user?.financialDetails,
+    //                     immigrationDetails: user?.immigrationDetails,
+    //                     jobDetails: user?.jobDetails,
+    //                     documentDetails: user?.documentDetails,
+    //                     contractDetails: user?.contractDetails,
+    //                 }
+    //             }
+    //         )
+
+    //         return res.send({ status:200, updatedUser })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while updating profile details:', error)
+    //     res.send({ message: 'Error occurred while updating profile details!' })
+    // }
+}
+
 exports.addUser = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -616,7 +675,7 @@ exports.getUserJobTitles = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const userId = req.user._id
-            const user = await User.findById(userId)
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
@@ -788,7 +847,7 @@ async function replacePlaceholdersInPDF(pdfBytes, data) {
 
 const getContractById = async (contractId) => {
     
-    const contract = await Contract.findById(contractId)
+    const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
 
     return {
         contractName: contract?.contractName,

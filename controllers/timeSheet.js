@@ -16,7 +16,7 @@ const Leave = require("../models/leaveRequest");
 //         if (allowedRoles.includes(req.user.role)) {
 //             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
-//             const existUser = await User.findById(userId)
+//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
 //             if (!existUser) {
 //                 return res.send({ status: 404, message: "User not found" })
 //             }
@@ -209,7 +209,7 @@ const Leave = require("../models/leaveRequest");
 //         if (allowedRoles.includes(req.user.role)) {
 //             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
-//             const existUser = await User.findById(userId)
+//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
 //             if (!existUser) {
 //                 return res.send({ status: 404, message: "User not found" })
 //             }
@@ -463,7 +463,7 @@ exports.clockInFunc = async (req, res) => {
             // console.log('req.user.role/...', req.user.role)
             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
-            const existUser = await User.findById(userId)
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
             }
@@ -473,9 +473,10 @@ exports.clockInFunc = async (req, res) => {
                 // let locationId = existUser?.locationId.toString()
 
                 const qrCode = await QR.findOne({
-                    'valueOfQRCode.qrValue': qrValue,
+                    qrValue,
                     companyId,
-                    // locationId,
+                    isDeleted: { $ne: true },
+                    locationId: { $in: existUser?.locationId },
                 })
                 
                 if (!qrCode) {
@@ -598,7 +599,7 @@ exports.clockInFunc = async (req, res) => {
                 userName: `${name}`,
                 notifiedId,
                 type: 'ClockIn',
-                message: `User ${name} entered the geofence at ${currentDate}`,
+                message: `${name} entered the geofence at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -618,7 +619,7 @@ exports.clockOutFunc = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobTitle, isMobile, qrValue } = req.body
 
-            const existUser = await User.findById(userId)
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
             }
@@ -628,9 +629,10 @@ exports.clockOutFunc = async (req, res) => {
                 // let locationId = existUser?.locationId.toString()
 
                 const qrCode = await QR.findOne({
-                    'valueOfQRCode.qrValue': qrValue,
+                    qrValue,
                     companyId,
-                    // locationId,
+                    isDeleted: { $ne: true },
+                    locationId: { $in: existUser?.locationId },
                 })
                 
                 if (!qrCode) {
@@ -771,7 +773,7 @@ exports.clockOutFunc = async (req, res) => {
                 userName: `${name}`,
                 notifiedId,
                 type: 'ClockOut',
-                message: `User ${name} exited the geofence at ${currentDate}`,
+                message: `${name} exited the geofence at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -951,35 +953,30 @@ exports.generateQRcode = async (req, res) => {
                 return res.send({ status: 400, message: 'QR type is undefined, please enter valid type.' })
             }
 
-            let generatedQR
             let element = await cloudinary.uploader.upload(qrCode, {
                 resource_type: 'auto',
                 folder: 'QRCodes'
             })
-            generatedQR = {
-                qrId: element.public_id,
-                qrURL: element.secure_url,
-                qrValue,
-                qrType
-            }
 
             if(qrType == 'Company'){
-                const company = await Company.findById(id)
+                const company = await Company.findOne({ _id: id, isDeleted: { $ne: true } })
                 if(!company) return res.send({ status: 404, message: 'Company not found' })
                 
                 const QRCode = await QR.create({
                     companyId: id,
                     companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
-                    valueOfQRCode: generatedQR
+                    qrURL: element.secure_url,
+                    qrValue,
+                    qrType
                 })
     
                 return res.send({ status: 200, message: 'Company QR generate successfully.', QRCode })
             } else if(qrType == 'Location'){
-                const location = await Location.findById(id)
+                const location = await Location.findOne({ _id: id, isDeleted: { $ne: true } })
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
 
-                const company = await Company.findById(location?.companyId)
+                const company = await Company.findOne({ _id: location?.companyId, isDeleted: { $ne: true } })
                 if(!company) return res.send({ status: 404, message: 'Company not found' })
                 
                 const QRCode = await QR.create({
@@ -988,7 +985,9 @@ exports.generateQRcode = async (req, res) => {
                     locationName: location?.locationName,
                     locationId: id,
                     isLocationQR: true,
-                    valueOfQRCode: generatedQR
+                    qrURL: element.secure_url,
+                    qrValue,
+                    qrType
                 })
     
                 return res.send({ status: 200, message: 'Location QR generate successfully.', QRCode })
@@ -1000,28 +999,41 @@ exports.generateQRcode = async (req, res) => {
     }
 }
 
-exports.getAllQRCodesOfLocation = async (req, res) => {
+exports.getAllQRCodes = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const locationId = req.params.id
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
 
-            const location = await Location.findById(locationId)
+            const skip = ( page - 1 ) * limit
+
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             if(!location){
                 return res.send({ status: 404, message: 'Location not found.' })
             }
 
             const companyId = location?.companyId
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Compnay not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } })
+            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const totalQRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
 
             let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
 
-            return res.send({ status: 200, message: 'QR codes getted successfully.', qrValue, QRCodes })
+            return res.send({
+                status: 200,
+                message: 'QR codes getted successfully.',
+                qrValue,
+                QRCodes,
+                totalQRCodes,
+                totalPages: Math.ceil(totalQRCodes / limit),
+                currentPage: page,
+            })
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -1036,7 +1048,7 @@ exports.getAllQRCodesOfLocation = async (req, res) => {
 //         if(allowedRoles.includes(req.user.role)){
 //             const { qrValue } = req.body;
 
-//             const user = await User.findById(req.user._id)
+//             const user = await User.findOne({ _id: req.user.id, isDeleted: { $ne: true } })
 //             if(!user){
 //                 return res.send({ status: 404, message: 'User not found.' })
 //             }
@@ -1065,10 +1077,10 @@ exports.getAllQRCodesOfLocation = async (req, res) => {
 //             let entity;
 //             let entityName;
 //             if (qrCode.isCompanyQR) {
-//                 entity = await Company.findById(qrCode.companyId);
+//                 entity = await Company.findOne({ _id: qrCode.companyId, isDeleted: { $ne: true } });
 //                 entityName = 'Company';
 //             } else if (qrCode.isLocationQR) {
-//                 entity = await Location.findById(qrCode.locationId);
+//                 entity = await Location.findOne({ _id: qrCode.locationId, isDeleted: { $ne: true } });
 //                 entityName = 'Location';
 //             }
 //             if (!entity) {
@@ -1101,7 +1113,7 @@ exports.verifyQRCode = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const { qrValue } = req.body;
 
-            const user = await User.findById(req.user._id)
+            const user = await User.findOne({ _id: req.user._id, isDelete: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found.' })
             }
@@ -1109,7 +1121,7 @@ exports.verifyQRCode = async (req, res) => {
             let locationId = user?.locationId.toString()
 
             const qrCode = await QR.findOne({
-                'valueOfQRCode.qrValue': qrValue,
+                qrValue,
                 companyId,
                 locationId,
             })

@@ -10,7 +10,7 @@ exports.addLocation = async (req, res) => {
 
             const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved } = req.body
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found.' })
             }

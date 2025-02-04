@@ -12,6 +12,12 @@ const leaveRequestSchema = new mongoose.Schema({
     startDate: String,
     endDate: String,
     leaveDays: String,
+    numberOfApproveLeaves: Number,
+    leaves: [{
+        leaveDate: String,
+        leaveType: String,
+        isApproved: { type: Boolean, default: false }
+    }],
     reasonOfLeave: String,
     status: {
         type: String,

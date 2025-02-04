@@ -23,12 +23,9 @@ const QRCodeSchema = new mongoose.Schema({
         ref: 'Location'
     },
     locationName: String,
-    valueOfQRCode: {
-        qrId: String,
-        qrURL: String,
-        qrValue: String,
-        qrType: String,
-    },
+    qrURL: String,
+    qrValue: String,
+    qrType: String,
 }, { timestamps: true });
 
 module.exports = mongoose.model('QRCode', QRCodeSchema)

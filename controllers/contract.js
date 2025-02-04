@@ -14,7 +14,7 @@ exports.addContract = async (req, res) => {
                 contractFileName
             } = req.body
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Compnay not found.' })
             }

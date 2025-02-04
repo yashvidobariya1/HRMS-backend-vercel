@@ -229,7 +229,7 @@ exports.updateManagerDetails = async (req, res) => {
     //     if (allowedRoles.includes(req.user.role)) {
     //         const managerId = req.params.id
 
-    //         const manager = await User.findById({
+    //         const manager = await User.findOne({
     //             _id: managerId,
     //             isDeleted: { $ne: true }
     //         })

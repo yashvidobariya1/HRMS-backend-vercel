@@ -3,7 +3,7 @@ const { auth } = require('../middleware/authenticate')
 const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controllers/company')
 const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLocationDetails, deleteLocation } = require('../controllers/location')
 const { addContract, getAllContract, getAllContractOfCompany, getContract, updateContract, deleteContract } = require('../controllers/contract')
-const { generateQRcode, getAllQRCodesOfCompany, getAllQRCodesOfLocation } = require('../controllers/timeSheet')
+const { generateQRcode, getAllQRCodes } = require('../controllers/timeSheet')
 
 const superAdminRoute = Router()
 
@@ -30,6 +30,6 @@ superAdminRoute.post('/updateContract/:id', auth, updateContract)
 superAdminRoute.post('/deleteContract/:id', auth, deleteContract)
 // generate QR code for location
 superAdminRoute.post('/generateQR/:id', auth, generateQRcode)
-superAdminRoute.get('/getAllQRCodesOfLocation/:id', auth, getAllQRCodesOfLocation)
+superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
 
 module.exports = superAdminRoute

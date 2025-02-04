@@ -144,7 +144,7 @@ exports.getNotifications = async (req, res) => {
             if (req.user.role === "Superadmin") {
                 useMatchStage = false
             } else {
-                const existingUser = await User.findById(userId).select("companyId")
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
                 if (!existingUser) {
                     return res.status(404).json({ message: "User not found" })
@@ -308,7 +308,7 @@ exports.getNotifications = async (req, res) => {
 
 exports.getUnreadNotificationsCount = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const userId = req.user._id
             let matchStage = {}
@@ -316,7 +316,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
             // if (req.user.role === "Superadmin") {
             //     matchStage = {}
             // } else {
-                const existingUser = await User.findById(userId).select("companyId")
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
                 if (!existingUser) {
                     return res.status(404).json({ message: "User not found" })
@@ -385,7 +385,7 @@ exports.getNotification = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const notificationId = req.params.id
-            const notification = await Notification.findById(notificationId)
+            const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
                 return res.send({ status: 404, messgae: 'Notification not found.' })
             }
@@ -404,7 +404,7 @@ exports.readNotification = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const notificationId = req.params.id
 
-            const notification = await Notification.findById(notificationId)
+            const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
                 return res.status(404).json({ message: 'Notification not found' })
             }
