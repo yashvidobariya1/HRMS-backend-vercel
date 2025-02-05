@@ -21,7 +21,7 @@ commonRoute.get('/getAllUsers', auth, getAllUsers)
 commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
 
-commonRoute.get('/getOwnTimesheet', auth, getOwnTodaysTimeSheet)
+commonRoute.get('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
 commonRoute.get('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
 commonRoute.post('/clockIn', auth, clockInFunc)
 commonRoute.post('/clockOut', auth, clockOutFunc)

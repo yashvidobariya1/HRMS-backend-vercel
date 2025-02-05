@@ -691,14 +691,14 @@ exports.getUserJobTitles = async (req, res) => {
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
-            const jobTitle = []
+            const jobTitles = []
             user?.jobDetails.map((job) => {
-                jobTitle.push(job.jobTitle)
+                jobTitles.push({ jobId: job._id, jobName: job.jobTitle })
             })
-            if(jobTitle.length > 1){
-                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: true, jobTitle })
+            if(jobTitles.length > 1){
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: true, jobTitles })
             } else {
-                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: false, jobTitle })
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: false, jobTitles })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

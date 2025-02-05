@@ -81,9 +81,9 @@ exports.getAllLocation = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const locations = await Location.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const locations = await Location.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-            const totalLocations = await Location.countDocuments({ isDeleted: { $ne: true } })
+            const totalLocations = await Location.find({ isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,

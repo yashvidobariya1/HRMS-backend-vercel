@@ -99,9 +99,9 @@ exports.getAllCompany = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const companies = await Company.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-            const totalCompanies = await Company.countDocuments({ isDeleted: { $ne: true } })
+            const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,

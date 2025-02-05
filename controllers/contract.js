@@ -82,7 +82,7 @@ exports.getAllContract = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const contracts = await Contract.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
             const totalContracts = await Contract.countDocuments({ isDeleted: { $ne: true } })
 
@@ -110,9 +110,9 @@ exports.getAllContractOfCompany = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-            const totalContracts = await Contract.countDocuments({ companyId: req.body.companyId, isDeleted: { $ne: true } })
+            const totalContracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,

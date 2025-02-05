@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const leaveRequestSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-    jobTitle: String,
+    jobId: mongoose.Schema.Types.ObjectId,
     userName: String,
     userEmail: String,
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
@@ -11,7 +11,7 @@ const leaveRequestSchema = new mongoose.Schema({
     selectionDuration: String,
     startDate: String,
     endDate: String,
-    leaveDays: String,
+    leaveDays: Number,
     numberOfApproveLeaves: Number,
     leaves: [{
         leaveDate: String,

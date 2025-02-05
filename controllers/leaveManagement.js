@@ -16,7 +16,7 @@ exports.leaveRequest = async (req, res) => {
 
             const {
                 leaveType,
-                jobTitle,
+                jobId,
                 selectionDuration,
                 startDate,
                 endDate,
@@ -25,7 +25,25 @@ exports.leaveRequest = async (req, res) => {
                 isPaidLeave,
             } = req.body
 
-            let jobDetail = user?.jobDetails.find((job) => job.jobTitle === jobTitle)
+            const mockReq = { body: { jobId }, user }
+            // console.log('mockReq:', mockReq)
+            const mockRes = { send: (response) => response }
+            // console.log('mockRes:', mockRes)
+            
+            const leaveCountResponse = await this.getAllowLeaveCount(mockReq, mockRes)
+            // console.log('leaveCountResponse:', leaveCountResponse)
+            if (leaveCountResponse.status !== 200) {
+                return res.send(leaveCountResponse)
+            }
+
+            const remainingLeaves = leaveCountResponse.leaveCount
+            if(remainingLeaves[leaveType] !== 0){
+                if (remainingLeaves[leaveType] < leaveDays) {
+                    return res.send({ status: 400, message: 'Leave limit exceeded for the selected leave type.' })
+                }
+            }
+
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 401, message: 'JobTitle not found!' })
             }
@@ -33,7 +51,7 @@ exports.leaveRequest = async (req, res) => {
 
             const existLeave = await Leave.findOne({
                 userId,
-                jobTitle,
+                jobId,
                 startDate,
                 status: 'Pending'
             })
@@ -55,19 +73,17 @@ exports.leaveRequest = async (req, res) => {
                 leaves = Array.from({ length: totalDays }, (_, index) => ({
                     leaveDate: start.clone().add(index, 'days').format('YYYY-MM-DD'),
                     leaveType,
-                    status: 'Pending'
                 }))
             } else {
                 leaves.push({
                     leaveDate: moment(startDate).format('YYYY-MM-DD'),
                     leaveType,
-                    status: 'Pending'
                 })
             }
 
             const newLeave = await Leave.create({
                 userId: req.user.id,
-                jobTitle,
+                jobId,
                 userName: `${firstName} ${lastName}`,
                 userEmail: req.user?.personalDetails?.email,
                 companyId: req.user?.companyId,
@@ -162,21 +178,21 @@ exports.getAllOwnLeaves = async (req, res) => {
 
             const skip = ( page - 1 ) * limit
             const userId = req.user._id
-            const { jobTitle } = req.body
+            const { jobId } = req.body
 
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
+            const jobExists = user.jobDetails.some(job => job._id.toString() === jobId);
             if (!jobExists) {
                 return res.send({ status: 401, message: 'JobTitle not found' });
             }
 
-            const allLeaves = await Leave.find({ userId, jobTitle, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+            const allLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-            const totalLeaves = await Leave.countDocuments({ userId })
+            const totalLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).countDocuments()
             
             return res.send({
                 status: 200,
@@ -197,7 +213,7 @@ exports.getAllowLeaveCount = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const { jobTitle } = req.body
+            const { jobId } = req.body
             const userId = req.user._id
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
 
@@ -205,7 +221,8 @@ exports.getAllowLeaveCount = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
             
-            const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
+            const jobExists = user.jobDetails.some(job => job._id.toString() === jobId);
+
             if (!jobExists) {
                 return res.send({ status: 401, message: 'JobTitle not found' });
             }
@@ -217,29 +234,39 @@ exports.getAllowLeaveCount = async (req, res) => {
             const allLeavesOfUser = await Leave.find({
                 userId,
                 status: 'Approved',
-                jobTitle,
+                jobId,
                 isDeleted: { $ne: true },
                 createdAt: { $gte: startDate, $lte: endDate }
             })
 
             const leaveCountByType = allLeavesOfUser.reduce((acc, leave) => {
-                leave.leaves.forEach(day => {
-                    if (day.isApproved === true) {
-                        acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
-                    }
-                });
+                const leaveDays = parseFloat(leave.leaveDays)
+                if (leaveDays > 0) {
+                    leave.leaves.forEach(day => {
+                        if (day.isApproved === true) {
+                            if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
+                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
+                            } else {
+                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
+                            }
+                        }
+                    });
+                }
                 return acc;
             }, {});            
 
-            let jobDetails = user.jobDetails.find(job => job.jobTitle === jobTitle) || user.jobDetails[0]
+            let jobDetails = user.jobDetails.find(job => job._id.toString() === jobId) || user.jobDetails[0]
             // console.log('jobDetails/..', jobDetails)
 
             const totalSickLeaves = jobDetails?.sickLeavesAllow
             const totalAllowLeaves = jobDetails?.leavesAllow
 
+            const casualLeaves = totalAllowLeaves - (leaveCountByType?.Casual || 0)
+            const sickLeaves = totalSickLeaves - (leaveCountByType?.Sick || 0)
+
             let leaveCount = {
-                Casual: totalAllowLeaves - (leaveCountByType?.Casual || 0),
-                Sick: totalSickLeaves - (leaveCountByType?.Sick || 0)
+                Casual: casualLeaves > 0 ? casualLeaves : 0,
+                Sick: sickLeaves > 0 ? sickLeaves : 0
             }
             
             return res.send({ status: 200, leaveCount })
@@ -264,12 +291,26 @@ exports.getAllLeaveRequest = async (req, res) => {
             
             if(req.user.role == 'Superadmin'){
                 allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
-                totalLeaveRequests = await Leave.countDocuments()
+                totalLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).countDocuments()
             } else if(req.user.role == 'Administrator'){
-                allLeaveRequests = await Leave.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
-                totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
+                allLeaveRequests = await Leave.find({
+                    companyId: req.user.companyId,
+                    locationId: { $in: req.user.locationId },
+                    isDeleted: { $ne: true }
+                }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+
+                totalLeaveRequests = await Leave.find({
+                    companyId: req.user.companyId,
+                    locationId: { $in: req.user.locationId },
+                    isDeleted: { $ne: true }
+                }).countDocuments()
             } else if(req.user.role == 'Manager'){
-                const leaveRequests = await Leave.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+                const leaveRequests = await Leave.find({
+                    companyId: req.user.companyId,
+                    locationId: { $in: req.user.locationId },
+                    isDeleted: { $ne: true }
+                }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+
                 let allEmployeesLR = []
                 for (const LR of leaveRequests) {
                     const existingUser = await User.findOne({ _id: LR.userId })
@@ -391,7 +432,20 @@ exports.approveLeaveRequest = async (req, res) => {
                 leave.leaves[0].isApproved = true
             }
 
+            let approvedLeavesCount = 0
+            leave.leaves.map(LR => {
+                if(LR.isApproved == true){
+                    if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
+                        approvedLeavesCount += 0.5
+                    } else {
+                        approvedLeavesCount += 1
+                    }
+                }
+            })
+            // console.log('approvedLeavesCount:', approvedLeavesCount)
+
             leave.status = 'Approved'
+            leave.numberOfApproveLeaves = approvedLeavesCount
             leave.approvalReason = approvalReason
             leave.approverId = req.user._id
             leave.approverRole = req.user.role
@@ -457,6 +511,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             }
 
             leave.status = 'Rejected'
+            leave.numberOfApproveLeaves = 0
             leave.rejectionReason = rejectionReason
             leave.rejectorId = req.user._id
             leave.rejectorRole = req.user.role

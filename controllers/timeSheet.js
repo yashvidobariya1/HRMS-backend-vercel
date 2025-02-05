@@ -9,459 +9,14 @@ const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 
 // pending work
+// new method ma jobTitle ma id pass thase e rite manage karvanu 6 ( pending work ) API's name:- getOwnTodaysTimeSheet, getOwnAllTimeSheets, getOwnTimesheetByMonthAndYear
+// changes in below all API's ( pending work )
 // clock in/out ma issue solve karvano 6 and console remove karva nah 6
-// exports.clockInFunc = async (req, res, next) => {
-//     try {
-//         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
-//         if (allowedRoles.includes(req.user.role)) {
-//             const { userId, location, jobTitle, isMobile, qrValue } = req.body
-
-//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-//             if (!existUser) {
-//                 return res.send({ status: 404, message: "User not found" })
-//             }
-
-//             if(isMobile === true) {
-//                 let companyId = existUser?.companyId.toString()
-//                 // let locationId = existUser?.locationId.toString(     
-//                 const qrCode = await QR.findOne({
-//                     'valueOfQRCode.qrValue': qrValue,
-//                     companyId,
-//                     // locationId,
-//                 })      
-//                 if (!qrCode) {
-//                     return res.send({ status: 400, message: 'Invalid QR code' })
-//                 }
-//             }
-
-//             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
-
-//             if (!location || !location.latitude || !location.longitude) {
-//                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
-//             }
-
-//             let existJobTitle = existUser.jobDetails
-//             const authorizedJob = existJobTitle.some(job => job.jobTitle === jobTitle);
-
-//             if (!authorizedJob) {
-//                 return res.send({ status: 400, message: 'You cannot access the clock-in feature for this role, please switch to the appropriate role!' })
-//             }            
-
-//             await User.updateOne(
-//                 { _id: existUser._id },
-//                 { $set: { lastKnownLocation: location } }
-//             )
-
-//             // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-//             // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-//             // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-//             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-//             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-//             const GEOFENCE_RADIUS = 1000 // meters
-
-//             if (!geolib.isPointWithinRadius(
-//                 { latitude: location.latitude, longitude: location.longitude },
-//                 GEOFENCE_CENTER,
-//                 GEOFENCE_RADIUS
-//             )) {
-//                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
-//             }
-
-//             let currentDate = new Date().toISOString().slice(0, 10)
-//             let timesheet = await Timesheet.findOne({ userId, date: currentDate })
-
-//             if (!timesheet) {
-//                 const userJobs = existUser?.jobDetails || []
-//                 const jobToLog = userJobs.length > 1 ? jobTitle : userJobs[0]?.jobTitle
-
-//                 if (!jobToLog) {
-//                     return res.send({ status: 400, message: "JobTitle is required for clock-in." })
-//                 }
-
-//                 timesheet = new Timesheet({
-//                     userId,
-//                     date: currentDate,
-//                     sheets: [{
-//                         jobTitle: jobToLog,
-//                         clockinTime: [ {
-//                             clockIn: new Date(),
-//                             clockOut: null,
-//                             isClockin: true
-//                         }],
-//                         totalHours: "0h 0m 0s"
-//                     }]
-//                 })
-
-//                 await timesheet.save()
-//                 return res.send({ status: 200, timesheet })
-//             }
-
-//             const userJobs = existUser?.jobDetails || []
-//             const jobToLog = userJobs.length > 1 ? jobTitle : userJobs[0]?.jobTitle
-
-//             if (!jobToLog) {
-//                 return res.send({ status: 400, message: "Job title is required for clock-in." })
-//             }
-
-//             let sheet = timesheet.sheets.find(sheet => sheet.jobTitle === jobToLog)
-
-//             if (!sheet) {
-//                 sheet = {
-//                     jobTitle: jobToLog,
-//                     clockinTime: [],
-//                     totalHours: "0h 0m 0s",
-//                     overTime: "0h 0m 0s"
-//                 }
-//                 timesheet.sheets.push(sheet)
-//             }
-
-//             const lastClockIn = sheet.clockinTime[sheet.clockinTime.length - 1]
-//             if (lastClockIn && !lastClockIn.clockOut) {
-//                 return res.send({ status: 400, message: "Please clock out before clockin again." })
-//             }
-
-//             sheet.clockinTime.push({
-//                 clockIn: new Date(),
-//                 clockOut: null,
-//                 isClockin: true
-//             })
-
-//             await timesheet.save()
-
-//             //------entry notification-----------
-//             let notifiedId = []
-//             let readBy = []
-//             if (existUser.role === 'Employee') {
-//                 if (jobDetail && jobDetail.assignManager) {
-//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-//                     // console.log('assignManager', assignManager)
-//                     notifiedId.push(jobDetail.assignManager);
-//                     readBy.push({
-//                         userId: jobDetail.assignManager,
-//                         role: assignManager[0].role
-//                     })
-//                     // console.log('readBy1/..', readBy)
-//                 }
-
-//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-//                 // console.log('administrator', administrator)
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (existUser.role === 'Manager') {
-//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (existUser.role === 'Administrator') {
-//                 notifiedId.push(existUser.creatorId)
-//                 readBy.push({
-//                     userId: existUser.creatorId,
-//                     role: existUser.createdBy
-//                 })
-//             }
-
-//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
-
-//             superAdmin.map((sa) => {
-//                 notifiedId.push(sa?._id)
-//                 readBy.push({
-//                     userId: sa?._id,
-//                     role: sa?.role
-//                 })
-//             })
-
-//             const { firstName, lastName } = existUser.personalDetails;
-//             const name = [firstName, lastName].filter(Boolean).join(" ");
-//             const notification = new Notification({
-//                 userId,
-//                 userName: `${name}`,
-//                 notifiedId,
-//                 type: 'ClockIn',
-//                 message: `User ${name} entered the geofence at ${currentDate}`,
-//                 readBy
-//             });
-//             await notification.save();
-
-//             return res.send({ status: 200, timesheet })
-//         } else return res.send({ status: 403, message: "Access denied" })
-//     } catch (error) {
-//         console.error("Error occurred during clock-in:", error)
-//         res.send({ message: "Something went wrong while clock-in!" })
-//     }
-// };
-
-// exports.clockOutFunc = async (req, res) => {
-//     try {
-//         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
-//         if (allowedRoles.includes(req.user.role)) {
-//             const { userId, location, jobTitle, isMobile, qrValue } = req.body
-
-//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-//             if (!existUser) {
-//                 return res.send({ status: 404, message: "User not found" })
-//             }
-
-//             if(isMobile === true) {
-//                 let companyId = existUser?.companyId.toString()
-//                 // let locationId = existUser?.locationId.toString()
-
-//                 const qrCode = await QR.findOne({
-//                     'valueOfQRCode.qrValue': qrValue,
-//                     companyId,
-//                     // locationId,
-//                 })
-                
-//                 if (!qrCode) {
-//                     return res.send({ status: 400, message: 'Invalid QR code' })
-//                 }
-//             }
-
-//             let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
-
-//             if (!location || !location.latitude || !location.longitude) {
-//                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
-//             }
-
-//             let currentDate = new Date()
-//             let currentDateStr = currentDate.toISOString().slice(0, 10)
-
-//             const timesheet = await Timesheet.findOne({ userId, date: currentDateStr })
-//             if (!timesheet) {
-//                 return res.send({ status: 404, message: "No timesheet found for today." })
-//             }
-
-//             const jobSheet = timesheet.sheets.find(sheet => sheet.jobTitle === jobTitle)
-//             if (!jobSheet) {
-//                 return res.send({ status: 404, message: `No timesheet found for job title: ${jobTitle}` })
-//             }
-
-//             const lastClockin = jobSheet.clockinTime[jobSheet.clockinTime.length - 1];
-//             if (!lastClockin || lastClockin.clockOut) {
-//                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
-//             }
-
-//             lastClockin.clockOut = currentDate
-//             lastClockin.isClockin = false
-
-//             const clockInTime = new Date(lastClockin.clockIn)
-//             const clockOutTime = new Date(lastClockin.clockOut)
-
-//             const formatDuration = (clockInTime, clockOutTime) => {
-//                 let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
-//                 const hours = Math.floor(diffInSeconds / 3600)
-//                 diffInSeconds %= 3600
-//                 const minutes = Math.floor(diffInSeconds / 60)
-//                 const seconds = diffInSeconds % 60
-
-//                 return `${hours}h ${minutes}m ${seconds}s`
-//             };
-//             const parseTime = (duration) => {
-//                 const regex = /(\d+)h|(\d+)m|(\d+)s/g
-//                 let hours = 0, minutes = 0, seconds = 0
-//                 let match
-
-//                 while ((match = regex.exec(duration)) !== null) {
-//                     if (match[1]) hours = parseInt(match[1], 10)
-//                     if (match[2]) minutes = parseInt(match[2], 10)
-//                     if (match[3]) seconds = parseInt(match[3], 10)
-//                 }
-
-//                 return { hours, minutes, seconds }
-//             };
-
-//             const duration = formatDuration(clockInTime, clockOutTime)
-//             lastClockin.totalTiming = duration
-
-//             const addDurations = (duration1, duration2) => {
-//                 const parseTime = (duration) => {
-//                     const regex = /(\d+)h|(\d+)m|(\d+)s/g
-//                     let hours = 0, minutes = 0, seconds = 0
-//                     let match;
-
-//                     while ((match = regex.exec(duration)) !== null) {
-//                         if (match[1]) hours = parseInt(match[1], 10)
-//                         if (match[2]) minutes = parseInt(match[2], 10)
-//                         if (match[3]) seconds = parseInt(match[3], 10)
-//                     }
-
-//                     return { hours, minutes, seconds }
-//                 }
-
-//                 const time1 = parseTime(duration1)
-//                 const time2 = parseTime(duration2)
-
-//                 let totalSeconds = time1.seconds + time2.seconds
-//                 let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
-//                 let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
-
-//                 totalSeconds %= 60
-//                 totalMinutes %= 60
-
-//                 return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
-//             }
-
-//             jobSheet.totalHours = jobSheet.totalHours === '0h 0m 0s' ? duration : addDurations(jobSheet.totalHours, duration)
-
-//             // ----- Weekly Reset and Overtime Calculation -----
-//             const startOfWeek = new Date(currentDate)
-//             startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1)
-//             startOfWeek.setHours(0, 0, 0, 0)
-
-//             const endOfWeek = new Date(startOfWeek)
-//             endOfWeek.setDate(startOfWeek.getDate() + 6)
-//             endOfWeek.setHours(23, 59, 59, 999)
-
-//             if (currentDate.getDay() === 1) {
-//                 const weeklyTimesheets = await Timesheet.find({
-//                     userId,
-//                     date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
-//                 })
-
-//                 for (const sheet of weeklyTimesheets) {
-//                     for (const js of sheet.sheets) {
-//                         js.overTime = '0h 0m 0s'
-//                     }
-//                     await sheet.save()
-//                 }
-//             }
-
-//             const weeklyTimesheets = await Timesheet.find({
-//                 userId,
-//                 date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
-//             })
-
-//             let totalWeeklyHours = 0;
-//             for (const sheet of weeklyTimesheets) {
-//                 for (const js of sheet.sheets) {
-//                     const timeObj = parseTime(js.totalHours);
-//                     totalWeeklyHours += timeObj.hours + timeObj.minutes / 60 + timeObj.seconds / 3600;
-//                 }
-//             }console.log('existUser?.jobDetails.length', existUser?.jobDetails.length)
-
-//             if(existUser?.jobDetails.length > 1){
-//                 // console.log('if condition')
-//                 let jobTitles = existUser.jobDetails
-//                 // console.log('jobTitle', jobTitle)
-//                 jobTitles.forEach((job) => {
-//                     // console.log('job', job)
-//                     if(job.jobTitle == jobTitle){
-//                         const weeklyLimit = job.weeklyWorkingHours
-//                         // console.log('totalWeeklyHours', totalWeeklyHours)
-//                         // console.log('weeklyLimit', weeklyLimit)
-//                         if(totalWeeklyHours > weeklyLimit){
-//                             const overtimeHours = totalWeeklyHours - weeklyLimit;
-//                             jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
-//                         } else {
-//                             jobSheet.overTime = '0h 0m 0s';
-//                         }
-//                     }
-//                 })
-//             } else {
-//                 // console.log('else part')
-//                 const weeklyLimit = existUser?.jobDetails[0]?.weeklyWorkingHours
-//                 // console.log('weeklyLimit', weeklyLimit)
-//                 // console.log('totalWeeklyHours', totalWeeklyHours)
-//                 if (totalWeeklyHours > weeklyLimit) {
-//                     const overtimeHours = totalWeeklyHours - weeklyLimit;
-//                     jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
-//                 } else {
-//                     jobSheet.overTime = '0h 0m 0s';
-//                 }
-//             }
-
-//             await timesheet.save()
-
-//             //------exit notification-----------
-//             let notifiedId = []
-//             let readBy = []
-//             if (existUser.role === 'Employee') {
-//                 if (jobDetail && jobDetail.assignManager) {
-//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-//                     // console.log('assignManager', assignManager)
-//                     notifiedId.push(jobDetail.assignManager);
-//                     readBy.push({
-//                         userId: jobDetail.assignManager,
-//                         role: assignManager[0].role
-//                     })
-//                     // console.log('readBy1/..', readBy)
-//                 }
-
-//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-//                 // console.log('administrator', administrator)
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (existUser.role === 'Manager') {
-//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (existUser.role === 'Administrator') {
-//                 notifiedId.push(existUser.creatorId)
-//                 readBy.push({
-//                     userId: existUser.creatorId,
-//                     role: existUser.createdBy
-//                 })
-//             }
-
-//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
-
-//             superAdmin.map((sa) => {
-//                 notifiedId.push(sa?._id)
-//                 readBy.push({
-//                     userId: sa?._id,
-//                     role: sa?.role
-//                 })
-//             })
-
-//             const { firstName, lastName } = existUser.personalDetails;
-//             const name = [firstName, lastName].filter(Boolean).join(" ");
-//             const notification = new Notification({
-//                 userId,
-//                 userName: `${name}`,
-//                 notifiedId,
-//                 type: 'ClockOut',
-//                 message: `User ${name} exited the geofence at ${currentDate}`,
-//                 readBy
-//             })
-//             await notification.save()
-
-//             return res.send({ status: 200, timesheet })
-//         } else return res.send({ status: 403, message: "Access denied" })
-//     } catch (error) {
-//         console.error("Error occurred while clocking out:", error);
-//         res.send({ message: "Something went wrong while clocking out!" });
-//     }
-// };
-
-// old method
-exports.clockInFunc = async (req, res) => {
+exports.clockInFunc = async (req, res, next) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            // console.log('req.user.role/...', req.user.role)
-            const { userId, location, jobTitle, isMobile, qrValue } = req.body
+            const { userId, location, jobId, isMobile, qrValue } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
@@ -470,21 +25,21 @@ exports.clockInFunc = async (req, res) => {
 
             if(isMobile === true) {
                 let companyId = existUser?.companyId.toString()
-                // let locationId = existUser?.locationId.toString()
-
+                // let locationId = existUser?.locationId.toString(     
                 const qrCode = await QR.findOne({
-                    qrValue,
+                    'valueOfQRCode.qrValue': qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
-                    locationId: { $in: existUser?.locationId },
-                })
-                
+                    // locationId,
+                })      
                 if (!qrCode) {
                     return res.send({ status: 400, message: 'Invalid QR code' })
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 400, message: 'JobTitle not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -514,31 +69,65 @@ exports.clockInFunc = async (req, res) => {
                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10)
+            let currentDate = new Date().toISOString().slice(0, 10)
             let timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
             if (!timesheet) {
+                const userJobs = existUser?.jobDetails || []
+                const jobToLog = userJobs.length > 1 ? jobId : userJobs[0]?._id.toString()
+
+                if (!jobToLog) {
+                    return res.send({ status: 400, message: "JobTitle is required for clock-in." })
+                }
+
                 timesheet = new Timesheet({
                     userId,
                     date: currentDate,
-                    clockinTime: [],
-                    totalHours: '0h 0m 0s'
+                    sheets: [{
+                        jobId: jobToLog,
+                        clockinTime: [ {
+                            clockIn: new Date(),
+                            clockOut: null,
+                            isClockin: true
+                        }],
+                        totalHours: "0h 0m 0s"
+                    }]
                 })
+
+                await timesheet.save()
+                return res.send({ status: 200, timesheet })
             }
 
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+            const userJobs = existUser?.jobDetails || []
+            const jobToLog = userJobs.length > 1 ? jobId : userJobs[0]?._id.toString()
 
-            if (lastClockin && !lastClockin.clockOut) {
+            if (!jobToLog) {
+                return res.send({ status: 400, message: "Job title is required for clock-in." })
+            }
+
+            let sheet = timesheet.sheets.find(sheet => sheet.jobId === jobToLog)
+
+            if (!sheet) {
+                sheet = {
+                    jobId: jobToLog,
+                    clockinTime: [],
+                    totalHours: "0h 0m 0s",
+                    overTime: "0h 0m 0s"
+                }
+                timesheet.sheets.push(sheet)
+            }
+
+            const lastClockIn = sheet.clockinTime[sheet.clockinTime.length - 1]
+            if (lastClockIn && !lastClockIn.clockOut) {
                 return res.send({ status: 400, message: "Please clock out before clockin again." })
             }
 
-            timesheet.clockinTime.push({
+            sheet.clockinTime.push({
                 clockIn: new Date(),
-                clockOut: "",
+                clockOut: null,
                 isClockin: true
             })
 
-            timesheet.isTimerOn = true
             await timesheet.save()
 
             //------entry notification-----------
@@ -599,7 +188,7 @@ exports.clockInFunc = async (req, res) => {
                 userName: `${name}`,
                 notifiedId,
                 type: 'ClockIn',
-                message: `${name} entered the geofence at ${currentDate}`,
+                message: `User ${name} entered the geofence at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -607,17 +196,16 @@ exports.clockInFunc = async (req, res) => {
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while clock in:", error);
-        res.send({ message: "Something went wrong while clock in!" })
+        console.error("Error occurred during clock-in:", error)
+        res.send({ message: "Something went wrong while clock-in!" })
     }
-}
+};
 
-// old method
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const { userId, location, jobTitle, isMobile, qrValue } = req.body
+            const { userId, location, jobId, isMobile, qrValue } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
@@ -629,10 +217,9 @@ exports.clockOutFunc = async (req, res) => {
                 // let locationId = existUser?.locationId.toString()
 
                 const qrCode = await QR.findOne({
-                    qrValue,
+                    'valueOfQRCode.qrValue': qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
-                    locationId: { $in: existUser?.locationId },
+                    // locationId,
                 })
                 
                 if (!qrCode) {
@@ -640,25 +227,58 @@ exports.clockOutFunc = async (req, res) => {
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.find((job) => job.jobTitle === jobTitle)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 400, message: 'JobTitle not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10);
-            const timesheet = await Timesheet.findOne({ userId, date: currentDate })
+            await User.updateOne(
+                { _id: existUser._id },
+                { $set: { lastKnownLocation: location } }
+            )
 
+            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
+
+            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+
+            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
+
+            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
+
+            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
+            const GEOFENCE_RADIUS = 1000 // meters
+
+            if (!geolib.isPointWithinRadius(
+                { latitude: location.latitude, longitude: location.longitude },
+                GEOFENCE_CENTER,
+                GEOFENCE_RADIUS
+            )) {
+                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+            }
+
+            let currentDate = new Date()
+            const currentDatSTR = currentDate.toISOString().slice(0, 10)
+
+            const timesheet = await Timesheet.findOne({ userId, date: currentDatSTR })
             if (!timesheet) {
                 return res.send({ status: 404, message: "No timesheet found for today." })
             }
 
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+            const jobSheet = timesheet.sheets.find(sheet => sheet.jobId.toString() === jobId)
+            if (!jobSheet) {
+                return res.send({ status: 404, message: `No timesheet found for job title: ${jobDetail.jobTitle}` })
+            }
+
+            const lastClockin = jobSheet.clockinTime[jobSheet.clockinTime.length - 1];
             if (!lastClockin || lastClockin.clockOut) {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClockin.clockOut = new Date()
+            lastClockin.clockOut = currentDate
             lastClockin.isClockin = false
 
             const clockInTime = new Date(lastClockin.clockIn)
@@ -672,18 +292,29 @@ exports.clockOutFunc = async (req, res) => {
                 const seconds = diffInSeconds % 60
 
                 return `${hours}h ${minutes}m ${seconds}s`
-            }
+            };
+            const parseTime = (duration) => {
+                const regex = /(\d+)h|(\d+)m|(\d+)s/g
+                let hours = 0, minutes = 0, seconds = 0
+                let match
+
+                while ((match = regex.exec(duration)) !== null) {
+                    if (match[1]) hours = parseInt(match[1], 10)
+                    if (match[2]) minutes = parseInt(match[2], 10)
+                    if (match[3]) seconds = parseInt(match[3], 10)
+                }
+
+                return { hours, minutes, seconds }
+            };
 
             const duration = formatDuration(clockInTime, clockOutTime)
             lastClockin.totalTiming = duration
 
-            if (timesheet.totalHours == '0h 0m 0s') {
-                timesheet.totalHours = duration
-            } else {
+            const addDurations = (duration1, duration2) => {
                 const parseTime = (duration) => {
                     const regex = /(\d+)h|(\d+)m|(\d+)s/g
                     let hours = 0, minutes = 0, seconds = 0
-                    let match
+                    let match;
 
                     while ((match = regex.exec(duration)) !== null) {
                         if (match[1]) hours = parseInt(match[1], 10)
@@ -693,25 +324,88 @@ exports.clockOutFunc = async (req, res) => {
 
                     return { hours, minutes, seconds }
                 }
-                const addDurations = (duration1, duration2) => {
-                    const time1 = parseTime(duration1)
-                    const time2 = parseTime(duration2)
 
-                    let totalSeconds = time1.seconds + time2.seconds
-                    let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
-                    let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
+                const time1 = parseTime(duration1)
+                const time2 = parseTime(duration2)
 
-                    totalSeconds %= 60
-                    totalMinutes %= 60
+                let totalSeconds = time1.seconds + time2.seconds
+                let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+                let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
 
-                    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
-                }
+                totalSeconds %= 60
+                totalMinutes %= 60
 
-                const result = addDurations(timesheet.totalHours, duration)
-                timesheet.totalHours = result
+                return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
             }
 
-            timesheet.isTimerOn = false
+            jobSheet.totalHours = jobSheet.totalHours === '0h 0m 0s' ? duration : addDurations(jobSheet.totalHours, duration)
+
+            // ----- Weekly Reset and Overtime Calculation -----
+            const startOfWeek = new Date(currentDate)
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1)
+            startOfWeek.setHours(0, 0, 0, 0)
+
+            const endOfWeek = new Date(startOfWeek)
+            endOfWeek.setDate(startOfWeek.getDate() + 6)
+            endOfWeek.setHours(23, 59, 59, 999)
+
+            if (currentDate.getDay() === 1) {
+                const weeklyTimesheets = await Timesheet.find({
+                    userId,
+                    date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
+                })
+
+                for (const sheet of weeklyTimesheets) {
+                    for (const js of sheet.sheets) {
+                        js.overTime = '0h 0m 0s'
+                    }
+                    await sheet.save()
+                }
+            }
+
+            const weeklyTimesheets = await Timesheet.find({
+                userId,
+                date: { $gte: startOfWeek.toISOString().slice(0, 10), $lte: endOfWeek.toISOString().slice(0, 10) }
+            })
+
+            let totalWeeklyHours = 0;
+            for (const sheet of weeklyTimesheets) {
+                for (const js of sheet.sheets) {
+                    const timeObj = parseTime(js.totalHours);
+                    totalWeeklyHours += timeObj.hours + timeObj.minutes / 60 + timeObj.seconds / 3600;
+                }
+            }
+
+            if(existUser?.jobDetails.length > 1){
+                // console.log('if condition')
+                let jobTitles = existUser.jobDetails
+                // console.log('jobTitle', jobTitle)
+                jobTitles.forEach((job) => {
+                    // console.log('job', job)
+                    if(job._id.toString() == jobId){
+                        const weeklyLimit = job.weeklyWorkingHours
+                        // console.log('totalWeeklyHours', totalWeeklyHours)
+                        // console.log('weeklyLimit', weeklyLimit)
+                        if(totalWeeklyHours > weeklyLimit){
+                            const overtimeHours = totalWeeklyHours - weeklyLimit;
+                            jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
+                        } else {
+                            jobSheet.overTime = '0h 0m 0s';
+                        }
+                    }
+                })
+            } else {
+                // console.log('else part')
+                const weeklyLimit = existUser?.jobDetails[0]?.weeklyWorkingHours
+                // console.log('weeklyLimit', weeklyLimit)
+                // console.log('totalWeeklyHours', totalWeeklyHours)
+                if (totalWeeklyHours > weeklyLimit) {
+                    const overtimeHours = totalWeeklyHours - weeklyLimit;
+                    jobSheet.overTime = `${Math.floor(overtimeHours)}h ${Math.floor((overtimeHours % 1) * 60)}m 0s`;
+                } else {
+                    jobSheet.overTime = '0h 0m 0s';
+                }
+            }
 
             await timesheet.save()
 
@@ -773,55 +467,413 @@ exports.clockOutFunc = async (req, res) => {
                 userName: `${name}`,
                 notifiedId,
                 type: 'ClockOut',
-                message: `${name} exited the geofence at ${currentDate}`,
+                message: `User ${name} exited the geofence at ${currentDatSTR}`,
                 readBy
-            });
-            await notification.save();
+            })
+            await notification.save()
 
             return res.send({ status: 200, timesheet })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while clock out:", error);
-        res.send({ message: "Something went wrong while clock out!" })
+        console.error("Error occurred while clocking out:", error);
+        res.send({ message: "Something went wrong while clocking out!" });
     }
-}
+};
+
+// old method
+// exports.clockInFunc = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+//         if (allowedRoles.includes(req.user.role)) {
+//             // console.log('req.user.role/...', req.user.role)
+//             const { userId, location, jobId, isMobile, qrValue } = req.body
+
+//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+//             if (!existUser) {
+//                 return res.send({ status: 404, message: "User not found" })
+//             }
+
+//             if(isMobile === true) {
+//                 let companyId = existUser?.companyId.toString()
+//                 // let locationId = existUser?.locationId.toString()
+
+//                 const qrCode = await QR.findOne({
+//                     qrValue,
+//                     companyId,
+//                     isDeleted: { $ne: true },
+//                     locationId: { $in: existUser?.locationId },
+//                 })
+                
+//                 if (!qrCode) {
+//                     return res.send({ status: 400, message: 'Invalid QR code' })
+//                 }
+//             }
+
+//             let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+//             if(!jobDetail){
+//                 return res.send({ status: 400, message: 'JobTitle not found' })
+//             }
+
+//             if (!location || !location.latitude || !location.longitude) {
+//                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
+//             }
+
+//             await User.updateOne(
+//                 { _id: existUser._id },
+//                 { $set: { lastKnownLocation: location } }
+//             )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
+
+//             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
+//             const GEOFENCE_RADIUS = 1000 // meters
+
+//             if (!geolib.isPointWithinRadius(
+//                 { latitude: location.latitude, longitude: location.longitude },
+//                 GEOFENCE_CENTER,
+//                 GEOFENCE_RADIUS
+//             )) {
+//                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
+//             }
+
+//             const currentDate = new Date().toISOString().slice(0, 10)
+//             let timesheet = await Timesheet.findOne({ userId, date: currentDate })
+
+//             if (!timesheet) {
+//                 timesheet = new Timesheet({
+//                     userId,
+//                     date: currentDate,
+//                     clockinTime: [],
+//                     totalHours: '0h 0m 0s'
+//                 })
+//             }
+
+//             const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+
+//             if (lastClockin && !lastClockin.clockOut) {
+//                 return res.send({ status: 400, message: "Please clock out before clockin again." })
+//             }
+
+//             timesheet.clockinTime.push({
+//                 clockIn: new Date(),
+//                 clockOut: "",
+//                 isClockin: true
+//             })
+
+//             timesheet.isTimerOn = true
+//             await timesheet.save()
+
+//             //------entry notification-----------
+//             let notifiedId = []
+//             let readBy = []
+//             if (existUser.role === 'Employee') {
+//                 if (jobDetail && jobDetail.assignManager) {
+//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+//                     // console.log('assignManager', assignManager)
+//                     notifiedId.push(jobDetail.assignManager);
+//                     readBy.push({
+//                         userId: jobDetail.assignManager,
+//                         role: assignManager[0].role
+//                     })
+//                     // console.log('readBy1/..', readBy)
+//                 }
+
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 // console.log('administrator', administrator)
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Manager') {
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Administrator') {
+//                 notifiedId.push(existUser.creatorId)
+//                 readBy.push({
+//                     userId: existUser.creatorId,
+//                     role: existUser.createdBy
+//                 })
+//             }
+
+//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+//             superAdmin.map((sa) => {
+//                 notifiedId.push(sa?._id)
+//                 readBy.push({
+//                     userId: sa?._id,
+//                     role: sa?.role
+//                 })
+//             })
+
+//             const { firstName, lastName } = existUser.personalDetails;
+//             const name = [firstName, lastName].filter(Boolean).join(" ");
+//             const notification = new Notification({
+//                 userId,
+//                 userName: `${name}`,
+//                 notifiedId,
+//                 type: 'ClockIn',
+//                 message: `${name} entered the geofence at ${currentDate}`,
+//                 readBy
+//             });
+//             await notification.save();
+
+//             return res.send({ status: 200, timesheet })
+//         } else return res.send({ status: 403, message: "Access denied" })
+//     } catch (error) {
+//         console.error("Error occurred while clock in:", error);
+//         res.send({ message: "Something went wrong while clock in!" })
+//     }
+// }
+
+// old method
+// exports.clockOutFunc = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+//         if (allowedRoles.includes(req.user.role)) {
+//             const { userId, location, jobId, isMobile, qrValue } = req.body
+
+//             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+//             if (!existUser) {
+//                 return res.send({ status: 404, message: "User not found" })
+//             }
+
+//             if(isMobile === true) {
+//                 let companyId = existUser?.companyId.toString()
+//                 // let locationId = existUser?.locationId.toString()
+
+//                 const qrCode = await QR.findOne({
+//                     qrValue,
+//                     companyId,
+//                     isDeleted: { $ne: true },
+//                     locationId: { $in: existUser?.locationId },
+//                 })
+                
+//                 if (!qrCode) {
+//                     return res.send({ status: 400, message: 'Invalid QR code' })
+//                 }
+//             }
+
+//             let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+//             if(!jobDetail){
+//                 return res.send({ status: 400, message: 'JobTitle not found' })
+//             }
+
+//             if (!location || !location.latitude || !location.longitude) {
+//                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
+//             }
+
+//             await User.updateOne(
+//                 { _id: existUser._id },
+//                 { $set: { lastKnownLocation: location } }
+//             )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
+
+//             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
+
+//             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
+//             const GEOFENCE_RADIUS = 1000 // meters
+
+//             if (!geolib.isPointWithinRadius(
+//                 { latitude: location.latitude, longitude: location.longitude },
+//                 GEOFENCE_CENTER,
+//                 GEOFENCE_RADIUS
+//             )) {
+//                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
+//             }
+
+//             const currentDate = new Date().toISOString().slice(0, 10);
+//             const timesheet = await Timesheet.findOne({ userId, date: currentDate })
+
+//             if (!timesheet) {
+//                 return res.send({ status: 404, message: "No timesheet found for today." })
+//             }
+
+//             const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+//             if (!lastClockin || lastClockin.clockOut) {
+//                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
+//             }
+
+//             lastClockin.clockOut = new Date()
+//             lastClockin.isClockin = false
+
+//             const clockInTime = new Date(lastClockin.clockIn)
+//             const clockOutTime = new Date(lastClockin.clockOut)
+
+//             const formatDuration = (clockInTime, clockOutTime) => {
+//                 let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
+//                 const hours = Math.floor(diffInSeconds / 3600)
+//                 diffInSeconds %= 3600
+//                 const minutes = Math.floor(diffInSeconds / 60)
+//                 const seconds = diffInSeconds % 60
+
+//                 return `${hours}h ${minutes}m ${seconds}s`
+//             }
+
+//             const duration = formatDuration(clockInTime, clockOutTime)
+//             lastClockin.totalTiming = duration
+
+//             if (timesheet.totalHours == '0h 0m 0s') {
+//                 timesheet.totalHours = duration
+//             } else {
+//                 const parseTime = (duration) => {
+//                     const regex = /(\d+)h|(\d+)m|(\d+)s/g
+//                     let hours = 0, minutes = 0, seconds = 0
+//                     let match
+
+//                     while ((match = regex.exec(duration)) !== null) {
+//                         if (match[1]) hours = parseInt(match[1], 10)
+//                         if (match[2]) minutes = parseInt(match[2], 10)
+//                         if (match[3]) seconds = parseInt(match[3], 10)
+//                     }
+
+//                     return { hours, minutes, seconds }
+//                 }
+//                 const addDurations = (duration1, duration2) => {
+//                     const time1 = parseTime(duration1)
+//                     const time2 = parseTime(duration2)
+
+//                     let totalSeconds = time1.seconds + time2.seconds
+//                     let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+//                     let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
+
+//                     totalSeconds %= 60
+//                     totalMinutes %= 60
+
+//                     return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+//                 }
+
+//                 const result = addDurations(timesheet.totalHours, duration)
+//                 timesheet.totalHours = result
+//             }
+
+//             timesheet.isTimerOn = false
+
+//             await timesheet.save()
+
+//             //------exit notification-----------
+//             let notifiedId = []
+//             let readBy = []
+//             if (existUser.role === 'Employee') {
+//                 if (jobDetail && jobDetail.assignManager) {
+//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+//                     // console.log('assignManager', assignManager)
+//                     notifiedId.push(jobDetail.assignManager);
+//                     readBy.push({
+//                         userId: jobDetail.assignManager,
+//                         role: assignManager[0].role
+//                     })
+//                     // console.log('readBy1/..', readBy)
+//                 }
+
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 // console.log('administrator', administrator)
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Manager') {
+//                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (existUser.role === 'Administrator') {
+//                 notifiedId.push(existUser.creatorId)
+//                 readBy.push({
+//                     userId: existUser.creatorId,
+//                     role: existUser.createdBy
+//                 })
+//             }
+
+//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+//             superAdmin.map((sa) => {
+//                 notifiedId.push(sa?._id)
+//                 readBy.push({
+//                     userId: sa?._id,
+//                     role: sa?.role
+//                 })
+//             })
+
+//             const { firstName, lastName } = existUser.personalDetails;
+//             const name = [firstName, lastName].filter(Boolean).join(" ");
+//             const notification = new Notification({
+//                 userId,
+//                 userName: `${name}`,
+//                 notifiedId,
+//                 type: 'ClockOut',
+//                 message: `${name} exited the geofence at ${currentDate}`,
+//                 readBy
+//             });
+//             await notification.save();
+
+//             return res.send({ status: 200, timesheet })
+//         } else return res.send({ status: 403, message: "Access denied" })
+//     } catch (error) {
+//         console.error("Error occurred while clock out:", error);
+//         res.send({ message: "Something went wrong while clock out!" })
+//     }
+// }
 
 exports.getOwnTodaysTimeSheet = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = ( page - 1 ) * limit
             const userId = req.user._id
-            const user = await User.findOne({
-                _id: userId,
-                isDeleted: { $ne: true },
-            })
-            if (!user) {
+            const { jobId } = req.body
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if (!existUser) {
                 return res.send({ status: 404, message: 'User not found' })
             }
+
+            let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 400, message: 'JobTitle not found' })
+            }
+
             const currentDate = new Date().toISOString().slice(0, 10)
             const timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-            let multipleRole = { multipleJobType: false, jobTitles: [] };
-            if (user.jobDetails.length > 1) {
-                multipleRole.multipleJobType = true;
-                multipleRole.jobTitles = user.jobDetails.map((job) => job.jobTitle);
-                return res.send({
-                    status: 200,
-                    message: 'Timesheet retrieved successfully.',
-                    multipleJobType: multipleRole?.multipleJobType,
-                    jobTitles: multipleRole?.jobTitles,
-                    timesheet: timesheet ? timesheet : {},
-                });
-            } else {
-                multipleRole.jobTitles = user.jobDetails[0]?.jobTitle;
-                return res.send({
-                    status: 200,
-                    message: 'Timesheet retrieved successfully.',
-                    multipleJobType: multipleRole?.multipleJobType,
-                    jobTitles: multipleRole?.jobTitles,
-                    timesheet: timesheet ? timesheet : {},
-                });
-            }
+            let sheet = timesheet.sheets
+            let todaysTimesheet = []
+            sheet.map(TS => {
+                if(TS.jobId.toString() === jobId){
+                    todaysTimesheet.push(TS)
+                }
+            })
+
+            return res.send({ status: 200, message: 'Timesheet getted successfully.', timmsheet: todaysTimesheet.length > 0 ? todaysTimesheet : [] })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while getting timesheet:', error);
@@ -996,7 +1048,7 @@ exports.getAllQRCodes = async (req, res) => {
                 return res.send({ status: 404, message: 'Compnay not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
             const totalQRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
 
             let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`

@@ -201,12 +201,9 @@ exports.getAllManager = async (req, res) => {
     //         const limit = parseInt(req.query.limit) || 10
 
     //         const skip = (page - 1) * limit
-    //         const managers = await User.find({
-    //             role: "Manager",
-    //             isDeleted: { $ne: true }
-    //         }).skip(skip).limit(limit)
+    //         const managers = await User.find({ role: "Manager", isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-    //         const totalManagers = await User.countDocuments({ role: 'Manager', isDeleted: { $ne: true } })
+    //         const totalManagers = await User.find({ role: "Manager", isDeleted: { $ne: true } }).countDocuments()
 
     //         return res.send({
     //             status: 200,
