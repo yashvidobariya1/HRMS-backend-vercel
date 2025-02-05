@@ -387,7 +387,7 @@ exports.getNotification = async (req, res) => {
             const notificationId = req.params.id
             const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
-                return res.send({ status: 404, messgae: 'Notification not found.' })
+                return res.send({ status: 404, message: 'Notification not found.' })
             }
             // console.log('notification', notification)
             res.send({ status: 200, notification })

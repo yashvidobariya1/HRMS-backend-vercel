@@ -85,14 +85,10 @@ exports.getAllLocation = async (req, res) => {
 
             const totalLocations = await Location.countDocuments({ isDeleted: { $ne: true } })
 
-            if (!locations) {
-                return res.send({ status: 404, message: 'Locations not found' })
-            }
-
             return res.send({
                 status: 200,
                 message: 'Location all get successfully.',
-                locations,
+                locations: locations ? locations : [],
                 totalLocations,
                 totalPages: Math.ceil(totalLocations / limit),
                 currentPage: page
@@ -116,10 +112,6 @@ exports.getCompanyLocations = async (req, res) => {
             }
 
             const locations = await Location.find({ companyId, isDeleted: { $ne: true } })
-
-            if (!locations || locations.length === 0) {
-                return res.send({ status: 404, message: 'Location not found' })
-            }
 
             const companiesAllLocations = await Promise.all(
                 locations.map(async (loc) => {

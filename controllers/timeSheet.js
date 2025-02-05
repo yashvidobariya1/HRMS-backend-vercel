@@ -805,42 +805,22 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             if (user.jobDetails.length > 1) {
                 multipleRole.multipleJobType = true;
                 multipleRole.jobTitles = user.jobDetails.map((job) => job.jobTitle);
-                if (timesheet) {
-                    return res.send({
-                        status: 200,
-                        message: 'Timesheet retrieved successfully.',
-                        multipleJobType: multipleRole?.multipleJobType,
-                        jobTitles: multipleRole?.jobTitles,
-                        timesheet,
-                    });
-                } else {
-                    return res.send({
-                        status: 404,
-                        message: 'Record not found!',
-                        multipleJobType: multipleRole?.multipleJobType,
-                        jobTitles: multipleRole?.jobTitles,
-                        timesheet: {},
-                    });
-                }
+                return res.send({
+                    status: 200,
+                    message: 'Timesheet retrieved successfully.',
+                    multipleJobType: multipleRole?.multipleJobType,
+                    jobTitles: multipleRole?.jobTitles,
+                    timesheet: timesheet ? timesheet : {},
+                });
             } else {
                 multipleRole.jobTitles = user.jobDetails[0]?.jobTitle;
-                if (timesheet) {
-                    return res.send({
-                        status: 200,
-                        message: 'Timesheet retrieved successfully.',
-                        multipleJobType: multipleRole?.multipleJobType,
-                        jobTitles: multipleRole?.jobTitles,
-                        timesheet,
-                    });
-                } else {
-                    return res.send({
-                        status: 404,
-                        message: 'Record not found!',
-                        multipleJobType: multipleRole?.multipleJobType,
-                        jobTitles: multipleRole?.jobTitles,
-                        timesheet: {},
-                    });
-                }
+                return res.send({
+                    status: 200,
+                    message: 'Timesheet retrieved successfully.',
+                    multipleJobType: multipleRole?.multipleJobType,
+                    jobTitles: multipleRole?.jobTitles,
+                    timesheet: timesheet ? timesheet : {},
+                });
             }
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -862,11 +842,7 @@ exports.getOwnAllTimeSheets = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
             const timesheets = await Timesheet.find({ userId })
-            if (timesheets) {
-                return res.send({ status: 200, message: 'Time sheet get successfully.', timesheets })
-            } else {
-                return res.send({ status: 404, message: 'Record is not found!', timesheets: {} })
-            }
+            return res.send({ status: 200, message: 'Time sheet get successfully.', timesheets: timesheets ? timesheets : [] })
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {

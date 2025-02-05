@@ -26,10 +26,14 @@ exports.leaveRequest = async (req, res) => {
             } = req.body
 
             let jobDetail = user?.jobDetails.find((job) => job.jobTitle === jobTitle)
+            if(!jobDetail){
+                return res.send({ status: 401, message: 'JobTitle not found!' })
+            }
             let locationId = jobDetail?.location
 
             const existLeave = await Leave.findOne({
                 userId,
+                jobTitle,
                 startDate,
                 status: 'Pending'
             })
@@ -167,16 +171,13 @@ exports.getAllOwnLeaves = async (req, res) => {
 
             const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
             if (!jobExists) {
-                return res.send({ status: 404, message: 'Job title not found' });
+                return res.send({ status: 401, message: 'JobTitle not found' });
             }
 
             const allLeaves = await Leave.find({ userId, jobTitle, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
             const totalLeaves = await Leave.countDocuments({ userId })
-
-            if(!allLeaves){
-                return res.send({ status: 404, message: 'Leaves not found' })
-            }
+            
             return res.send({
                 status: 200,
                 message: 'All leave requests getted successfully.',
@@ -206,7 +207,7 @@ exports.getAllowLeaveCount = async (req, res) => {
             
             const jobExists = user.jobDetails.some(job => job.jobTitle === jobTitle);
             if (!jobExists) {
-                return res.send({ status: 404, message: 'Job title not found' });
+                return res.send({ status: 401, message: 'JobTitle not found' });
             }
 
             const currentYear = new Date().getFullYear()
@@ -264,15 +265,9 @@ exports.getAllLeaveRequest = async (req, res) => {
             if(req.user.role == 'Superadmin'){
                 allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
                 totalLeaveRequests = await Leave.countDocuments()
-                if(!allLeaveRequests){
-                    return res.send({ status: 404, message: 'Leave requests not found' })
-                }
             } else if(req.user.role == 'Administrator'){
                 allLeaveRequests = await Leave.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
                 totalLeaveRequests = await Leave.countDocuments({ companyId: req.user.companyId })
-                if(!allLeaveRequests){
-                    return res.send({ status: 404, message: 'Leave requests not found' })
-                }
             } else if(req.user.role == 'Manager'){
                 const leaveRequests = await Leave.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
                 let allEmployeesLR = []
@@ -283,16 +278,13 @@ exports.getAllLeaveRequest = async (req, res) => {
                     }
                 }
                 allLeaveRequests = allEmployeesLR
-                if(!allLeaveRequests){
-                    return res.send({ status: 404, message: 'Leave requests not found' })
-                }
                 totalLeaveRequests = allEmployeesLR.length
             }
 
             return res.send({
                 status: 200,
                 message: 'All leave requests getted successfully.',
-                allLeaveRequests,
+                allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
                 totalLeaveRequests,
                 totalPages: Math.ceil(totalLeaveRequests / limit),
                 currentPage: page
@@ -318,13 +310,12 @@ exports.updateLeaveRequest = async (req, res) => {
                 reasonOfLeave,
                 isPaidLeave,
             } = req.body
-            const leaveRequest = await Leave.findOne({_id: LRId, status: 'Pending', isDeleted: { $ne: true }})
+            const leaveRequest = await Leave.findOne({_id: LRId, isDeleted: { $ne: true }})
             if(!leaveRequest){
                 return res.send({ status: 404, message: 'Leave request not found' })
             }
-
             if(leaveRequest.status !== 'Pending'){
-                return res.send({ status: 403, message: 'Leave request is not in pending status' })
+                return res.send({ status: 403, message: `Leave request has already been ${leaveRequest.status}.` })
             }
 
             const updatedLeaveRequest = await Leave.findByIdAndUpdate(
@@ -359,20 +350,20 @@ exports.deleteLeaveRequest = async (req, res) => {
 
             const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
             if(!leave){
-                return res.send({ status: 404, messgae: 'Leave request not found' })
+                return res.send({ status: 404, message: 'Leave request not found' })
             }
             if(leave.status !== 'Pending'){
-                return res.send({ status: 403, message: 'Leave request is not in pending status' })
+                return res.send({ status: 403, message: `Leave request has already been ${leave.status}.` })
             }
 
             leave.isDeleted = true
             await leave.save()
 
-            return res.send({ status: 200, messgae: 'Leave reuqest deleted successfully.' })
-        } else return res.send({ status: 403, messgae: 'Access denied' })
+            return res.send({ status: 200, message: 'Leave reuqest deleted successfully.' })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deleting leave reqest:', error)
-        res.send({ messgae: 'Error occurred while deleting leave request!' })
+        res.send({ message: 'Error occurred while deleting leave request!' })
     }
 }
 
@@ -383,7 +374,7 @@ exports.approveLeaveRequest = async (req, res) => {
             const leaveRequestId = req.params.id
             const { updates, approvalReason } = req.body
 
-            const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending', isDeleted: { $ne: true } })
+            const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
 
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
@@ -459,7 +450,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body
 
-            const leave = await Leave.findOne({ _id: leaveRequestId, status: 'Pending', isDeleted: { $ne: true } })
+            const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
 
             if (!leave) {
                 return res.send({ status: 404, message: 'Leave request not found.' })
@@ -469,7 +460,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             leave.rejectionReason = rejectionReason
             leave.rejectorId = req.user._id
             leave.rejectorRole = req.user.role
-            // await leave.save()
+            await leave.save()
 
             // ---------------send notification---------------
             let firstName = req.user.personalDetails.firstName
@@ -508,7 +499,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             })
             // console.log('notification/..', notification)
             
-            // await notification.save()
+            await notification.save()
             return res.send({ status: 200, message: 'Leave request rejected.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

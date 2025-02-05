@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
                     return res.send({ status: 500, message: "Internal server error" });
                 }
                 if (!result) {
-                    return res.send({ status: 404, message: "Invalid credential" });
+                    return res.send({ status: 401, message: "Invalid credential" });
                 }
                 isExist.lastTimeLoggedIn = new Date()
                 return res.send({
@@ -225,62 +225,74 @@ exports.getDetails = async (req, res) => {
 }
 
 exports.updateProfileDetails = async (req, res) => {
-    // try {
-    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-    //     if(allowedRoles.includes(req.user.role)){
-    //         const userId = req.user._id
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
 
-    //         const {
-    //             firstName,
-    //             middleName,
-    //             lastName,
-    //             dateOfBirth,
-    //             gender,
-    //             maritalStatus,
-    //             phone,
-    //             homeTelephone,
-    //             email,
-    //         } = req.body
+            const {
+                firstName,
+                middleName,
+                lastName,
+                dateOfBirth,
+                gender,
+                maritalStatus,
+                phone,
+                homeTelephone,
+                email,
+            } = req.body
 
-    //         const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-    //         if(!user){
-    //             return res.send({ status: 404, messgae: 'User not found' })
-    //         }
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
 
-    //         const updatedUser = await User.findByIdAndUpdate(
-    //             { _id: user._id, isDeleted: { $ne: true } },
-    //             {
-    //                 $set: {
-    //                     personalDetails: {
-    //                         firstName,
-    //                         middleName,
-    //                         lastName,
-    //                         dateOfBirth,
-    //                         gender,
-    //                         maritalStatus,
-    //                         phone,
-    //                         homeTelephone,
-    //                         email,
-    //                         niNumber: user?.personalDetails?.niNumber,
-    //                         sendRegistrationLink: user?.personalDetails?.sendRegistrationLink,
-    //                     },
-    //                     addressDetails: user?.addressDetails,
-    //                     kinDetails: user?.kinDetails,
-    //                     financialDetails: user?.financialDetails,
-    //                     immigrationDetails: user?.immigrationDetails,
-    //                     jobDetails: user?.jobDetails,
-    //                     documentDetails: user?.documentDetails,
-    //                     contractDetails: user?.contractDetails,
-    //                 }
-    //             }
-    //         )
+            const updatedUser = await User.findByIdAndUpdate(
+                { _id: user._id, isDeleted: { $ne: true } },
+                {
+                    $set: {
+                        personalDetails: {
+                            firstName,
+                            middleName,
+                            lastName,
+                            dateOfBirth,
+                            gender,
+                            maritalStatus,
+                            phone,
+                            homeTelephone,
+                            email,
+                            niNumber: user?.personalDetails?.niNumber,
+                            sendRegistrationLink: user?.personalDetails?.sendRegistrationLink,
+                        },
+                        addressDetails: user?.addressDetails,
+                        kinDetails: user?.kinDetails,
+                        financialDetails: user?.financialDetails,
+                        immigrationDetails: user?.immigrationDetails,
+                        jobDetails: user?.jobDetails,
+                        documentDetails: user?.documentDetails,
+                        contractDetails: user?.contractDetails,
+                    }
+                }, { new: true }
+            )
 
-    //         return res.send({ status:200, updatedUser })
-    //     } else return res.send({ status: 403, message: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error occurred while updating profile details:', error)
-    //     res.send({ message: 'Error occurred while updating profile details!' })
-    // }
+            let uUser = {
+                firstName: updatedUser?.personalDetails?.firstName,
+                middleName: updatedUser?.personalDetails?.middleName,
+                lastName: updatedUser?.personalDetails?.lastName,
+                dateOfBirth: updatedUser?.personalDetails?.dateOfBirth,
+                gender: updatedUser?.personalDetails?.gender,
+                maritalStatus: updatedUser?.personalDetails?.maritalStatus,
+                phone: updatedUser?.personalDetails?.phone,
+                homeTelephone: updatedUser?.personalDetails?.homeTelephone,
+                email: updatedUser?.personalDetails?.email,
+            }
+
+            return res.send({ status:200, updatedUser: uUser })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while updating profile details:', error)
+        res.send({ message: 'Error occurred while updating profile details!' })
+    }
 }
 
 exports.addUser = async (req, res) => {

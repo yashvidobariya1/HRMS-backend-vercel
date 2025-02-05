@@ -28,7 +28,7 @@ commonRoute.post('/clockOut', auth, clockOutFunc)
 
 // get own details
 commonRoute.get('/getDetails', auth, getDetails)
-commonRoute.get('/updateProfileDetails', auth, updateProfileDetails)
+commonRoute.post('/updateProfileDetails', auth, updateProfileDetails)
 
 // get attendence by month and year
 commonRoute.get('/getTimesheetsByMonthAndYear', auth, getTimesheetByMonthAndYear)

@@ -241,7 +241,10 @@ exports.deleteContract = async (req, res) => {
                 return res.send({ status: 404, message: 'Contract not found' })
             }
 
-            let deletedContract = await Contract.findByIdAndDelete(contractId)
+            let deletedContract = await Contract.findByIdAndUpdate(
+                { _id: contractId, isDeleted: { $ne: true } },
+                { $set: { isDeleted: true } }
+            )
 
             return res.send({ status: 200, message: 'Contract deleted successfully.', deletedContract })
         } else return res.send({ status: 403, message: "Access denied" })
