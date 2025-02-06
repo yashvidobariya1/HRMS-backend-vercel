@@ -7,6 +7,7 @@ const Location = require("../models/location");
 const cloudinary = require("../utils/cloudinary");
 const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
+const moment = require('moment')
 
 // pending work
 // new method ma jobTitle ma id pass thase e rite manage karvanu 6 ( pending work ) API's name:- getOwnTodaysTimeSheet, getOwnAllTimeSheets, getOwnTimesheetByMonthAndYear
@@ -27,9 +28,9 @@ exports.clockInFunc = async (req, res, next) => {
                 let companyId = existUser?.companyId.toString()
                 // let locationId = existUser?.locationId.toString(     
                 const qrCode = await QR.findOne({
-                    'valueOfQRCode.qrValue': qrValue,
+                    qrValue,
                     companyId,
-                    // locationId,
+                    locationId: { $in : existUser?.locationId },
                 })      
                 if (!qrCode) {
                     return res.send({ status: 400, message: 'Invalid QR code' })
@@ -83,6 +84,7 @@ exports.clockInFunc = async (req, res, next) => {
                 timesheet = new Timesheet({
                     userId,
                     date: currentDate,
+                    isTimerOn: true,
                     sheets: [{
                         jobId: jobToLog,
                         clockinTime: [ {
@@ -98,22 +100,16 @@ exports.clockInFunc = async (req, res, next) => {
                 return res.send({ status: 200, timesheet })
             }
 
-            const userJobs = existUser?.jobDetails || []
-            const jobToLog = userJobs.length > 1 ? jobId : userJobs[0]?._id.toString()
-
-            if (!jobToLog) {
-                return res.send({ status: 400, message: "Job title is required for clock-in." })
-            }
-
-            let sheet = timesheet.sheets.find(sheet => sheet.jobId === jobToLog)
+            let sheet = timesheet.sheets.find(sheet => sheet.jobId.toString() === jobId)
 
             if (!sheet) {
                 sheet = {
-                    jobId: jobToLog,
+                    jobId,
                     clockinTime: [],
                     totalHours: "0h 0m 0s",
                     overTime: "0h 0m 0s"
                 }
+                timesheet.isTimerOn = true
                 timesheet.sheets.push(sheet)
             }
 
@@ -127,6 +123,7 @@ exports.clockInFunc = async (req, res, next) => {
                 clockOut: null,
                 isClockin: true
             })
+            timesheet.isTimerOn = true
 
             await timesheet.save()
 
@@ -217,9 +214,9 @@ exports.clockOutFunc = async (req, res) => {
                 // let locationId = existUser?.locationId.toString()
 
                 const qrCode = await QR.findOne({
-                    'valueOfQRCode.qrValue': qrValue,
+                    qrValue,
                     companyId,
-                    // locationId,
+                    locationId: { $in : existUser?.locationId },
                 })
                 
                 if (!qrCode) {
@@ -280,6 +277,7 @@ exports.clockOutFunc = async (req, res) => {
 
             lastClockin.clockOut = currentDate
             lastClockin.isClockin = false
+            timesheet.isTimerOn = false
 
             const clockInTime = new Date(lastClockin.clockIn)
             const clockOutTime = new Date(lastClockin.clockOut)
@@ -377,7 +375,6 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             if(existUser?.jobDetails.length > 1){
-                // console.log('if condition')
                 let jobTitles = existUser.jobDetails
                 // console.log('jobTitle', jobTitle)
                 jobTitles.forEach((job) => {
@@ -395,7 +392,6 @@ exports.clockOutFunc = async (req, res) => {
                     }
                 })
             } else {
-                // console.log('else part')
                 const weeklyLimit = existUser?.jobDetails[0]?.weeklyWorkingHours
                 // console.log('weeklyLimit', weeklyLimit)
                 // console.log('totalWeeklyHours', totalWeeklyHours)
@@ -841,14 +837,11 @@ exports.clockOutFunc = async (req, res) => {
 //     }
 // }
 
+// for clock in/out page
 exports.getOwnTodaysTimeSheet = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
-
-            const skip = ( page - 1 ) * limit
             const userId = req.user._id
             const { jobId } = req.body
 
@@ -865,9 +858,9 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             const currentDate = new Date().toISOString().slice(0, 10)
             const timesheet = await Timesheet.findOne({ userId, date: currentDate })
 
-            let sheet = timesheet.sheets
+            let sheet = timesheet?.sheets
             let todaysTimesheet = []
-            sheet.map(TS => {
+            sheet?.map(TS => {
                 if(TS.jobId.toString() === jobId){
                     todaysTimesheet.push(TS)
                 }
@@ -881,20 +874,59 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
     }
 }
 
+// for view hours page
 exports.getOwnAllTimeSheets = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const userId = req.user._id
-            const user = await User.findOne({
-                _id: userId,
-                isDeleted: { $ne: true },
-            })
+
+            const { jobId } = req.body
+            const { month, year } = req.query
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            const timesheets = await Timesheet.find({ userId })
-            return res.send({ status: 200, message: 'Time sheet get successfully.', timesheets: timesheets ? timesheets : [] })
+
+            const currentDate = moment()
+            let filterYear = year || currentDate.format('YYYY')
+            let filterMonth = month ? month.padStart(2, '0') : null
+
+            let startDate, endDate
+
+            if (!month && !year) {
+                filterYear = currentDate.format('YYYY')
+                filterMonth = currentDate.format('MM')
+                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+                endDate = moment(startDate).endOf('month').toDate()
+            } else if (month && !year) {
+                filterYear = currentDate.format('YYYY');
+                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+                endDate = moment(startDate).endOf('month').toDate()
+            } else if (!month && year) {
+                startDate = moment(`${filterYear}-01-01`).startOf('year').toDate()
+                endDate = moment(startDate).endOf('year').toDate()
+            } else {
+                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+                endDate = moment(startDate).endOf('month').toDate()
+            }
+
+            const timesheets = await Timesheet.find({ userId, createdAt: { $gte: startDate, $lte: endDate } }).sort({ createdAt: -1 })
+
+            let allTimesheet = []
+
+            timesheets?.map(TS => {
+                // console.log('TS:', TS)
+                TS?.sheets?.map(sheet => {
+                    // console.log('sheet:', sheet)
+                    if(sheet?.jobId.toString() === jobId){
+                        allTimesheet.push({ date: TS?.date, sheet })
+                    }
+                })
+            })
+
+            return res.send({ status: 200, message: 'Time sheet get successfully.', timesheets: allTimesheet ? allTimesheet : [] })
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -903,68 +935,112 @@ exports.getOwnAllTimeSheets = async (req, res) => {
     }
 }
 
+// pending work
 exports.getTimesheetByMonthAndYear = async (req, res) =>{
-    const allowedRoles = ['Superadmin', 'Administrator'];
-    if (allowedRoles.includes(req.user.role)) {
-        const { month, year } = req.body;
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const { month, year } = req.body;
 
-        if (!month || !year) {
-            return res.status(400).json({ message: 'Month and year are required' });
-        }
+    //         if (!month || !year) {
+    //             return res.status(400).json({ message: 'Month and year are required' });
+    //         }
 
-        try {
-            const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
-            const endDate = new Date(startDate);
-            endDate.setMonth(startDate.getMonth() + 1);
+        
+    //         const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
+    //         const endDate = new Date(startDate);
+    //         endDate.setMonth(startDate.getMonth() + 1);
 
-            const timesheets = await Timesheet.find({
-                createdAt: { $gte: startDate, $lt: endDate }
-            }).populate('userId', 'personalDetails jobDetails')
+    //         const timesheets = await Timesheet.find({
+    //             createdAt: { $gte: startDate, $lt: endDate }
+    //         }).populate('userId', 'personalDetails jobDetails')
 
-            res.send({ status: 200, timesheets });
+    //         res.send({ status: 200, timesheets });
 
-        } catch (error) {
-            console.error('Error osccured while getting timesheet:', error)
-            res.send({ message: 'Something went wrong while getting timesheet!' })
-        }
-    } else return res.send({ status: 403, message: 'Access denied' })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error osccured while getting timesheet:', error)
+    //     res.send({ message: 'Something went wrong while getting timesheet!' })
+    // }
 }
 
 // pending work
 exports.getOwnTimesheetByMonthAndYear = async (req, res) => {
-    try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const { month, year } = req.query
-            if (!month || !year) {
-                return res.status(400).json({ message: 'Month and year are required' });
-            }
-            const startDate = new Date(`${year}-${month}-01T00:00:00.000`)
-            const endDate = new Date(startDate)
-            endDate.setMonth(startDate.getMonth() + 1)
+    // try {
+    //     // const allowedRoles = ['Administrator', 'Manager', 'Employee']
+    //     // if(allowedRoles.includes(req.user.role)){
+    //     //     const { month, year } = req.query
+    //     //     if (!month || !year) {
+    //     //         return res.status(400).json({ message: 'Month and year are required' });
+    //     //     }
+    //     //     const startDate = new Date(`${year}-${month}-01T00:00:00.000`)
+    //     //     const endDate = new Date(startDate)
+    //     //     endDate.setMonth(startDate.getMonth() + 1)
 
-            const timesheets = await Timesheet.find({
-                userId: req.user._id,
-                createdAt: { $gte: startDate, $lt: endDate }
-            })
+    //     //     const timesheets = await Timesheet.find({
+    //     //         userId: req.user._id,
+    //     //         createdAt: { $gte: startDate, $lt: endDate }
+    //     //     })
 
-            const userLeaves = await Leave.find({
-                userId: req.user._id,
-                startDate: { $gte: startDate },
-                endDate: { $lt: endDate },
-                status: 'Approved'
-            })
-            console.log('timesheets/...', timesheets)
-            console.log('userLeaves/...', userLeaves)
+    //     //     const userLeaves = await Leave.find({
+    //     //         userId: req.user._id,
+    //     //         startDate: { $gte: startDate },
+    //     //         endDate: { $lt: endDate },
+    //     //         status: 'Approved'
+    //     //     })
+    //     //     console.log('timesheets/...', timesheets)
+    //     //     console.log('userLeaves/...', userLeaves)
 
-            res.status(200).send({ timesheets, userLeaves })
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred while getting timesheet.', error)
-        res.send({ message: 'Error occurred while getting timesheet!' })
-    }
+    //     //     res.status(200).send({ timesheets, userLeaves })
+    //     // } else return res.send({ status: 403, message: 'Access denied' })
+
+    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const { month, year } = req.query
+    //         if (!year) {
+    //             return res.status(400).json({ message: 'Year is required' })
+    //         }
+
+    //         let startDate, endDate
+
+    //         if (month === 'all') {
+    //             startDate = new Date(`${year}-01-01T00:00:00.000`)
+    //             endDate = new Date(`${year}-12-31T23:59:59.999`)
+    //         } else {
+    //             if (!month) {
+    //                 return res.status(400).json({ message: 'Month is required' })
+    //             }
+    //             startDate = new Date(`${year}-${month}-01T00:00:00.000`)
+    //             endDate = new Date(startDate)
+    //             endDate.setMonth(startDate.getMonth() + 1)
+    //         }
+
+    //         const timesheets = await Timesheet.find({
+    //             userId: req.user._id,
+    //             createdAt: { $gte: startDate, $lt: endDate }
+    //         }).sort({ createdAt : -1 })
+
+    //         const userLeaves = await Leave.find({
+    //             userId: req.user._id,
+    //             startDate: { $gte: startDate },
+    //             endDate: { $lt: endDate },
+    //             status: 'Approved'
+    //         })
+
+    //         console.log('timesheets/...', timesheets)
+    //         console.log('userLeaves/...', userLeaves)
+
+    //         res.status(200).json({ timesheets, userLeaves })
+    //     } else return res.status(403).json({ message: 'Access denied' })
+
+    // } catch (error) {
+    //     console.error('Error occurred while getting timesheet.', error)
+    //     res.send({ message: 'Error occurred while getting timesheet!' })
+    // }
 }
 
+
+// for generate QR code
 exports.generateQRcode = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
@@ -1027,6 +1103,7 @@ exports.generateQRcode = async (req, res) => {
     }
 }
 
+// get all QR codes by location ID
 exports.getAllQRCodes = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
@@ -1070,6 +1147,7 @@ exports.getAllQRCodes = async (req, res) => {
     }
 }
 
+// for QR verification
 // exports.verifyQRCode = async (req, res) => {
 //     try {
 //         const allowedRoles = ['Administrator', 'Manager', 'Employee']

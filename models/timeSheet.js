@@ -68,6 +68,10 @@ const TimesheetSchema = new mongoose.Schema(
         date: {
             type: String,
         },
+        isTimerOn: {
+            type: Boolean,
+            default: false
+        },
         sheets:[{
             jobId: mongoose.Schema.Types.ObjectId,
             clockinTime: [{

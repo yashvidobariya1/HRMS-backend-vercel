@@ -21,8 +21,8 @@ commonRoute.get('/getAllUsers', auth, getAllUsers)
 commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
 
-commonRoute.get('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
-commonRoute.get('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
+commonRoute.post('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
+commonRoute.post('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
 commonRoute.post('/clockIn', auth, clockInFunc)
 commonRoute.post('/clockOut', auth, clockOutFunc)
 
@@ -32,7 +32,7 @@ commonRoute.post('/updateProfileDetails', auth, updateProfileDetails)
 
 // get attendence by month and year
 commonRoute.get('/getTimesheetsByMonthAndYear', auth, getTimesheetByMonthAndYear)
-commonRoute.get('/getOwnTimesheetByMonthAndYear', auth, getOwnTimesheetByMonthAndYear)
+// commonRoute.post('/getOwnTimesheetByMonthAndYear', auth, getOwnTimesheetByMonthAndYear)
 // commonRoute.post('/generateContractLetter', generateContractLetter)
 
 commonRoute.get('/getNotifications', auth, getNotifications)
