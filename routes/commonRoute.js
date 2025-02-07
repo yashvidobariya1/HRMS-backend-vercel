@@ -1,7 +1,7 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear } = require('../controllers/timeSheet')
+const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear, getTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 
@@ -52,5 +52,8 @@ commonRoute.post('/deleteLeaveRequest/:id', auth, deleteLeaveRequest)
 commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
 commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
+
+// timesheet report
+commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
 
 module.exports = commonRoute

@@ -8,7 +8,7 @@ exports.addLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved } = req.body
+            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius } = req.body
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -28,6 +28,9 @@ exports.addLocation = async (req, res) => {
                 companyId,
                 payeReferenceNumber,
                 locationName,
+                latitude,
+                longitude,
+                radius,
                 address,
                 addressLine2,
                 city,
@@ -81,7 +84,7 @@ exports.getAllLocation = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const locations = await Location.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+            const locations = await Location.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
             const totalLocations = await Location.find({ isDeleted: { $ne: true } }).countDocuments()
 
@@ -218,6 +221,9 @@ exports.updateLocationDetails = async (req, res) => {
                         companyId: req.body.companyId,
                         payeReferenceNumber: req.body.payeReferenceNumber,
                         locationName: req.body.locationName,
+                        latitude: req.body.latitude,
+                        longitude: req.body.longitude,
+                        radius: req.body.radius,
                         address: req.body.address,
                         addressLine2: req.body.addressLine2,
                         city: req.body.city,

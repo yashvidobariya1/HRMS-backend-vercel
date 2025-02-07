@@ -206,7 +206,7 @@ exports.getAllEmployees = async (req, res) => {
 
     //         const skip = (page - 1) * limit
 
-    //         const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+    //         const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
     //         const totalEmployees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).countDocuments()
             

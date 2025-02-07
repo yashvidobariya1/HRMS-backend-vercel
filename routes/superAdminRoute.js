@@ -4,6 +4,7 @@ const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompa
 const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLocationDetails, deleteLocation } = require('../controllers/location')
 const { addContract, getAllContract, getAllContractOfCompany, getContract, updateContract, deleteContract } = require('../controllers/contract')
 const { generateQRcode, getAllQRCodes } = require('../controllers/timeSheet')
+const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } = require('../controllers/holiday')
 
 const superAdminRoute = Router()
 
@@ -31,5 +32,11 @@ superAdminRoute.post('/deleteContract/:id', auth, deleteContract)
 // generate QR code for location
 superAdminRoute.post('/generateQR/:id', auth, generateQRcode)
 superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
+// holiday
+superAdminRoute.post('/addHoliday', auth, addHoliday)
+superAdminRoute.get('/getHoliday/:id', auth, getHoliday)
+superAdminRoute.get('/getAllHolidays', auth, getAllHolidays)
+superAdminRoute.post('/updateHoliday/:id', auth, updateHoliday)
+superAdminRoute.post('/deleteHoliday/:id', auth, deleteHoliday)
 
 module.exports = superAdminRoute

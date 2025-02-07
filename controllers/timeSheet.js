@@ -8,6 +8,7 @@ const cloudinary = require("../utils/cloudinary");
 const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 const moment = require('moment');
+const Holiday = require("../models/holiday");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -554,6 +555,140 @@ exports.getOwnTimesheetByMonthAndYear = async (req, res) => {
     // }
 }
 
+exports.getTimesheetReport = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.body.userId || req.user._id
+            const { month, year, week } = req.query
+            const { jobId } = req.body
+
+            let startDate, endDate
+
+            if (year && month) {
+                startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD')
+                endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+            } else if (year && week) {
+                startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD')
+                endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD')
+            } else if (year) {
+                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD')
+                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+            } else if (month) {
+                const currentYear = moment().year()
+                startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD')
+                endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+            } else if (week) {
+                const currentYear = moment().year();
+                startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD')
+                endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD')
+            } else {
+                startDate = moment().startOf('month').format('YYYY-MM-DD')
+                endDate = moment().endOf('month').format('YYYY-MM-DD')
+            }
+        
+
+            // 1. Fetch timesheet entries (Check-ins/outs)
+            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            // console.log('timesheet:', timesheets)
+
+            // 2. Fetch leave requests
+            const leaves = await Leave.find({
+                userId,
+                jobId,
+                $or: [
+                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: "Approved",
+            })
+            // console.log('leaves:', leaves)
+
+            // 3. Fetch holidays
+            const holidays = await Holiday.find({
+                companyId: req.user.companyId,
+                locationId: { $in: req.user.locationId },
+                date: { $gte: startDate, $lte: endDate },
+            })
+            // console.log('holidays:', holidays)
+
+            const dateList = [];
+            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+                dateList.push(d.clone().format('YYYY-MM-DD'))
+            }
+            // console.log('dateList:', dateList)
+
+            const timesheetMap = new Map()
+            timesheets.map(TS => {
+                const dateKey = TS.createdAt.toISOString().split("T")[0]
+                timesheetMap.set(dateKey, TS)
+            })
+            // console.log('timesheets:', timesheets)
+
+            const leaveMap = new Map()
+            leaves.forEach(leave => {
+                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+                let tempDate = leaveStart.clone()
+            
+                while (tempDate.isSameOrBefore(leaveEnd)) {
+                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+                    tempDate.add(1, 'days')
+                }
+            })
+            // console.log('leaves:', leaves)
+
+            const holidayMap = new Map();
+            holidays.map(HD => {
+                holidayMap.set(HD.date, HD)
+            })
+            // console.log('holidays:', holidays)
+
+            const today = moment().format('YYYY-MM-DD')
+
+            const report = dateList.map(dateObj => {
+                const isFuture = dateObj > today
+            
+                const timesheet = timesheetMap.get(dateObj) || null
+                const leave = leaveMap.get(dateObj) || null
+                const holiday = holidayMap.get(dateObj) || null
+            
+                let absence = false
+                let timesheetStatus = false
+                let leaveStatus = false
+                let holidayStatus = false
+            
+                if (timesheet) {
+                    timesheetStatus = true
+                } else if (holiday) {
+                    holidayStatus = true
+                } else if (leave) {
+                    leaveStatus = true
+                } else if (!isFuture) {
+                    absence = true
+                }
+            
+                return {
+                    date: dateObj,
+                    timesheet: timesheetStatus,
+                    leave: leaveStatus,
+                    holiday: holidayStatus,
+                    absence: absence,
+                    data: timesheet || leave || holiday || null
+                }
+            })
+
+            return res.send({ status: 200, messgae: 'Timesheet report fetched successfully', report })
+
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching timesheet report:', error)
+        res.send({ message: 'Error occurred while fetching timesheet report!' })
+    }
+}
+
 
 // for generate QR code
 exports.generateQRcode = async (req, res) => {
@@ -594,6 +729,10 @@ exports.generateQRcode = async (req, res) => {
             } else if(qrType == 'Location'){
                 const location = await Location.findOne({ _id: id, isDeleted: { $ne: true } })
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
+
+                if(location.latitude == "" || location.longitude == "" || location.radius == ""){
+                    return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this location before proceeding.' })
+                }
 
                 const company = await Company.findOne({ _id: location?.companyId, isDeleted: { $ne: true } })
                 if(!company) return res.send({ status: 404, message: 'Company not found' })
@@ -640,7 +779,7 @@ exports.getAllQRCodes = async (req, res) => {
                 return res.send({ status: 404, message: 'Compnay not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
             const totalQRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
 
             let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
