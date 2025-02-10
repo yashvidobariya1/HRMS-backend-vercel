@@ -94,7 +94,7 @@ exports.getAllHolidays = async (req, res) => {
             let totalHolidays
             if(req.user.role === 'Superadmin'){
 
-                const locationId = req.params.id
+                const locationId = req.query.locationId
                 const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
                 if(!location){
                     return res.send({ status: 404, message: 'Location not found' })

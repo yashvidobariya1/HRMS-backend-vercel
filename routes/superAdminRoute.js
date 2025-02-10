@@ -5,6 +5,7 @@ const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLoc
 const { addContract, getAllContract, getAllContractOfCompany, getContract, updateContract, deleteContract } = require('../controllers/contract')
 const { generateQRcode, getAllQRCodes } = require('../controllers/timeSheet')
 const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } = require('../controllers/holiday')
+const { addClient, getClient, getAllClient, updateClient, deleteClient } = require('../controllers/client')
 
 const superAdminRoute = Router()
 
@@ -36,8 +37,13 @@ superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
 superAdminRoute.post('/addHoliday', auth, addHoliday)
 superAdminRoute.get('/getHoliday/:id', auth, getHoliday)
 superAdminRoute.get('/getAllHolidays', auth, getAllHolidays)
-superAdminRoute.get('/getAllHolidays/:id', auth, getAllHolidays)
 superAdminRoute.post('/updateHoliday/:id', auth, updateHoliday)
 superAdminRoute.post('/deleteHoliday/:id', auth, deleteHoliday)
+// client module
+superAdminRoute.post('/addClient', auth, addClient)
+superAdminRoute.get('/getClient/:id', auth, getClient)
+superAdminRoute.get('/getALLClients', auth, getAllClient)
+superAdminRoute.post('/updateClient/:id', auth, updateClient)
+superAdminRoute.post('/deleteClient/:id', auth, deleteClient)
 
 module.exports = superAdminRoute

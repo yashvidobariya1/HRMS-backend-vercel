@@ -652,39 +652,100 @@ exports.getTimesheetReport = async (req, res) => {
 
             const today = moment().format('YYYY-MM-DD')
 
-            const report = dateList.map(dateObj => {
-                const isFuture = dateObj > today
+            const allReports = dateList.map(dateObj => {
+                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+                if (isWeekend || isFuture) return null
             
-                const timesheet = timesheetMap.get(dateObj) || null
-                const leave = leaveMap.get(dateObj) || null
-                const holiday = holidayMap.get(dateObj) || null
+                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const leaveEntries = leaves.filter(leave => {
+                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+                });
+                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
             
-                let absence = false
-                let timesheetStatus = false
-                let leaveStatus = false
-                let holidayStatus = false
+                const hasTimesheet = timesheetEntries.length > 0
+                const hasLeave = leaveEntries.length > 0
+                const hasHoliday = holidayEntries.length > 0
+                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+                let status = "Absent"
+        
+                if (hasLeave) {
+                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+                    status = isHalfLeave ? "HalfLeave" : "Leave"
+                } else if (hasTimesheet) {
+                    status = "Present"
+                } else if (hasHoliday) {
+                    status = "Holiday"
+                }
             
-                if (timesheet) {
-                    timesheetStatus = true
-                } else if (holiday) {
-                    holidayStatus = true
-                } else if (leave) {
-                    leaveStatus = true
-                } else if (!isFuture) {
-                    absence = true
+                let data = {}
+            
+                if (hasTimesheet && !hasLeave && !hasHoliday) {
+                    data.timesheetData = {
+                        date: timesheetEntries[0]?.date,
+                        clockinTime: timesheetEntries[0]?.clockinTime,
+                        totalHours: timesheetEntries[0]?.totalHours,
+                        overTime: timesheetEntries[0]?.overTime
+                    }
+                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+                    data.leaveData = {
+                        leaveType: leaveEntries[0]?.leaveType,
+                        selectionDuration: leaveEntries[0]?.selectionDuration,
+                        startDate: leaveEntries[0]?.startDate,
+                        endDate: leaveEntries[0]?.endDate,
+                        leaveDays: leaveEntries[0]?.leaveDays,
+                        leaves: leaveEntries[0]?.leaveType,
+                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                        status: leaveEntries[0]?.status,
+                    }
+                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+                    data.holidayData = {
+                        date: holidayEntries[0]?.date,
+                        occasion: holidayEntries[0]?.occasion
+                    }
+                } else if (hasTimesheet || hasLeave || hasHoliday) {
+                    data = {
+                        timesheetData: hasTimesheet ? {
+                            date: timesheetEntries[0]?.date,
+                            clockinTime: timesheetEntries[0]?.clockinTime,
+                            totalHours: timesheetEntries[0]?.totalHours,
+                            overTime: timesheetEntries[0]?.overTime
+                        } : undefined,
+                        leaveData: hasLeave ? {
+                            leaveType: leaveEntries[0]?.leaveType,
+                            selectionDuration: leaveEntries[0]?.selectionDuration,
+                            startDate: leaveEntries[0]?.startDate,
+                            endDate: leaveEntries[0]?.endDate,
+                            leaveDays: leaveEntries[0]?.leaveDays,
+                            leaves: leaveEntries[0]?.leaveType,
+                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                            status: leaveEntries[0]?.status,
+                        } : undefined,
+                        holidayData: hasHoliday ? {
+                            date: holidayEntries[0]?.date,
+                            occasion: holidayEntries[0]?.occasion
+                        } : undefined
+                    }
                 }
             
                 return {
                     date: dateObj,
-                    timesheet: timesheetStatus,
-                    leave: leaveStatus,
-                    holiday: holidayStatus,
-                    absence: absence,
-                    data: timesheet || leave || holiday || []
+                    status,
+                    timesheet: hasTimesheet,
+                    leave: hasLeave,
+                    holiday: hasHoliday,
+                    absence: isAbsent,
+                    data
                 }
-            }).slice(skip, skip + limit)
+            }).filter(report => report !== null)
 
-            const totalReports = report ? report.length : 0
+            const report = allReports.slice(skip, skip + limit)
+            const totalReports = allReports ? allReports.length : 0
 
             return res.send({
                 status: 200,
