@@ -87,8 +87,22 @@ exports.getAllHolidays = async (req, res) => {
             let holidays
             let totalHolidays
             if(req.user.role === 'Superadmin'){
-                holidays = await Holiday.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalHolidays = await Holiday.find({ isDeleted: { $ne: true } }).countDocuments()
+
+                const locationId = req.params.id
+                const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+
+                const companyId = location?.companyId
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+                
+
+                holidays = await Holiday.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalHolidays = await Holiday.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
             } else {
                 holidays = await Holiday.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
                 totalHolidays = await Holiday.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()

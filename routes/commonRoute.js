@@ -1,18 +1,22 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { login, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails } = require('../controllers/common')
+const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails, decodeJWTtoken } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear, getTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 
 const commonRoute = Router()
 
+// commonRoute.post('/decodeToken', decodeJWTtoken) // Backend developer use only
+
 commonRoute.post('/login', login)
+commonRoute.post('/logOut', auth, logOut)
 commonRoute.post('/updatePassword', updatePassword)
 commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
 
+commonRoute.get('/getUserJobTitles/:id', auth, getUserJobTitles)
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 
 commonRoute.post('/addUser', auth, addUser)

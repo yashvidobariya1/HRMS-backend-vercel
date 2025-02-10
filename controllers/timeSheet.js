@@ -390,7 +390,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             const currentDate = new Date().toISOString().slice(0, 10)
             const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
-            return res.send({ status: 200, message: 'Timesheet getted successfully.', timmsheet: timesheet ? timesheet : {} })
+            return res.send({ status: 200, message: 'Timesheet getted successfully.', timesheet: timesheet ? timesheet : {} })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while getting timesheet:', error);
@@ -559,6 +559,11 @@ exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
             const userId = req.body.userId || req.user._id
             const { month, year, week } = req.query
             const { jobId } = req.body
@@ -677,9 +682,18 @@ exports.getTimesheetReport = async (req, res) => {
                     absence: absence,
                     data: timesheet || leave || holiday || null
                 }
-            })
+            }).skip(skip).limit(limit)
 
-            return res.send({ status: 200, messgae: 'Timesheet report fetched successfully', report })
+            const totalReports = report ? report.length : 0
+
+            return res.send({
+                status: 200,
+                messgae: 'Timesheet report fetched successfully',
+                report: report ? report : [],
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit),
+                currentPage: page
+            })
 
 
         } else return res.send({ status: 403, message: 'Access denied' })

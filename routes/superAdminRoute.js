@@ -36,6 +36,7 @@ superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
 superAdminRoute.post('/addHoliday', auth, addHoliday)
 superAdminRoute.get('/getHoliday/:id', auth, getHoliday)
 superAdminRoute.get('/getAllHolidays', auth, getAllHolidays)
+superAdminRoute.get('/getAllHolidays/:id', auth, getAllHolidays)
 superAdminRoute.post('/updateHoliday/:id', auth, updateHoliday)
 superAdminRoute.post('/deleteHoliday/:id', auth, deleteHoliday)
 

@@ -2,6 +2,7 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
+// const CryptoJS = require("crypto-js")
 
 exports.login = async (req, res) => {
     try {
@@ -17,6 +18,7 @@ exports.login = async (req, res) => {
 
         const token = await isExist.generateAuthToken()
         isExist.token = token
+        // isExist.token = token.JWTToken
         isExist.save()
 
         const personalDetails = isExist?.personalDetails
@@ -30,6 +32,7 @@ exports.login = async (req, res) => {
                 status: 200,
                 message: "User login successfully",
                 user: { personalDetails, role, token, createdAt, _id },
+                // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
             });
         } else {
             const hashedPassword = isExist.password;
@@ -46,6 +49,7 @@ exports.login = async (req, res) => {
                     status: 200,
                     message: "User login successfully",
                     user: { personalDetails, role, token, createdAt, _id },
+                    // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
                 });
             });
         }
@@ -54,6 +58,45 @@ exports.login = async (req, res) => {
         res.send({ message: "Something went wrong while login!" })
     }
 };
+
+exports.logOut = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!existUser){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            existUser.token = ""
+            existUser.lastTimeLoggedOut = new Date()
+            await existUser.save()
+            return res.send({ status: 200, message: 'Logging out successfully.' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while logging out:', error)
+        res.send({ message: 'Error occurred while logging out!' })
+    }
+}
+
+// Backend developer use only
+exports.decodeJWTtoken = async (req, res) => {
+    // try {
+    //     const { token } = req.body
+
+    //     const bytes = CryptoJS.AES.decrypt(token, process.env.ENCRYPTION_SECRET_KEY)
+
+    //     const decryptToken = bytes.toString(CryptoJS.enc.Utf8)
+
+    //     return res.send({ status: 200, message: 'Decode successfully', decryptToken })
+
+    // } catch (error) {
+    //     console.error('Error occurred while decoding token:', error)
+    //     res.send({ message: 'Error occurred while decoding token!' })
+    // }
+}
 
 exports.emailVerification = async (req, res) => {
     try {
@@ -684,9 +727,9 @@ exports.deleteUserDetails = async (req, res) => {
 
 exports.getUserJobTitles = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const userId = req.user._id
+            const userId = req.params.id || req.user._id
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })

@@ -1,7 +1,238 @@
+const Holiday = require('../models/holiday')
 const Leave = require('../models/leaveRequest')
 const Notification = require('../models/notification')
 const User = require('../models/user')
 const moment = require('moment')
+
+// exports.leaveRequest = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Administrator', 'Manager', 'Employee']
+//         if(allowedRoles.includes(req.user.role)){
+//             const userId = req.user._id
+
+//             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+//             if(!user){
+//                 return res.send({ status: 404, message: 'User not found' })
+//             }
+
+//             const {
+//                 leaveType,
+//                 jobId,
+//                 selectionDuration,
+//                 startDate,
+//                 endDate,
+//                 leaveDays,
+//                 reasonOfLeave,
+//                 // isPaidLeave,
+//             } = req.body
+
+//             // const holidays = await Holiday.find({
+//             //     companyId: user.companyId,
+//             //     locationId: { $in: user.locationId },
+//             //     date: { 
+//             //         $gte: startDate,
+//             //         $lte: endDate ? endDate : startDate
+//             //     }
+//             // })
+
+//             // if (holidays.length > 0) {
+//             //     // const holidayDates = holidays.map(holiday => holiday.date);
+//             //     // return res.send({ 
+//             //     //     status: 400, 
+//             //     //     message: `The selected leave period already holidays on these dates: ${holidayDates.join(', ')}.` 
+//             //     // })
+
+//             //     let holidayDates = holidays.map(h => h.date).sort()
+
+//             //     function groupHolidayDates(dates) {
+//             //         let formattedDates = []
+//             //         let start = dates[0], end = dates[0]
+
+//             //         for (let i = 1; i < dates.length; i++) {
+//             //             let prevDate = moment(dates[i - 1], "YYYY-MM-DD")
+//             //             let currDate = moment(dates[i], "YYYY-MM-DD")
+
+//             //             if (currDate.diff(prevDate, "days") === 1) {
+//             //                 end = dates[i]
+//             //             } else {
+//             //                 formattedDates.push(start === end ? start : `${start} to ${end}`)
+//             //                 start = end = dates[i]
+//             //             }
+//             //         }
+
+//             //         formattedDates.push(start === end ? start : `${start} to ${end}`)
+//             //         return formattedDates.join(", ")
+//             //     }
+
+//             //     let holidayMessage = groupHolidayDates(holidayDates)
+
+//             //     return res.send({ 
+//             //         status: 400, 
+//             //         message: `The selected leave period includes holidays on following dates: ${holidayMessage}.` 
+//             //     })
+
+//             // }
+
+//             const mockReq = { body: { jobId }, user }
+//             // console.log('mockReq:', mockReq)
+//             const mockRes = { send: (response) => response }
+//             // console.log('mockRes:', mockRes)
+            
+//             const leaveCountResponse = await this.getAllowLeaveCount(mockReq, mockRes)
+//             // console.log('leaveCountResponse:', leaveCountResponse)
+//             if (leaveCountResponse.status !== 200) {
+//                 return res.send(leaveCountResponse)
+//             }
+
+//             const remainingLeaves = leaveCountResponse.leaveCount
+//             if(remainingLeaves[leaveType] !== 0){
+//                 if (remainingLeaves[leaveType] < leaveDays) {
+//                     return res.send({ status: 400, message: 'Leave limit exceeded for the selected leave type.' })
+//                 }
+//             }
+
+//             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+//             if(!jobDetail){
+//                 return res.send({ status: 401, message: 'JobTitle not found!' })
+//             }
+//             let locationId = jobDetail?.location
+
+//             const existLeave = await Leave.findOne({
+//                 userId,
+//                 jobId,
+//                 startDate,
+//                 status: 'Pending'
+//             })
+
+//             if (existLeave) {
+//                 return res.status(400).json({ status: 400, message: 'You already have a leave request for this period!' });
+//             }
+
+//             let firstName = req.user?.personalDetails?.firstName || ''
+//             let lastName = req.user?.personalDetails?.lastName || ''
+
+//             let leaves = [];
+//             if (selectionDuration === 'Multiple') {
+//                 const start = moment(startDate)
+//                 const end = moment(endDate)
+                
+//                 const totalDays = end.diff(start, 'days') + 1
+            
+//                 leaves = Array.from({ length: totalDays }, (_, index) => ({
+//                     leaveDate: start.clone().add(index, 'days').format('YYYY-MM-DD'),
+//                     leaveType,
+//                 }))
+//             } else {
+//                 leaves.push({
+//                     leaveDate: moment(startDate).format('YYYY-MM-DD'),
+//                     leaveType,
+//                 })
+//             }
+
+//             const newLeave = {
+//                 userId: req.user.id,
+//                 jobId,
+//                 userName: `${firstName} ${lastName}`,
+//                 userEmail: req.user?.personalDetails?.email,
+//                 companyId: req.user?.companyId,
+//                 locationId,
+//                 leaveType,
+//                 selectionDuration,
+//                 startDate,
+//                 endDate,
+//                 leaveDays,
+//                 leaves,
+//                 reasonOfLeave,
+//                 isPaidLeave,
+//                 status: 'Pending',
+//             }
+//             // const newLeave = await Leave.create({
+//             //     userId: req.user.id,
+//             //     jobId,
+//             //     userName: `${firstName} ${lastName}`,
+//             //     userEmail: req.user?.personalDetails?.email,
+//             //     companyId: req.user?.companyId,
+//             //     locationId,
+//             //     leaveType,
+//             //     selectionDuration,
+//             //     startDate,
+//             //     endDate,
+//             //     leaveDays,
+//             //     leaves,
+//             //     reasonOfLeave,
+//             //     isPaidLeave,
+//             //     status: 'Pending',
+//             // })
+
+//             // ---------------send notification---------------
+//             let notifiedId = []
+//             let readBy = []
+//             if (req.user.role === 'Employee') {
+//                 if (jobDetail && jobDetail.assignManager) {
+//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+//                     // console.log('assignManager', assignManager)
+//                     notifiedId.push(jobDetail.assignManager);
+//                     readBy.push({
+//                         userId: jobDetail.assignManager,
+//                         role: assignManager[0].role
+//                     })
+//                     // console.log('readBy1/..', readBy)
+//                 }
+
+//                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+//                 // console.log('administrator', administrator)
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (req.user.role === 'Manager') {
+//                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+//                 if (administrator.length > 0) {
+//                     notifiedId.push(administrator[0]._id);
+//                     readBy.push({
+//                         userId: administrator[0]._id,
+//                         role: administrator[0].role
+//                     })
+//                 }
+//             } else if (req.user.role === 'Administrator' && user?.creatorId) {
+//                 notifiedId.push(user.creatorId);
+//                 readBy.push({
+//                     userId: user.creatorId,
+//                     role: user.createdBy
+//                 })
+//             }
+
+//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+
+//             superAdmin.map((sa) => {
+//                 notifiedId.push(sa?._id)
+//                 readBy.push({
+//                     userId: sa?._id,
+//                     role: sa?.role
+//                 })
+//             })
+
+//             const notification = new Notification({
+//                 userId,
+//                 userName: `${firstName} ${lastName}`,
+//                 notifiedId,
+//                 type: 'Leave request',
+//                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
+//                 readBy
+//             });
+//             // console.log('notification/..', notification)
+//             // await notification.save();
+
+//             return res.send({ status:200, message: 'Leave request submitted.', newLeave })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while leaving request.', error)
+//         res.send({ message: 'Error occurred while leaving request!' })
+//     }
+// }
 
 exports.leaveRequest = async (req, res) => {
     try {
@@ -20,9 +251,9 @@ exports.leaveRequest = async (req, res) => {
                 selectionDuration,
                 startDate,
                 endDate,
-                leaveDays,
+                // leaveDays,
                 reasonOfLeave,
-                isPaidLeave,
+                // isPaidLeave,
             } = req.body
 
             const mockReq = { body: { jobId }, user }
@@ -37,11 +268,7 @@ exports.leaveRequest = async (req, res) => {
             }
 
             const remainingLeaves = leaveCountResponse.leaveCount
-            if(remainingLeaves[leaveType] !== 0){
-                if (remainingLeaves[leaveType] < leaveDays) {
-                    return res.send({ status: 400, message: 'Leave limit exceeded for the selected leave type.' })
-                }
-            }
+            let paidLeaveBalance = remainingLeaves[leaveType] || 0
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
@@ -60,44 +287,94 @@ exports.leaveRequest = async (req, res) => {
                 return res.status(400).json({ status: 400, message: 'You already have a leave request for this period!' });
             }
 
-            let firstName = req.user?.personalDetails?.firstName || ''
-            let lastName = req.user?.personalDetails?.lastName || ''
+            const holidays = await Holiday.find({
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
+                date: { $gte: startDate, $lte: endDate ? endDate : startDate }
+            });
 
-            let leaves = [];
-            if (selectionDuration === 'Multiple') {
-                const start = moment(startDate)
-                const end = moment(endDate)
-                
-                const totalDays = end.diff(start, 'days') + 1
-            
-                leaves = Array.from({ length: totalDays }, (_, index) => ({
-                    leaveDate: start.clone().add(index, 'days').format('YYYY-MM-DD'),
-                    leaveType,
-                }))
-            } else {
-                leaves.push({
-                    leaveDate: moment(startDate).format('YYYY-MM-DD'),
-                    leaveType,
-                })
+            const holidayDates = holidays.map(holiday => holiday.date);
+
+            function countWeekends(start, end) {
+                let weekendCount = 0;
+                let date = moment(start);
+                while (date.isSameOrBefore(end)) {
+                    if (date.isoWeekday() === 6 || date.isoWeekday() === 7) { // 6=Saturday, 7=Sunday
+                        weekendCount++
+                    }
+                    date.add(1, 'days')
+                }
+                return weekendCount
             }
 
-            const newLeave = await Leave.create({
-                userId: req.user.id,
+            const start = moment(startDate);
+            const end = moment(endDate);
+            const totalDays = end.diff(start, 'days') + 1;
+
+            let weekends = countWeekends(start, end);
+            let holidaysInLeavePeriod = holidayDates.length;
+
+            // Calculate effective leave days
+            let effectiveLeaveDays = totalDays - (weekends + holidaysInLeavePeriod);
+
+            if (effectiveLeaveDays <= 0) {
+                return res.send({ status: 400, message: 'Selected leave period only contains weekends or holidays, no leave required!' });
+            }
+
+            let usedPaidLeave = 0;
+            let usedHalfPaidLeave = 0;
+            let usedUnpaidLeave = 0;
+            let leaves = [];
+
+            for (let i = 0; i < totalDays; i++) {
+                let leaveDate = start.clone().add(i, 'days').format('YYYY-MM-DD');
+
+                // Skip weekends and holidays
+                if (!holidayDates.includes(leaveDate) && moment(leaveDate).isoWeekday() !== 6 && moment(leaveDate).isoWeekday() !== 7) {
+                    let isPaidLeave = false;
+                    let isHalfPaidLeave = false; // New flag for half-paid leave
+
+                    if (paidLeaveBalance >= 1) {
+                        isPaidLeave = true;
+                        paidLeaveBalance -= 1;
+                        usedPaidLeave++;
+                    } else if (paidLeaveBalance > 0) {
+                        isHalfPaidLeave = true;
+                        paidLeaveBalance = 0; // Half-day leave fully consumed
+                        usedHalfPaidLeave++;
+                    } else {
+                        usedUnpaidLeave++;
+                    }
+
+                    leaves.push({
+                        leaveDate,
+                        leaveType,
+                        isPaidLeave,
+                        isHalfPaidLeave, // Store half-day leave status
+                        isApproved: false
+                    });
+                }
+            }
+
+            const leaveRequest = new Leave({
+                userId,
                 jobId,
-                userName: `${firstName} ${lastName}`,
-                userEmail: req.user?.personalDetails?.email,
-                companyId: req.user?.companyId,
+                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.firstName}`,
+                userEmail: user?.personalDetails?.email,
+                companyId: user.companyId,
                 locationId,
                 leaveType,
                 selectionDuration,
                 startDate,
                 endDate,
-                leaveDays,
+                leaveDays: effectiveLeaveDays,
+                numberOfApproveLeaves: 0,
                 leaves,
                 reasonOfLeave,
-                isPaidLeave,
                 status: 'Pending',
-            })
+            });
+
+            await leaveRequest.save();
 
             // ---------------send notification---------------
             let notifiedId = []
@@ -159,13 +436,23 @@ exports.leaveRequest = async (req, res) => {
                 readBy
             });
             // console.log('notification/..', notification)
-            await notification.save();
+            // await notification.save();
 
-            return res.send({ status:200, message: 'Leave request submitted.', newLeave })
-        } else return res.send({ status: 403, message: 'Access denied' })
+            if (usedHalfPaidLeave > 0) {
+                return res.send({
+                    status: 200,
+                    message: `Leave request submitted. ${usedPaidLeave} full days are paid, ${usedHalfPaidLeave} half-day is paid, and ${usedUnpaidLeave} days are unpaid.`,
+                    leaveRequest
+                });
+            } else if (usedPaidLeave > 0) {
+                return res.send({ status: 200, message: `Leave request submitted. All ${usedPaidLeave} days are paid.`, leaveRequest });
+            } else {
+                return res.send({ status: 200, message: `Leave request submitted. All ${usedUnpaidLeave} days are unpaid.`, leaveRequest });
+            }
+        } else return res.send({ status: 403, message: 'Access denied' });
     } catch (error) {
-        console.error('Error occurred while leaving request.', error)
-        res.send({ message: 'Error occurred while leaving request!' })
+        console.error('Error occurred while processing leave request.', error);
+        return res.send({ status: 500, message: 'Error occurred while processing leave request!' });
     }
 }
 
