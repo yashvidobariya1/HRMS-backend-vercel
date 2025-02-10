@@ -729,7 +729,7 @@ exports.getUserJobTitles = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const userId = req.params.id || req.user._id
+            const userId = req.query.EmployeeId || req.user._id
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
@@ -923,7 +923,7 @@ const getContractById = async (contractId) => {
 
 //         const gettedContract = await getContractById(contractId)
 //         if(!gettedContract){
-//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//             return res.send({ status: 404, message: 'Contract not found!' })
 //         }
 //         const cloudinaryUrl = gettedContract?.contractURL;
 //         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
@@ -1280,7 +1280,7 @@ exports.generateContractLetter = async (req, res) => {
 
 //         const gettedContract = await getContractById(contractId)
 //         if(!gettedContract){
-//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//             return res.send({ status: 404, message: 'Contract not found!' })
 //         }
 //         const cloudinaryUrl = gettedContract?.contractURL;
 //         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });

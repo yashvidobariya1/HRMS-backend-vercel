@@ -436,7 +436,7 @@ exports.leaveRequest = async (req, res) => {
                 readBy
             });
             // console.log('notification/..', notification)
-            // await notification.save();
+            await notification.save();
 
             if (usedHalfPaidLeave > 0) {
                 return res.send({
@@ -453,6 +453,24 @@ exports.leaveRequest = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while processing leave request.', error);
         return res.send({ status: 500, message: 'Error occurred while processing leave request!' });
+    }
+}
+
+exports.getLeaveRequest = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const LRId = req.params.id
+            const leave = await Leave.findOne({ _id: LRId, isDeleted: { $ne: true } })
+            if(!leave){
+                return res.send({ status: 404, message: 'Leave request not found' })
+            }
+
+            return res.send({ status: 200, message: 'Leave request fetched successfully.', leave })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching leave request:', error)
+        res.send({ message: 'Error occurred while fetching leave request!' })
     }
 }
 
@@ -708,7 +726,7 @@ exports.approveLeaveRequest = async (req, res) => {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
 
-            if(leave.selectionDuration == 'Multiple'){
+            if (leave.selectionDuration === 'Multiple' && Array.isArray(updates)) {
                 updates.forEach(update => {
                     const leaveDay = leave.leaves.find(leave => leave.leaveDate === update.date);
                     if (leaveDay) {
@@ -716,7 +734,9 @@ exports.approveLeaveRequest = async (req, res) => {
                     }
                 })
             } else {
-                leave.leaves[0].isApproved = true
+                if (leave.leaves.length > 0) {
+                    leave.leaves[0].isApproved = true
+                }
             }
 
             let approvedLeavesCount = 0
@@ -739,8 +759,8 @@ exports.approveLeaveRequest = async (req, res) => {
             await leave.save()
 
             // ---------------send notification---------------
-            let firstName = req.user.personalDetails.firstName
-            let lastName = req.user.personalDetails.lastName
+            let firstName = req.user?.personalDetails?.firstName
+            let lastName = req.user?.personalDetails?.lastName
 
             let notifiedId = []
             let readBy = []
@@ -779,8 +799,8 @@ exports.approveLeaveRequest = async (req, res) => {
             return res.send({ status: 200, message: 'Leave request approved.', leave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while accepting leave request:', error)
-        return res.send({ message: 'Error occurred while accepting leave request!' })
+        console.error('Error occurred while approving leave request:', error)
+        return res.send({ message: 'Error occurred while approving leave request!' })
     }
 }
 
@@ -805,8 +825,8 @@ exports.rejectLeaveRequest = async (req, res) => {
             await leave.save()
 
             // ---------------send notification---------------
-            let firstName = req.user.personalDetails.firstName
-            let lastName = req.user.personalDetails.lastName
+            let firstName = req.user?.personalDetails?.firstName
+            let lastName = req.user?.personalDetails?.lastName
 
             let notifiedId = []
             let readBy = []

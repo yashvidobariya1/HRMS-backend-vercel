@@ -2,7 +2,7 @@ const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails, decodeJWTtoken } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getOwnTimesheetByMonthAndYear, getTimesheetReport } = require('../controllers/timeSheet')
-const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount } = require('../controllers/leaveManagement')
+const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 
 const commonRoute = Router()
@@ -16,7 +16,6 @@ commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
 
-commonRoute.get('/getUserJobTitles/:id', auth, getUserJobTitles)
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 
 commonRoute.post('/addUser', auth, addUser)
@@ -49,6 +48,7 @@ commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 
 // leave request
 commonRoute.post('/leaveRequest', auth, leaveRequest)
+commonRoute.get('/getLeaveRequest/:id', auth, getLeaveRequest)
 commonRoute.post('/getAllOwnLeaves', auth, getAllOwnLeaves)
 commonRoute.get('/getAllLeaveRequest', auth, getAllLeaveRequest)
 commonRoute.post('/updateLeaveRequest/:id', auth, updateLeaveRequest)

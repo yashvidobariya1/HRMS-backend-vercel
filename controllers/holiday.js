@@ -6,7 +6,7 @@ exports.addHoliday = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
-            const { companyId, locationId, date, occasion } = req.body
+            const { locationId, date, occasion } = req.body
 
             if(!date || !occasion){
                 return res.send({ status: 400, message: 'Date and occasion are required!' })
@@ -15,6 +15,12 @@ exports.addHoliday = async (req, res) => {
             const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             if(!location){
                 return res.send({ status: 404, message: 'Location not found.' })
+            }
+
+            const companyId = location?.companyId
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
             }
 
             let newHoliday

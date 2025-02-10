@@ -680,15 +680,15 @@ exports.getTimesheetReport = async (req, res) => {
                     leave: leaveStatus,
                     holiday: holidayStatus,
                     absence: absence,
-                    data: timesheet || leave || holiday || null
+                    data: timesheet || leave || holiday || []
                 }
-            }).skip(skip).limit(limit)
+            }).slice(skip, skip + limit)
 
             const totalReports = report ? report.length : 0
 
             return res.send({
                 status: 200,
-                messgae: 'Timesheet report fetched successfully',
+                message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,
                 totalPages: Math.ceil(totalReports / limit),
