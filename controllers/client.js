@@ -7,15 +7,15 @@ exports.addClient = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
-            const locationId = req.query.locationId || req.user.locationId[0]
+            const companyId = req.query.companyId || req.user.companyId
             const { clientName, contectNumber, email, address, addressLine2, city, country, postCode } = req.body
 
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            if(!location){
-                return res.send({ status: 404, message: 'Location not found' })
-            }
+            // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            // if(!location){
+            //     return res.send({ status: 404, message: 'Location not found' })
+            // }
+            // const companyId = location?.companyId
 
-            const companyId = location?.companyId
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found' })
@@ -31,7 +31,7 @@ exports.addClient = async (req, res) => {
                 country,
                 postCode,
                 companyId,
-                locationId,
+                // locationId,
                 creatorId: req.user._id,
                 createdBy: req.user.role
             }
@@ -78,8 +78,10 @@ exports.getAllClient = async (req, res) => {
                 clients = await Client.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
                 totalClients = await Client.find({ isDeleted: { $ne: true } }).countDocuments()
             } else if(req.user.role == 'Administrator'){
-                clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
+                // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
+                clients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalClients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
             }
             return res.send({
                 status: 200,

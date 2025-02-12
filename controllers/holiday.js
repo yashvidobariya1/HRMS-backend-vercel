@@ -6,7 +6,8 @@ exports.addHoliday = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
-            const { locationId, date, occasion } = req.body
+            const { date, occasion } = req.body
+            const locationId = req.body.locationId || req.user.locationId[0]
 
             if(!date || !occasion){
                 return res.send({ status: 400, message: 'Date and occasion are required!' })
@@ -85,13 +86,22 @@ exports.getAllHolidays = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const page = parseInt(req.query.page)
+            const limit = parseInt(req.query.limit)
+            const year = req.query.year || new Date().getFullYear()
+            // console.log('year:', year)
 
             const skip = (page - 1) * limit
 
             let holidays
             let totalHolidays
+
+            let filter = { isDeleted: { $ne: true } }
+
+            if (year) {
+                filter.date = new RegExp(`^${year}-`, 'i')
+            }
+
             if(req.user.role === 'Superadmin'){
 
                 const locationId = req.query.locationId
@@ -105,22 +115,25 @@ exports.getAllHolidays = async (req, res) => {
                 if(!company){
                     return res.send({ status: 404, message: 'Company not found' })
                 }
-                
 
-                holidays = await Holiday.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalHolidays = await Holiday.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
+                filter.companyId = companyId
+                filter.locationId = locationId
             } else {
-                holidays = await Holiday.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalHolidays = await Holiday.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
-            } 
+                filter.companyId = req.user.companyId
+                filter.locationId = { $in: req.user.locationId }
+            }
+
+            holidays = await Holiday.find(filter).sort({ date: 1 }).skip(skip).limit(limit)
+
+            totalHolidays = await Holiday.countDocuments(filter)
 
             return res.send({
                 status: 200,
                 message: 'All holidays fetched successfully.',
                 holidays: holidays ? holidays : [],
                 totalHolidays,
-                totalPages: Math.ceil(totalHolidays / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalHolidays / limit) || undefined,
+                currentPage: page || undefined
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

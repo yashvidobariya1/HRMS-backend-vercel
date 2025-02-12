@@ -480,93 +480,23 @@ exports.getTimesheetByMonthAndYear = async (req, res) =>{
     // }
 }
 
-// pending work
-exports.getOwnTimesheetByMonthAndYear = async (req, res) => {
-    // try {
-    //     // const allowedRoles = ['Administrator', 'Manager', 'Employee']
-    //     // if(allowedRoles.includes(req.user.role)){
-    //     //     const { month, year } = req.query
-    //     //     if (!month || !year) {
-    //     //         return res.status(400).json({ message: 'Month and year are required' });
-    //     //     }
-    //     //     const startDate = new Date(`${year}-${month}-01T00:00:00.000`)
-    //     //     const endDate = new Date(startDate)
-    //     //     endDate.setMonth(startDate.getMonth() + 1)
-
-    //     //     const timesheets = await Timesheet.find({
-    //     //         userId: req.user._id,
-    //     //         createdAt: { $gte: startDate, $lt: endDate }
-    //     //     })
-
-    //     //     const userLeaves = await Leave.find({
-    //     //         userId: req.user._id,
-    //     //         startDate: { $gte: startDate },
-    //     //         endDate: { $lt: endDate },
-    //     //         status: 'Approved'
-    //     //     })
-    //     //     console.log('timesheets/...', timesheets)
-    //     //     console.log('userLeaves/...', userLeaves)
-
-    //     //     res.status(200).send({ timesheets, userLeaves })
-    //     // } else return res.send({ status: 403, message: 'Access denied' })
-
-    //     const allowedRoles = ['Administrator', 'Manager', 'Employee']
-    //     if (allowedRoles.includes(req.user.role)) {
-    //         const { month, year } = req.query
-    //         if (!year) {
-    //             return res.status(400).json({ message: 'Year is required' })
-    //         }
-
-    //         let startDate, endDate
-
-    //         if (month === 'all') {
-    //             startDate = new Date(`${year}-01-01T00:00:00.000`)
-    //             endDate = new Date(`${year}-12-31T23:59:59.999`)
-    //         } else {
-    //             if (!month) {
-    //                 return res.status(400).json({ message: 'Month is required' })
-    //             }
-    //             startDate = new Date(`${year}-${month}-01T00:00:00.000`)
-    //             endDate = new Date(startDate)
-    //             endDate.setMonth(startDate.getMonth() + 1)
-    //         }
-
-    //         const timesheets = await Timesheet.find({
-    //             userId: req.user._id,
-    //             createdAt: { $gte: startDate, $lt: endDate }
-    //         }).sort({ createdAt : -1 })
-
-    //         const userLeaves = await Leave.find({
-    //             userId: req.user._id,
-    //             startDate: { $gte: startDate },
-    //             endDate: { $lt: endDate },
-    //             status: 'Approved'
-    //         })
-
-    //         console.log('timesheets/...', timesheets)
-    //         console.log('userLeaves/...', userLeaves)
-
-    //         res.status(200).json({ timesheets, userLeaves })
-    //     } else return res.status(403).json({ message: 'Access denied' })
-
-    // } catch (error) {
-    //     console.error('Error occurred while getting timesheet.', error)
-    //     res.send({ message: 'Error occurred while getting timesheet!' })
-    // }
-}
-
 exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 30
 
             const skip = (page - 1) * limit
 
             const userId = req.body.userId || req.user._id
             const { month, year, week } = req.query
             const { jobId } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
 
             let startDate, endDate
 
@@ -606,14 +536,16 @@ exports.getTimesheetReport = async (req, res) => {
                     { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
                 ],
                 status: "Approved",
+                isDeleted: { $ne: true }
             })
             // console.log('leaves:', leaves)
 
             // 3. Fetch holidays
             const holidays = await Holiday.find({
-                companyId: req.user.companyId,
-                locationId: { $in: req.user.locationId },
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
                 date: { $gte: startDate, $lte: endDate },
+                isDeleted: { $ne: true }
             })
             // console.log('holidays:', holidays)
 
@@ -739,7 +671,7 @@ exports.getTimesheetReport = async (req, res) => {
                     timesheet: hasTimesheet,
                     leave: hasLeave,
                     holiday: hasHoliday,
-                    absence: isAbsent,
+                    absent: isAbsent,
                     data
                 }
             }).filter(report => report !== null)

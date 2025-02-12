@@ -715,7 +715,7 @@ exports.deleteLeaveRequest = async (req, res) => {
 
 exports.approveLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { updates, approvalReason } = req.body
@@ -806,7 +806,7 @@ exports.approveLeaveRequest = async (req, res) => {
 
 exports.rejectLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body

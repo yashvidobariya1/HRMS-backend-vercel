@@ -56,6 +56,7 @@ const userSchema = new mongoose.Schema({
     leavesAllow: Number,
     location: String,
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     role: String
   }],
   immigrationDetails: {

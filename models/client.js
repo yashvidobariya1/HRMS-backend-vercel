@@ -16,10 +16,10 @@ const clientSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'
     },
-    locationId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Location'
-    },
+    // locationId: {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: 'Location'
+    // },
     createdBy: String,
     creatorId: {
         type: mongoose.Schema.Types.ObjectId,
