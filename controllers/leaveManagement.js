@@ -629,7 +629,7 @@ exports.getAllLeaveRequest = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'All leave requests getted successfully.',
+                message: 'All leave requests got successfully.',
                 allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
                 totalLeaveRequests,
                 totalPages: Math.ceil(totalLeaveRequests / limit),

@@ -8,7 +8,7 @@ exports.addClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId || req.user.companyId
-            const { clientName, contectNumber, email, address, addressLine2, city, country, postCode } = req.body
+            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode } = req.body
 
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             // if(!location){
@@ -23,7 +23,7 @@ exports.addClient = async (req, res) => {
 
             let newClient = {
                 clientName,
-                contectNumber,
+                contactNumber,
                 email,
                 address,
                 addressLine2,
@@ -103,7 +103,7 @@ exports.updateClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const clientId = req.params.id
-            const { clientName, contectNumber, email, address, addressLine2, city, country, postCode } = req.body
+            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode } = req.body
 
             const existClient = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
             if(!existClient){
@@ -115,7 +115,7 @@ exports.updateClient = async (req, res) => {
                 {
                     $set: {
                         clientName,
-                        contectNumber,
+                        contactNumber,
                         email,
                         address,
                         addressLine2,
@@ -125,7 +125,7 @@ exports.updateClient = async (req, res) => {
                     }
                 }, { new: true }
             )
-            return res.send({ status: 200, message: 'Client details update successfully', updatedClient })
+            return res.send({ status: 200, message: 'Client details updated successfully', updatedClient })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error("Error occurred while updating client's details!", error)
@@ -140,7 +140,7 @@ exports.deleteClient = async (req, res) => {
             const clientId = req.params.id
             const existClient = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
             if(!existClient){
-                return res.send({ status: 404, messgae:'Client not found' })
+                return res.send({ status: 404, message:'Client not found' })
             }
 
             const deletedClient = await Client.findOneAndUpdate(
@@ -152,7 +152,7 @@ exports.deleteClient = async (req, res) => {
                     }
                 }, { new: true }
             )
-            return res.send({ status: 200, message: 'Client delete successfully', deletedClient })
+            return res.send({ status: 200, message: 'Client deleted successfully', deletedClient })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error('Error occurred while deleting client:', error)

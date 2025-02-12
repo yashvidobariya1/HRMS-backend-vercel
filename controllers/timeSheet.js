@@ -500,26 +500,33 @@ exports.getTimesheetReport = async (req, res) => {
 
             let startDate, endDate
 
-            if (year && month) {
-                startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD')
-                endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+            if (year && month && month !== "All") {
+                startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+            } else if (year && month === "All") {
+                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
             } else if (year && week) {
-                startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD')
-                endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD')
+                startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
+                endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
             } else if (year) {
-                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD')
-                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-            } else if (month) {
-                const currentYear = moment().year()
-                startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD')
-                endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+            } else if (month && month !== "All") {
+                const currentYear = moment().year();
+                startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+            } else if (month === "All") {
+                const currentYear = moment().year();
+                startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
+                endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
             } else if (week) {
                 const currentYear = moment().year();
-                startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD')
-                endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD')
+                startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
+                endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
             } else {
-                startDate = moment().startOf('month').format('YYYY-MM-DD')
-                endDate = moment().endOf('month').format('YYYY-MM-DD')
+                startDate = moment().startOf('month').format('YYYY-MM-DD');
+                endDate = moment().endOf('month').format('YYYY-MM-DD');
             }
         
 
@@ -783,7 +790,7 @@ exports.getAllQRCodes = async (req, res) => {
             const companyId = location?.companyId
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
-                return res.send({ status: 404, message: 'Compnay not found.' })
+                return res.send({ status: 404, message: 'Company not found.' })
             }
 
             const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)

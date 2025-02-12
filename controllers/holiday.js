@@ -161,8 +161,6 @@ exports.updateHoliday = async (req, res) => {
                         $set: {
                             date: req.body.date,
                             occasion: req.body.occasion,
-                            companyId: req.body.companyId,
-                            locationId: req.body.locationId,
                             updatedAt: new Date()
                         }
                     }, { new: true }
@@ -174,8 +172,6 @@ exports.updateHoliday = async (req, res) => {
                         $set: {
                             date: req.body.date,
                             occasion: req.body.occasion,
-                            companyId: req.user.companyId,
-                            locationId: req.body.locationId,
                             updatedAt: new Date()
                         }
                     }, { new: true }

@@ -5,7 +5,7 @@ const clientSchema = new mongoose.Schema({
         type: Boolean, default: false
     },
     clientName: String,
-    contectNumber: String,
+    contactNumber: String,
     email: String,
     address: String,
     addressLine2: String,

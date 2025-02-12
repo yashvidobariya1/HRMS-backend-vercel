@@ -2,6 +2,7 @@ const { default: mongoose } = require("mongoose");
 const Company = require("../models/company");
 const Location = require("../models/location");
 const User = require("../models/user");
+const Client = require("../models/client");
 
 exports.addLocation = async (req, res) => {
     try {
@@ -114,6 +115,12 @@ exports.getCompanyLocations = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found!' })
             }
 
+            const clients = await Client.find({ companyId, isDeleted: { $ne: true } })
+            const formattedClients = clients.map(client => ({
+                _id: client._id,
+                name: client.clientName
+            }))
+
             const locations = await Location.find({ companyId, isDeleted: { $ne: true } })
 
             const companiesAllLocations = await Promise.all(
@@ -191,6 +198,7 @@ exports.getCompanyLocations = async (req, res) => {
                 status: 200,
                 message: 'Locations fetched successfully.',
                 companiesAllLocations: filteredLocations,
+                clients: formattedClients
             });
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {

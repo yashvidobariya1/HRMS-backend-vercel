@@ -16,7 +16,7 @@ exports.addContract = async (req, res) => {
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
-                return res.send({ status: 404, message: 'Compnay not found.' })
+                return res.send({ status: 404, message: 'Company not found.' })
             }
 
             if (!contractName || !contract) {
@@ -82,7 +82,13 @@ exports.getAllContract = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            let contracts
+            if(req.user.role === 'Superadmin'){
+                contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            } else {
+                contracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            }
+
 
             const totalContracts = await Contract.countDocuments({ isDeleted: { $ne: true } })
 
@@ -109,10 +115,15 @@ exports.getAllContractOfCompany = async (req, res) => {
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
+            const companyId = req.body.companyId || req.user.companyId
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
 
-            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const contracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-            const totalContracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).countDocuments()
+            const totalContracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,

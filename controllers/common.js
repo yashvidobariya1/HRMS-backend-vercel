@@ -539,9 +539,19 @@ exports.getAllUsers = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            let users
+            let totalUsers
 
-            const totalUsers = await User.countDocuments({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } })
+            if(req.user.role === 'Superadmin'){
+                users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            } else if(req.user.role === 'Administrator') {
+                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            } else {
+                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            }
 
             return res.send({
                 status: 200,

@@ -42,7 +42,7 @@ superAdminRoute.post('/deleteHoliday/:id', auth, deleteHoliday)
 // client module
 superAdminRoute.post('/addClient', auth, addClient)
 superAdminRoute.get('/getClient/:id', auth, getClient)
-superAdminRoute.get('/getALLClients', auth, getAllClient)
+superAdminRoute.get('/getAllClients', auth, getAllClient)
 superAdminRoute.post('/updateClient/:id', auth, updateClient)
 superAdminRoute.post('/deleteClient/:id', auth, deleteClient)
 
