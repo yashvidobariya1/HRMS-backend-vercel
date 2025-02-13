@@ -20,7 +20,7 @@ superAdminRoute.post('/addLocation', auth, addLocation)
 superAdminRoute.get('/getLocation/:id', auth, getLocation)
 superAdminRoute.get('/getAllLocation', auth, getAllLocation)
 // get all company location by company ID
-superAdminRoute.get('/getCompanyLocations/:id', auth, getCompanyLocations)
+superAdminRoute.get('/getCompanyLocations', auth, getCompanyLocations)
 superAdminRoute.post('/updateLocation/:id', auth, updateLocationDetails)
 superAdminRoute.post('/deleteLocation/:id', auth, deleteLocation)
 // Contract template

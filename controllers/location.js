@@ -3,6 +3,7 @@ const Company = require("../models/company");
 const Location = require("../models/location");
 const User = require("../models/user");
 const Client = require("../models/client");
+const contract = require("../models/contract");
 
 exports.addLocation = async (req, res) => {
     try {
@@ -108,7 +109,7 @@ exports.getCompanyLocations = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
-            const companyId = req.params.id
+            const companyId = req.query.companyId || req.user.companyId
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -121,6 +122,21 @@ exports.getCompanyLocations = async (req, res) => {
                 name: client.clientName
             }))
 
+            const companysContract = await contract.find({ companyId, isDeleted: { $ne: true } })
+            const formattedContract = companysContract.map(contract => ({
+                _id: contract._id,
+                contractType: contract.contractName,
+                contractDocument: contract.contractFileName
+            }))
+
+            let superadmin = {}
+            if(req.user.role === 'Superadmin'){
+                const existSuperadmin = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                superadmin._id = existSuperadmin?._id
+                superadmin.name = `${existSuperadmin?.personalDetails?.firstName} ${existSuperadmin?.personalDetails?.lastName}`
+                superadmin.role = req.user.role
+            }
+            
             const locations = await Location.find({ companyId, isDeleted: { $ne: true } })
 
             const companiesAllLocations = await Promise.all(
@@ -158,6 +174,7 @@ exports.getCompanyLocations = async (req, res) => {
                     if (req.user.role === 'Superadmin') {
                         if (allManagers.length > 0) assignee.push(...allManagers)
                         if (administrators.length > 0) assignee.push(...administrators)
+                        assignee.push(superadmin)
                     } else if (req.user.role === 'Administrator') {
                         if (allManagers.length > 0) assignee.push(...allManagers)
                         if(administrators.length > 0) assignee.push(...administrators) 
@@ -198,7 +215,8 @@ exports.getCompanyLocations = async (req, res) => {
                 status: 200,
                 message: 'Locations fetched successfully.',
                 companiesAllLocations: filteredLocations,
-                clients: formattedClients
+                clients: formattedClients,
+                contracts: formattedContract
             });
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {

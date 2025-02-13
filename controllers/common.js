@@ -330,7 +330,7 @@ exports.updateProfileDetails = async (req, res) => {
                 email: updatedUser?.personalDetails?.email,
             }
 
-            return res.send({ status:200, updatedUser: uUser })
+            return res.send({ status:200, message: 'Profile updated successfully.', updatedUser: uUser })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating profile details:', error)
@@ -396,7 +396,7 @@ exports.addUser = async (req, res) => {
             }
 
             let contractDetailsFile
-            if (contractDetails) {
+            if (contractDetails.contractDocument) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
@@ -487,7 +487,7 @@ exports.addUser = async (req, res) => {
                     };
 
                     await transporter.sendMail(mailOptions);
-                    console.log('Email sent successfully');
+                    // console.log('Email sent successfully');
                 } catch (error) {
                     console.log('Error occurred:', error);
                 }
@@ -555,7 +555,7 @@ exports.getAllUsers = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Users get successfully.',
+                message: 'Users got successfully.',
                 users,
                 totalUsers,
                 totalPages: Math.ceil(totalUsers / limit),

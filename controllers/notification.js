@@ -142,12 +142,17 @@ exports.getNotifications = async (req, res) => {
             let useMatchStage = true
 
             if (req.user.role === "Superadmin") {
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    
+                if (!existingUser) {
+                    return res.send({ status: 404, message: "User not found" })
+                }
                 useMatchStage = false
             } else {
                 const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
                 if (!existingUser) {
-                    return res.status(404).json({ message: "User not found" })
+                    return res.send({ status: 404, message: "User not found" })
                 }
     
                 if (req.user.role === "Administrator") {
@@ -302,7 +307,7 @@ exports.getNotifications = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.status(500).json({ message: "Error occurred while fetching notifications!" })
+        res.send({ message: "Error occurred while fetching notifications!" })
     }
 }
 
@@ -319,7 +324,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
                 const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
                 if (!existingUser) {
-                    return res.status(404).json({ message: "User not found" })
+                    return res.send({ status: 404, message: "User not found" })
                 }
     
                 if (req.user.role === "Administrator") {
@@ -376,7 +381,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.status(500).json({ message: "Error occurred while fetching notifications!" })
+        res.send({ message: "Error occurred while fetching notifications!" })
     }
 }
 
@@ -406,7 +411,7 @@ exports.readNotification = async (req, res) => {
 
             const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
-                return res.status(404).json({ message: 'Notification not found' })
+                return res.send({ status: 404, message: 'Notification not found' })
             }
             
             notification?.readBy.map((item) => {
