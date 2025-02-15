@@ -561,7 +561,7 @@ exports.getAllOwnLeaves = async (req, res) => {
                 message: 'All leave requests getted successfully.',
                 allLeaves,
                 totalLeaves,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalLeaves / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -653,19 +653,29 @@ exports.getAllLeaveRequest = async (req, res) => {
             
             if(req.user.role == 'Superadmin'){
                 allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
-                totalLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).countDocuments()
+                totalLeaveRequests = allLeaveRequests.length
             } else if(req.user.role == 'Administrator'){
-                allLeaveRequests = await Leave.find({
+                const allLeaveRequestsOfEmployees = await Leave.find({
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
                 }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-                totalLeaveRequests = await Leave.find({
-                    companyId: req.user.companyId,
-                    locationId: { $in: req.user.locationId },
-                    isDeleted: { $ne: true }
-                }).countDocuments()
+                let allEmployeesLR = []
+                for (const LR of allLeaveRequestsOfEmployees) {
+                    const existingUser = await User.findOne({ _id: LR.userId })
+                    if (existingUser.role === 'Employee' || existingUser.role === 'Manager') {
+                        allEmployeesLR.push(LR)
+                    }
+                }
+                allLeaveRequests = allEmployeesLR
+                totalLeaveRequests = allEmployeesLR.length
+
+                // totalLeaveRequests = await Leave.find({
+                //     companyId: req.user.companyId,
+                //     locationId: { $in: req.user.locationId },
+                //     isDeleted: { $ne: true }
+                // }).countDocuments()
             } else if(req.user.role == 'Manager'){
                 const leaveRequests = await Leave.find({
                     companyId: req.user.companyId,
@@ -689,7 +699,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                 message: 'All leave requests got successfully.',
                 allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
                 totalLeaveRequests,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalLeaveRequests / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })

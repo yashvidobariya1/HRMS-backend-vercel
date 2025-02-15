@@ -408,7 +408,7 @@ exports.addUser = async (req, res) => {
             }
 
             let contractDetailsFile
-            if (contractDetails.contractDocument) {
+            if (contractDetails?.contractDocument) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
@@ -449,9 +449,9 @@ exports.addUser = async (req, res) => {
             const hashedPassword = await bcrypt.hash(pass, 10)
 
             let companyId
-            const assigneeId = jobDetails[0]?.assignManager
-            const assignee = await User.findOne({ _id: assigneeId, isDeleted: { $ne: true } })
-            companyId = assignee?.companyId
+            const locationId = jobDetails[0]?.location
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            companyId = location?.companyId
 
             const newUser = {
                 personalDetails,
@@ -510,7 +510,7 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
-            // const user = await User.create(newUser)
+            const user = await User.create(newUser)
 
             return res.send({ status: 200, message: `${user.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -575,7 +575,7 @@ exports.getAllUsers = async (req, res) => {
                 message: 'Users got successfully.',
                 users,
                 totalUsers,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalUsers / limit) || 1,
                 currentPage: page || 1
             })
         } else {
@@ -792,6 +792,7 @@ const puppeteer = require('puppeteer');
 const streamifier = require("streamifier");
 const Contract = require("../models/contract");
 const Company = require("../models/company");
+const Location = require("../models/location");
 
 
 // first method

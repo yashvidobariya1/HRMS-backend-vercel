@@ -691,7 +691,7 @@ exports.getTimesheetReport = async (req, res) => {
                 message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalReports / limit) || 1,
                 currentPage: page || 1
             })
 
@@ -806,7 +806,7 @@ exports.getAllQRCodes = async (req, res) => {
                 qrValue,
                 QRCodes,
                 totalQRCodes,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalQRCodes / limit) || 1,
                 currentPage: page || 1
             })
 

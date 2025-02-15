@@ -95,7 +95,7 @@ exports.getAllLocation = async (req, res) => {
                 message: 'Location all get successfully.',
                 locations: locations ? locations : [],
                 totalLocations,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalLocations / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })

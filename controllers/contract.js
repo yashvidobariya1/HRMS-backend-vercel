@@ -97,7 +97,7 @@ exports.getAllContract = async (req, res) => {
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalContracts / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -130,7 +130,7 @@ exports.getAllContractOfCompany = async (req, res) => {
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalClients / limit) || 1,
+                totalPages: Math.ceil(totalContracts / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
