@@ -280,7 +280,7 @@ exports.leaveRequest = async (req, res) => {
                 userId,
                 jobId,
                 startDate,
-                status: 'Pending'
+                // status: 'Pending'
             })
 
             if (existLeave) {
@@ -323,12 +323,8 @@ exports.leaveRequest = async (req, res) => {
                 effectiveLeaveDays++
             }
 
-            // console.log("Weekends:", weekends)
-            // console.log("Holidays in Leave Period:", holidaysInLeavePeriod)
-            // console.log("Effective Leave Days:", effectiveLeaveDays)
-
             if (effectiveLeaveDays <= 0) {
-                return res.send({ status: 400, message: "Selected leave period only contains weekends or holidays, no leave required!" })
+                return res.send({ status: 400, message: "Selected leave period contains weekends or holidays, no leave required!" })
             }
 
             let leaveDays
@@ -776,7 +772,7 @@ exports.deleteLeaveRequest = async (req, res) => {
 
 exports.approveLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { updates, approvalReason } = req.body
@@ -867,7 +863,7 @@ exports.approveLeaveRequest = async (req, res) => {
 
 exports.rejectLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body
