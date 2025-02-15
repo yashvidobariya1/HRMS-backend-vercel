@@ -2,6 +2,7 @@ const User = require('../models/user')
 const bcrypt = require('bcrypt')
 const { transporter } = require('../utils/nodeMailer')
 const cloudinary = require('../utils/cloudinary');
+const moment = require('moment')
 
 exports.addManager = async (req, res) => {
     // try {
@@ -327,7 +328,7 @@ exports.updateManagerDetails = async (req, res) => {
     //                     immigrationDetails,
     //                     documentDetails: documentDetailsFile,
     //                     contractDetails: contractDetailsFile,
-    //                     updatedAt: new Date()
+    //                     updatedAt: moment().toDate()
     //                 }
     //             }, { new: true }
     //         )
@@ -358,7 +359,7 @@ exports.deleteManager = async (req, res) => {
     //         let deletedManager = await User.findByIdAndUpdate(managerId, {
     //             $set: {
     //                 isDeleted: true,
-    //                 canceledAt: new Date()
+    //                 canceledAt: moment().toDate()
     //             }
     //         })
 

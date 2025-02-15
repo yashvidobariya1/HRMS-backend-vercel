@@ -4,6 +4,7 @@ const Location = require("../models/location");
 const User = require("../models/user");
 const Client = require("../models/client");
 const contract = require("../models/contract");
+const moment = require("moment");
 
 exports.addLocation = async (req, res) => {
     try {
@@ -257,7 +258,7 @@ exports.updateLocationDetails = async (req, res) => {
                         postcode: req.body.postcode,
                         country: req.body.country,
                         ukviApproved: req.body.ukviApproved,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -290,7 +291,7 @@ exports.deleteLocation = async (req, res) => {
                 {
                     $set: {
                         isDeleted: true,
-                        canceledAt: new Date()
+                        canceledAt: moment().toDate()
                     }
                 })
 

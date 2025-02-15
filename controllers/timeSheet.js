@@ -70,7 +70,7 @@ exports.clockInFunc = async (req, res) => {
                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10)
+            const currentDate = moment().format('YYYY-MM-DD')
             let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
             if (!timesheet) {
@@ -90,7 +90,7 @@ exports.clockInFunc = async (req, res) => {
             }
 
             timesheet.clockinTime.push({
-                clockIn: new Date(),
+                clockIn: moment().toDate(),
                 clockOut: "",
                 isClockin: true
             })
@@ -169,6 +169,65 @@ exports.clockInFunc = async (req, res) => {
     }
 }
 
+const formatDuration = (clockInTime, clockOutTime) => {
+    let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
+    const hours = Math.floor(diffInSeconds / 3600)
+    diffInSeconds %= 3600
+    const minutes = Math.floor(diffInSeconds / 60)
+    const seconds = diffInSeconds % 60
+
+    return `${hours}h ${minutes}m ${seconds}s`
+}
+
+const parseTime = (duration) => {
+    const regex = /(\d+)h|(\d+)m|(\d+)s/g
+    let hours = 0, minutes = 0, seconds = 0
+    let match
+
+    while ((match = regex.exec(duration)) !== null) {
+        if (match[1]) hours = parseInt(match[1], 10)
+        if (match[2]) minutes = parseInt(match[2], 10)
+        if (match[3]) seconds = parseInt(match[3], 10)
+    }
+
+    return { hours, minutes, seconds }
+}
+
+const addDurations = (duration1, duration2) => {
+    const time1 = parseTime(duration1)
+    const time2 = parseTime(duration2)
+
+    let totalSeconds = time1.seconds + time2.seconds
+    let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
+    let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
+
+    totalSeconds %= 60
+    totalMinutes %= 60
+
+    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+}
+
+const subtractDurations = (totalDuration, threshold) => {
+    const totalTime = parseTime(totalDuration)
+    const thresholdTime = parseTime(threshold)
+
+    let totalSeconds = totalTime.seconds - thresholdTime.seconds
+    let totalMinutes = totalTime.minutes - thresholdTime.minutes
+    let totalHours = totalTime.hours - thresholdTime.hours
+
+    if (totalSeconds < 0) {
+        totalMinutes--
+        totalSeconds += 60
+    }
+    if (totalMinutes < 0) {
+        totalHours--
+        totalMinutes += 60
+    }
+
+    if (totalHours < 0) return "0h 0m 0s"
+    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
+}
+
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
@@ -196,7 +255,7 @@ exports.clockOutFunc = async (req, res) => {
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 400, message: 'JobTitle not found' })
             }
@@ -229,7 +288,7 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 403, message: 'You are outside the geofence area.' })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10);
+            const currentDate = moment().format('YYYY-MM-DD')
             const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
             if (!timesheet) {
@@ -241,21 +300,11 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClockin.clockOut = new Date()
+            lastClockin.clockOut = moment().toDate()
             lastClockin.isClockin = false
 
-            const clockInTime = new Date(lastClockin.clockIn)
-            const clockOutTime = new Date(lastClockin.clockOut)
-
-            const formatDuration = (clockInTime, clockOutTime) => {
-                let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
-                const hours = Math.floor(diffInSeconds / 3600)
-                diffInSeconds %= 3600
-                const minutes = Math.floor(diffInSeconds / 60)
-                const seconds = diffInSeconds % 60
-
-                return `${hours}h ${minutes}m ${seconds}s`
-            }
+            const clockInTime = moment(lastClockin.clockIn).toDate()
+            const clockOutTime = moment(lastClockin.clockOut).toDate()            
 
             const duration = formatDuration(clockInTime, clockOutTime)
             lastClockin.totalTiming = duration
@@ -263,38 +312,39 @@ exports.clockOutFunc = async (req, res) => {
             if (timesheet.totalHours == '0h 0m 0s') {
                 timesheet.totalHours = duration
             } else {
-                const parseTime = (duration) => {
-                    const regex = /(\d+)h|(\d+)m|(\d+)s/g
-                    let hours = 0, minutes = 0, seconds = 0
-                    let match
-
-                    while ((match = regex.exec(duration)) !== null) {
-                        if (match[1]) hours = parseInt(match[1], 10)
-                        if (match[2]) minutes = parseInt(match[2], 10)
-                        if (match[3]) seconds = parseInt(match[3], 10)
-                    }
-
-                    return { hours, minutes, seconds }
-                }
-                const addDurations = (duration1, duration2) => {
-                    const time1 = parseTime(duration1)
-                    const time2 = parseTime(duration2)
-
-                    let totalSeconds = time1.seconds + time2.seconds
-                    let totalMinutes = time1.minutes + time2.minutes + Math.floor(totalSeconds / 60)
-                    let totalHours = time1.hours + time2.hours + Math.floor(totalMinutes / 60)
-
-                    totalSeconds %= 60
-                    totalMinutes %= 60
-
-                    return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
-                }
-
                 const result = addDurations(timesheet.totalHours, duration)
                 timesheet.totalHours = result
             }
 
             timesheet.isTimerOn = false
+            await timesheet.save()
+            
+            // overtime calculate
+            const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
+            const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')
+            // console.log('startOfWeek:', startOfWeek, 'endOfWeek:', endOfWeek)            
+
+            const weeklyTimesheets = await Timesheet.find({
+                userId,
+                date: { $gte: startOfWeek, $lte: endOfWeek }
+            })
+            // console.log('weeklyTimesheets:', weeklyTimesheets)
+
+            const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
+                return addDurations(total, ts.totalHours);
+            }, "0h 0m 0s")
+            // console.log('totalWeeklyHours:', totalWeeklyHours)
+
+            const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
+            // console.log('weeklyWorkingHours:', weeklyWorkingHours)
+
+            const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
+            // console.log('weeklyOvertime:', weeklyOvertime)
+            
+            if(weeklyOvertime !== '0h 0m 0s') {
+                timesheet.isOverTime = true
+                timesheet.overTime = weeklyOvertime
+            }
 
             await timesheet.save()
 
@@ -387,7 +437,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
                 return res.send({ status: 400, message: 'JobTitle not found' })
             }
 
-            const currentDate = new Date().toISOString().slice(0, 10)
+            const currentDate = moment().format('YYYY-MM-DD')
             const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
             return res.send({ status: 200, message: 'Timesheet getted successfully.', timesheet: timesheet ? timesheet : {} })

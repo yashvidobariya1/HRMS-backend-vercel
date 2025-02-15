@@ -1,6 +1,7 @@
 const Notification = require("../models/notification");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
+const moment = require("moment");
 
 // manager or administrator : get all their notifications pending work
 // exports.getNotifications = async (req, res) => {
@@ -418,7 +419,7 @@ exports.readNotification = async (req, res) => {
                 if(item.userId.toString() === req.user._id.toString()){
                     // console.log('notification read by ' + item.role)
                     item.isRead = true
-                    item.readAt = new Date()
+                    item.readAt = moment().toDate()
                 }
                 // console.log('item:', item)
             })

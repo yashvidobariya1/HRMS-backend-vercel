@@ -2324,7 +2324,6 @@ describe('get notification by ID================================================
                 userId: JSON.parse(user.text).user._id,
                 role: JSON.parse(user.text).user.role,
                 isRead: false,
-                readAt: new Date(),
             }]
         })
         notiID = notification?._id

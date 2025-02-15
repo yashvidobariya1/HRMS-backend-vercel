@@ -2,6 +2,8 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
+const Location = require("../models/location");
+const moment = require('moment')
 // const CryptoJS = require("crypto-js")
 
 exports.login = async (req, res) => {
@@ -27,7 +29,7 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
-            isExist.lastTimeLoggedIn = new Date()
+            isExist.lastTimeLoggedIn = moment().toDate()
             return res.send({
                 status: 200,
                 message: "User login successfully",
@@ -44,7 +46,7 @@ exports.login = async (req, res) => {
                 if (!result) {
                     return res.send({ status: 401, message: "Invalid credential" });
                 }
-                isExist.lastTimeLoggedIn = new Date()
+                isExist.lastTimeLoggedIn = moment().toDate()
                 return res.send({
                     status: 200,
                     message: "User login successfully",
@@ -71,7 +73,7 @@ exports.logOut = async (req, res) => {
             }
 
             existUser.token = ""
-            existUser.lastTimeLoggedOut = new Date()
+            existUser.lastTimeLoggedOut = moment().toDate()
             await existUser.save()
             return res.send({ status: 200, message: 'Logging out successfully.' })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -709,7 +711,7 @@ exports.updateUserDetails = async (req, res) => {
                         immigrationDetails,
                         documentDetails: documentDetailsFile,
                         contractDetails: contractDetailsFile,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -740,7 +742,7 @@ exports.deleteUserDetails = async (req, res) => {
             let deletedUser = await User.findByIdAndUpdate(userId, {
                 $set: {
                     isDeleted: true,
-                    canceledAt: new Date()
+                    canceledAt: moment().toDate()
                 }
             })
 
@@ -785,14 +787,13 @@ exports.getUserJobTitles = async (req, res) => {
 
 // =================================================================pending work for generating the offer letter===========================================================
 
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const axios = require("axios");
-const pdf = require('pdf-parse');
-const puppeteer = require('puppeteer');
-const streamifier = require("streamifier");
-const Contract = require("../models/contract");
-const Company = require("../models/company");
-const Location = require("../models/location");
+// const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+// const axios = require("axios");
+// const pdf = require('pdf-parse');
+// const puppeteer = require('puppeteer');
+// const streamifier = require("streamifier");
+// const Contract = require("../models/contract");
+// const Company = require("../models/company");
 
 
 // first method

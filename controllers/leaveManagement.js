@@ -589,9 +589,8 @@ exports.getAllowLeaveCount = async (req, res) => {
                 return res.send({ status: 401, message: 'JobTitle not found!' });
             }
 
-            const currentYear = new Date().getFullYear()
-            const startDate = new Date(currentYear, 0, 1, 0, 0, 0, 0)
-            const endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999)
+            const startDate = moment().startOf('year').toDate()
+            const endDate = moment().endOf('year').toDate()
 
             const allLeavesOfUser = await Leave.find({
                 userId,
@@ -711,7 +710,7 @@ exports.getAllLeaveRequest = async (req, res) => {
 
 exports.updateLeaveRequest = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const LRId = req.params.id
             const {

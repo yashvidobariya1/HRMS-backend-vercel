@@ -32,6 +32,7 @@ const TimesheetSchema = new mongoose.Schema(
             type: String,
             default: "0h 0m 0s"
         },
+        isOverTime: { type: Boolean, default: false },
         overTime: {
             type: String,
             default: "0h 0m 0s"

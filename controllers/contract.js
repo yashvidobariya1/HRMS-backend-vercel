@@ -1,6 +1,7 @@
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const cloudinary = require('../utils/cloudinary');
+const moment = require('moment');
 
 exports.addContract = async (req, res) => {
     try {
@@ -224,7 +225,7 @@ exports.updateContract = async (req, res) => {
                         contract,
                         contractFileName,
                         companyId,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -257,7 +258,7 @@ exports.deleteContract = async (req, res) => {
                 { 
                     $set: { 
                         isDeleted: true,
-                        cancelAt: new Date()
+                        cancelAt: moment().toDate()
                     }
                 }
             )

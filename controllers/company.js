@@ -1,6 +1,7 @@
 const Company = require("../models/company");
 const Location = require("../models/location");
 const cloudinary = require('../utils/cloudinary')
+const moment = require('moment')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -175,7 +176,7 @@ exports.updateCompanyDetails = async (req, res) => {
                         },
                         employeeSettings,
                         contractDetails,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -206,7 +207,7 @@ exports.deleteCompany = async (req, res) => {
             let deletedCompany = await Company.findByIdAndUpdate(companyId, {
                 $set: {
                     isDeleted: true,
-                    canceledAt: new Date()
+                    canceledAt: moment().toDate()
                 }
             })
 

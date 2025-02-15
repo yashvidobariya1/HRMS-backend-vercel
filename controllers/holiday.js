@@ -1,6 +1,7 @@
 const Location = require("../models/location")
 const Company = require("../models/company")
 const Holiday = require("../models/holiday")
+const moment = require('moment')
 
 exports.addHoliday = async (req, res) => {
     try {
@@ -88,7 +89,7 @@ exports.getAllHolidays = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page)
             const limit = parseInt(req.query.limit)
-            const year = req.query.year || new Date().getFullYear()
+            const year = req.query.year || moment().format('YYYY')
             // console.log('year:', year)
 
             const skip = (page - 1) * limit
@@ -161,7 +162,7 @@ exports.updateHoliday = async (req, res) => {
                         $set: {
                             date: req.body.date,
                             occasion: req.body.occasion,
-                            updatedAt: new Date()
+                            updatedAt: moment().toDate()
                         }
                     }, { new: true }
                 )
@@ -172,7 +173,7 @@ exports.updateHoliday = async (req, res) => {
                         $set: {
                             date: req.body.date,
                             occasion: req.body.occasion,
-                            updatedAt: new Date()
+                            updatedAt: moment().toDate()
                         }
                     }, { new: true }
                 )
@@ -201,7 +202,7 @@ exports.deleteHoliday = async (req, res) => {
                 {
                     $set: {
                         isDeleted: true,
-                        canceledAt: new Date()
+                        canceledAt: moment().toDate()
                     }
                 }, { new: true }
             )

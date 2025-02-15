@@ -1,6 +1,7 @@
 const Client = require("../models/client")
 const Company = require("../models/company")
 const Location = require("../models/location")
+const moment = require('moment')
 
 
 exports.addClient = async (req, res) => {
@@ -148,7 +149,7 @@ exports.deleteClient = async (req, res) => {
                 {
                     $set: {
                         isDeleted: true,
-                        canceledAt: new Date()
+                        canceledAt: moment().toDate()
                     }
                 }, { new: true }
             )
