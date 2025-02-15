@@ -215,8 +215,8 @@ exports.getAllEmployees = async (req, res) => {
     //             message: 'Employee all get successfully.',
     //             employees,
     //             totalEmployees,
-    //             totalPages: Math.ceil(totalEmployees / limit),
-    //             currentPage: page
+    //             totalPages: Math.ceil(totalClients / limit) || 1,
+    //             currentPage: page || 1
     //         })
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {

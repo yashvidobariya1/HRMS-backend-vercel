@@ -97,8 +97,8 @@ exports.getAllContract = async (req, res) => {
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalContracts / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -130,8 +130,8 @@ exports.getAllContractOfCompany = async (req, res) => {
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalContracts / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -254,7 +254,12 @@ exports.deleteContract = async (req, res) => {
 
             let deletedContract = await Contract.findByIdAndUpdate(
                 { _id: contractId, isDeleted: { $ne: true } },
-                { $set: { isDeleted: true } }
+                { 
+                    $set: { 
+                        isDeleted: true,
+                        cancelAt: new Date()
+                    }
+                }
             )
 
             return res.send({ status: 200, message: 'Contract deleted successfully.', deletedContract })

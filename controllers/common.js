@@ -348,12 +348,24 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
-                companyId,
+                // companyId,
                 // locationId,
                 immigrationDetails,
                 documentDetails,
                 contractDetails
             } = req.body
+
+            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            // if(!company){
+            //     return res.send({ status: 404, message: 'Company not found' })
+            // }
+
+            // const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
+            // console.log('allCompanysEmployees:', allCompanysEmployees)
+            // console.log('company?.contractDetails?.maxEmployeesAllowed:', company?.contractDetails?.maxEmployeesAllowed)
+            // if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
+            //     return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
+            // }
 
             if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
@@ -436,6 +448,11 @@ exports.addUser = async (req, res) => {
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
 
+            let companyId
+            const assigneeId = jobDetails[0]?.assignManager
+            const assignee = await User.findOne({ _id: assigneeId, isDeleted: { $ne: true } })
+            companyId = assignee?.companyId
+
             const newUser = {
                 personalDetails,
                 addressDetails,
@@ -493,7 +510,7 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
-            const user = await User.create(newUser)
+            // const user = await User.create(newUser)
 
             return res.send({ status: 200, message: `${user.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -558,8 +575,8 @@ exports.getAllUsers = async (req, res) => {
                 message: 'Users got successfully.',
                 users,
                 totalUsers,
-                totalPages: Math.ceil(totalUsers / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else {
             return res.send({ status: 403, message: "Access denied" })
@@ -774,6 +791,7 @@ const pdf = require('pdf-parse');
 const puppeteer = require('puppeteer');
 const streamifier = require("streamifier");
 const Contract = require("../models/contract");
+const Company = require("../models/company");
 
 
 // first method

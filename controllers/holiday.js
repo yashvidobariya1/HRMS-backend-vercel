@@ -132,8 +132,8 @@ exports.getAllHolidays = async (req, res) => {
                 message: 'All holidays fetched successfully.',
                 holidays: holidays ? holidays : [],
                 totalHolidays,
-                totalPages: Math.ceil(totalHolidays / limit) || undefined,
-                currentPage: page || undefined
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

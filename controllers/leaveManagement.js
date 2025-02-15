@@ -284,7 +284,7 @@ exports.leaveRequest = async (req, res) => {
             })
 
             if (existLeave) {
-                return res.status(400).json({ status: 400, message: 'You already have a leave request for this period!' });
+                return res.send({ status: 400, message: 'You already have a leave request for this period!' });
             }
 
             const holidays = await Holiday.find({
@@ -295,71 +295,132 @@ exports.leaveRequest = async (req, res) => {
 
             const holidayDates = holidays.map(holiday => holiday.date);
 
-            function countWeekends(start, end) {
-                let weekendCount = 0;
-                let date = moment(start);
-                while (date.isSameOrBefore(end)) {
-                    if (date.isoWeekday() === 6 || date.isoWeekday() === 7) { // 6=Saturday, 7=Sunday
-                        weekendCount++
-                    }
-                    date.add(1, 'days')
-                }
-                return weekendCount
+            const start = moment(startDate, 'YYYY-MM-DD'); 
+            const end = endDate ? moment(endDate, 'YYYY-MM-DD') : start.clone()
+            const totalDays = end.diff(start, 'days') + 1
+
+            if (!start.isValid() || !end.isValid() || start.isAfter(end)) {
+                return res.send({ status: 400, message: "Invalid date range!" })
             }
 
-            const start = moment(startDate);
-            const end = moment(endDate);
-            const totalDays = end.diff(start, 'days') + 1;
+            let effectiveLeaveDays = 0
+            let weekends = 0
+            let holidaysInLeavePeriod = 0
 
-            let weekends = countWeekends(start, end);
-            let holidaysInLeavePeriod = holidayDates.length;
+            for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'days')) {
+                let formattedDate = date.format('YYYY-MM-DD')
 
-            // Calculate effective leave days
-            let effectiveLeaveDays = totalDays - (weekends + holidaysInLeavePeriod);
+                if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
+                    weekends++
+                    continue
+                }
+
+                if (holidayDates.includes(formattedDate)) {
+                    holidaysInLeavePeriod++
+                    continue
+                }
+
+                effectiveLeaveDays++
+            }
+
+            // console.log("Weekends:", weekends)
+            // console.log("Holidays in Leave Period:", holidaysInLeavePeriod)
+            // console.log("Effective Leave Days:", effectiveLeaveDays)
 
             if (effectiveLeaveDays <= 0) {
-                return res.send({ status: 400, message: 'Selected leave period only contains weekends or holidays, no leave required!' });
+                return res.send({ status: 400, message: "Selected leave period only contains weekends or holidays, no leave required!" })
             }
 
-            let usedPaidLeave = 0;
-            let usedHalfPaidLeave = 0;
-            let usedUnpaidLeave = 0;
-            let leaves = [];
+            let leaveDays
+            if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
+                leaveDays = 0.5
+            } else if (selectionDuration === 'Multiple') {
+                leaveDays = effectiveLeaveDays
+            } else leaveDays = 1
+
+            let usedPaidLeave = 0
+            let usedHalfPaidLeave = 0
+            let usedUnpaidLeave = 0
+            let leaves = []
 
             for (let i = 0; i < totalDays; i++) {
                 let leaveDate = start.clone().add(i, 'days').format('YYYY-MM-DD');
 
-                // Skip weekends and holidays
+                // if (!holidayDates.includes(leaveDate) && moment(leaveDate).isoWeekday() !== 6 && moment(leaveDate).isoWeekday() !== 7) {
+                //     let isPaidLeave = false;
+                //     let isHalfPaidLeave = false; // New flag for half-paid leave
+
+                //     if (paidLeaveBalance >= 1) {
+                //         isPaidLeave = true;
+                //         paidLeaveBalance -= 1;
+                //         usedPaidLeave++;
+                //     } else if (paidLeaveBalance > 0) {
+                //         isHalfPaidLeave = true;
+                //         paidLeaveBalance = 0; // Half-day leave fully consumed
+                //         usedHalfPaidLeave++;
+                //     } else {
+                //         usedUnpaidLeave++;
+                //     }
+
+                //     leaves.push({
+                //         leaveDate,
+                //         leaveType,
+                //         isPaidLeave,
+                //         isHalfPaidLeave, // Store half-day leave status
+                //         isApproved: false
+                //     });
+                // }
                 if (!holidayDates.includes(leaveDate) && moment(leaveDate).isoWeekday() !== 6 && moment(leaveDate).isoWeekday() !== 7) {
                     let isPaidLeave = false;
-                    let isHalfPaidLeave = false; // New flag for half-paid leave
-
-                    if (paidLeaveBalance >= 1) {
-                        isPaidLeave = true;
-                        paidLeaveBalance -= 1;
-                        usedPaidLeave++;
-                    } else if (paidLeaveBalance > 0) {
-                        isHalfPaidLeave = true;
-                        paidLeaveBalance = 0; // Half-day leave fully consumed
-                        usedHalfPaidLeave++;
+                    let isHalfPaidLeave = false;
+                
+                    if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
+                        if (paidLeaveBalance >= 0.5) {
+                            isHalfPaidLeave = true;
+                            paidLeaveBalance -= 0.5;
+                            usedHalfPaidLeave++;
+                        } else {
+                            usedUnpaidLeave += 0.5;
+                        }
+                
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave: false,
+                            isHalfPaidLeave: true, 
+                            isApproved: false,
+                            selectionDuration
+                        });
+                
+                        break; // Stop after adding a single half-day leave entry
                     } else {
-                        usedUnpaidLeave++;
+                        if (paidLeaveBalance >= 1) {
+                            isPaidLeave = true;
+                            paidLeaveBalance -= 1;
+                            usedPaidLeave++;
+                        } else if (paidLeaveBalance > 0) {
+                            isHalfPaidLeave = true;
+                            paidLeaveBalance = 0; // Half-day leave fully consumed
+                            usedHalfPaidLeave++;
+                        } else {
+                            usedUnpaidLeave++;
+                        }
+                
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave,
+                            isHalfPaidLeave,
+                            isApproved: false
+                        });
                     }
-
-                    leaves.push({
-                        leaveDate,
-                        leaveType,
-                        isPaidLeave,
-                        isHalfPaidLeave, // Store half-day leave status
-                        isApproved: false
-                    });
                 }
             }
 
             const leaveRequest = new Leave({
                 userId,
                 jobId,
-                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.firstName}`,
+                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
                 userEmail: user?.personalDetails?.email,
                 companyId: user.companyId,
                 locationId,
@@ -367,7 +428,7 @@ exports.leaveRequest = async (req, res) => {
                 selectionDuration,
                 startDate,
                 endDate,
-                leaveDays: effectiveLeaveDays,
+                leaveDays,
                 numberOfApproveLeaves: 0,
                 leaves,
                 reasonOfLeave,
@@ -429,10 +490,10 @@ exports.leaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId,
-                userName: `${firstName} ${lastName}`,
+                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
                 notifiedId,
                 type: 'Leave request',
-                message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
+                message: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
                 readBy
             });
             // console.log('notification/..', notification)
@@ -445,9 +506,9 @@ exports.leaveRequest = async (req, res) => {
                     leaveRequest
                 });
             } else if (usedPaidLeave > 0) {
-                return res.send({ status: 200, message: `Leave request submitted. All ${usedPaidLeave} days are paid.`, leaveRequest });
+                return res.send({ status: 200, message: `Leave request submitted.${usedPaidLeave} days are paid.`, leaveRequest });
             } else {
-                return res.send({ status: 200, message: `Leave request submitted. All ${usedUnpaidLeave} days are unpaid.`, leaveRequest });
+                return res.send({ status: 200, message: `Leave request submitted.${usedUnpaidLeave} days are unpaid.`, leaveRequest });
             }
         } else return res.send({ status: 403, message: 'Access denied' });
     } catch (error) {
@@ -504,8 +565,8 @@ exports.getAllOwnLeaves = async (req, res) => {
                 message: 'All leave requests getted successfully.',
                 allLeaves,
                 totalLeaves,
-                totalPages: Math.ceil(totalLeaves / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -529,7 +590,7 @@ exports.getAllowLeaveCount = async (req, res) => {
             const jobExists = user.jobDetails.some(job => job._id.toString() === jobId);
 
             if (!jobExists) {
-                return res.send({ status: 401, message: 'JobTitle not found' });
+                return res.send({ status: 401, message: 'JobTitle not found!' });
             }
 
             const currentYear = new Date().getFullYear()
@@ -558,7 +619,7 @@ exports.getAllowLeaveCount = async (req, res) => {
                     });
                 }
                 return acc;
-            }, {});            
+            }, {});
 
             let jobDetails = user.jobDetails.find(job => job._id.toString() === jobId) || user.jobDetails[0]
             // console.log('jobDetails/..', jobDetails)
@@ -632,8 +693,8 @@ exports.getAllLeaveRequest = async (req, res) => {
                 message: 'All leave requests got successfully.',
                 allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
                 totalLeaveRequests,
-                totalPages: Math.ceil(totalLeaveRequests / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

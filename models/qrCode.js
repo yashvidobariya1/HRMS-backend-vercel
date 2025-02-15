@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
 const QRCodeSchema = new mongoose.Schema({
-    isDeleted: {
-        type: Boolean,
-        default: false
-    },
+    // isDeleted: {
+    //     type: Boolean,
+    //     default: false
+    // },
+    isActive: Boolean,
     isCompanyQR: {
         type: Boolean,
         default: false

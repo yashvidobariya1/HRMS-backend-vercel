@@ -691,8 +691,8 @@ exports.getTimesheetReport = async (req, res) => {
                 message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,
-                totalPages: Math.ceil(totalReports / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
 
 
@@ -734,6 +734,7 @@ exports.generateQRcode = async (req, res) => {
                     companyId: id,
                     companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
+                    isActive: true,
                     qrURL: element.secure_url,
                     qrValue,
                     qrType
@@ -757,6 +758,7 @@ exports.generateQRcode = async (req, res) => {
                     locationName: location?.locationName,
                     locationId: id,
                     isLocationQR: true,
+                    isActive: true,
                     qrURL: element.secure_url,
                     qrValue,
                     qrType
@@ -793,8 +795,8 @@ exports.getAllQRCodes = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-            const totalQRCodes = await QR.find({ companyId, locationId, isDeleted: { $ne: true } }).countDocuments()
+            const QRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).skip(skip).limit(limit)
+            const totalQRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).countDocuments()
 
             let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
 
@@ -804,14 +806,36 @@ exports.getAllQRCodes = async (req, res) => {
                 qrValue,
                 QRCodes,
                 totalQRCodes,
-                totalPages: Math.ceil(totalQRCodes / limit),
-                currentPage: page,
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while getting company QR codes:', error)
         res.send({ message: 'Error occurred while getting QR codes!' })
+    }
+}
+
+exports.inactivateQRCode = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const QRId = req.params.id
+            const QRCode = await QR.findById(QRId)
+            if(!QRCode){
+                return res.send({ status: 404, message: 'QRCode not found!' })
+            }
+            if(QRCode.isActive === false){
+                return res.send({ status: 400, messgae: 'The QR is already inactive' })
+            }
+            QRCode.isActive = false
+            QRCode.save()
+            return res.send({ status: 200, message: 'QRCode inactivated successfully!', QRCode })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while inactivating the QRCode:', error)
+        res.send({ message: 'Error occurred while inactivating the QRCode!' })
     }
 }
 

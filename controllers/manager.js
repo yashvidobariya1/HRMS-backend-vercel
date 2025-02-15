@@ -210,8 +210,8 @@ exports.getAllManager = async (req, res) => {
     //             message: 'Manager all get successfully.',
     //             managers,
     //             totalManagers,
-    //             totalPage: Math.ceil(totalManagers / limit),
-    //             currentPage: page
+    //             totalPages: Math.ceil(totalClients / limit) || 1,
+    //             currentPage: page || 1
     //         })
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {

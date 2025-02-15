@@ -3,7 +3,7 @@ const { auth } = require('../middleware/authenticate')
 const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controllers/company')
 const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLocationDetails, deleteLocation } = require('../controllers/location')
 const { addContract, getAllContract, getAllContractOfCompany, getContract, updateContract, deleteContract } = require('../controllers/contract')
-const { generateQRcode, getAllQRCodes } = require('../controllers/timeSheet')
+const { generateQRcode, getAllQRCodes, inactivateQRCode } = require('../controllers/timeSheet')
 const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } = require('../controllers/holiday')
 const { addClient, getClient, getAllClient, updateClient, deleteClient } = require('../controllers/client')
 
@@ -33,6 +33,7 @@ superAdminRoute.post('/deleteContract/:id', auth, deleteContract)
 // generate QR code for location
 superAdminRoute.post('/generateQR/:id', auth, generateQRcode)
 superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
+superAdminRoute.post('/inactivateQRCode/:id', auth, inactivateQRCode)
 // holiday
 superAdminRoute.post('/addHoliday', auth, addHoliday)
 superAdminRoute.get('/getHoliday/:id', auth, getHoliday)

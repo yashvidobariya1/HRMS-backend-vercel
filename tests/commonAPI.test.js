@@ -1769,9 +1769,6 @@ describe('User CRUD==================================================', () => {
     })
 })
 
-// getOwnTodaysTimesheet
-// getOwnAllTimesheet
-
 describe('ClockIn or ClockOut for Administrators, managers and employees==================================================', () => {
     // describe('ClockIn', () => {
     //     let userId
@@ -2012,6 +2009,9 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
     // })
 })
 
+// getOwnTodaysTimesheet
+// getOwnAllTimesheet
+
 describe('Get Users Details==================================================', () => {
     let token
     let userId
@@ -2188,7 +2188,7 @@ describe('get all Notifications=================================================
     describe('~ Administrator', () => {
         let ADToken
         let ADID
-        test('Should return 200 for get all notifications', async () => {
+        test('Should return 200 for get own companys employees notifications', async () => {
             await User.create({
                 personalDetails: {
                     email: 'notificationadministrator@gmail.com'
@@ -2226,7 +2226,7 @@ describe('get all Notifications=================================================
     describe('~ Manager', () => {
         let MToken
         let MID
-        test('Should return 200 for get all notifications', async () => {
+        test('Should return 200 for get their companys employees notifications', async () => {
             await User.create({
                 personalDetails: {
                     email: 'notificationmanager@gmail.com'
@@ -2355,18 +2355,18 @@ describe('read notification by ID===============================================
     test('Should return 200 notification read successfully', async () => {
         await User.create({
             personalDetails: {
-                email: 'getnotificationuser@example.com'
+                email: 'readnotification@example.com'
             },
             role: 'Administrator',
             password: 'Password@123'
         })
-        const user = await request(app).post('/login').send({ email: 'getnotificationuser@example.com', password: 'Password@123' })
+        const user = await request(app).post('/login').send({ email: 'readnotification@example.com', password: 'Password@123' })
         expect(JSON.parse(user.text).status).toBe(200)
         userToken = await JSON.parse(user.text).user.token
         userId = await JSON.parse(user.text).user._id
         const notification = await Notification.create({
-            userName: 'userName',
-            type: 'type',
+            userName: 'readnotification',
+            type: 'read',
             message: 'message',
             readBy : [{
                 userId,
@@ -2381,9 +2381,9 @@ describe('read notification by ID===============================================
     test('Should return 404 notification not found', async () => {
         await Notification.findOneAndDelete({ _id: notiID })
         const res = await request(app).get(`/readNotification/${notiID}`).set('Authorization', `Bearer ${userToken}`)
-        console.log(res.text)
+        // console.log(res.text)
         expect(JSON.parse(res.text).status).toBe(404)
-        expect(JSON.parse(res.text).message).toBe('Notification not found.')
+        expect(JSON.parse(res.text).message).toBe('Notification not found')
     })
     test('Should return 403 for Access denied', async () => {
         const user = await User.findOne({ _id: userId })
@@ -2398,6 +2398,62 @@ describe('read notification by ID===============================================
 
 
 // leaveRequest
+describe('leave request========================================================', () => {
+    describe('~ Administrator', () => {
+        let ADToken
+        let userJobId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'administratorleaverequest@example.com'
+                },
+                jobDetails: [{jobTitle: 'tester', sickLeavesAllow: 10, leavesAllow: 10}, {jobTitle: 'tester2', sickLeavesAllow: 10, leavesAllow: 10}],
+                password: 'Password@123',
+                role: 'Administrator'
+            })
+            userJobId = user.jobDetails[0]._id
+            const login = await request(app).post('/login').send({ email: 'administratorleaverequest@example.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            ADToken = await JSON.parse(login.text).user.token
+            const res = await request(app).post('/leaveRequest')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 400 for already weekend or holiday', async () => {
+            const res = await request(app).post('/leaveRequest').set('Authorization', `Bearer ${ADToken}`)
+                .send({
+                    leaveType: 'Casual',
+                    jobId: userJobId,
+                    selectionDuration: 'Full-Day',
+                    startDate: '2025-03-02',
+                })
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe('Selected leave period only contains weekends or holidays, no leave required!')
+        })
+        test('should return 401 for jobTitle not found', async () => {
+            const res = await request(app).post('/leaveRequest').set('Authorization', `Bearer ${ADToken}`)
+                .send({
+                    leaveType: 'Casual',
+                    // jobId: userJobId,
+                    selectionDuration: 'Full-Day',
+                    startDate: '2025-03-05',
+                })
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('JobTitle not found!')
+        })
+        test('should return 200 for leave request successful', async () => {
+            const res = await request(app).post('/leaveRequest').set('Authorization', `Bearer ${ADToken}`)
+                .send({
+                    leaveType: 'Casual',
+                    jobId: userJobId,
+                    selectionDuration: 'Full-Day',
+                    startDate: '2025-03-05',
+                })
+                console.log('res:', res.text)
+            expect(JSON.parse(res.text).status).toBe(200)
+        })
+    })
+})
 // getLeaveRequest
 // getAllOwnLeaves
 // getAllLeaveRequest

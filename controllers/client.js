@@ -88,8 +88,8 @@ exports.getAllClient = async (req, res) => {
                 message: 'Clients fetched successfully',
                 clients,
                 totalClients,
-                totalPages: Math.ceil(totalClients / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
