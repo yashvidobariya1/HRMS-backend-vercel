@@ -39,7 +39,7 @@ exports.clockInFunc = async (req, res) => {
 
             let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
             if(!jobDetail){
-                return res.send({ status: 400, message: 'JobTitle not found' })
+                return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
             if (!location || !location.latitude || !location.longitude) {
@@ -257,7 +257,7 @@ exports.clockOutFunc = async (req, res) => {
 
             let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
-                return res.send({ status: 400, message: 'JobTitle not found' })
+                return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
             if (!location || !location.latitude || !location.longitude) {
@@ -434,7 +434,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 
             let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
             if(!jobDetail){
-                return res.send({ status: 400, message: 'JobTitle not found' })
+                return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
@@ -463,9 +463,17 @@ exports.getOwnAllTimeSheets = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
             const currentDate = moment()
             let filterYear = year || currentDate.format('YYYY')
             let filterMonth = month ? month.padStart(2, '0') : null
+
+            const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
+            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
 
             let startDate, endDate
 
@@ -474,16 +482,32 @@ exports.getOwnAllTimeSheets = async (req, res) => {
                 filterMonth = currentDate.format('MM')
                 startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
                 endDate = moment(startDate).endOf('month').toDate()
+                if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')){
+                    startDate = moment(joiningDate).toDate()
+                    endDate = moment(startDate).endOf('month').toDate()
+                }
             } else if (month && !year) {
                 filterYear = currentDate.format('YYYY');
                 startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
                 endDate = moment(startDate).endOf('month').toDate()
+                if(month === joiningDate.format('MM') && filterYear === joiningYear){
+                    startDate = moment(joiningDate).toDate()
+                    endDate = moment(startDate).endOf('month').toDate()
+                }               
             } else if (!month && year) {
                 startDate = moment(`${filterYear}-01-01`).startOf('year').toDate()
                 endDate = moment(startDate).endOf('year').toDate()
+                if(filterYear === joiningYear){
+                    startDate = moment(joiningDate).toDate()
+                    endDate = moment(startDate).endOf('year').toDate()
+                }
             } else {
                 startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
                 endDate = moment(startDate).endOf('month').toDate()
+                if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')) {
+                    startDate = moment(joiningDate).toDate()
+                    endDate = moment(startDate).endOf('month').toDate()
+                }
             }
 
             const timesheets = await Timesheet.find({
@@ -548,28 +572,56 @@ exports.getTimesheetReport = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
+            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
+
             let startDate, endDate
 
             if (year && month && month !== "All") {
                 startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
                 endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                if(year === joiningYear && month === joiningDate.format('MM')){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                }
             } else if (year && month === "All") {
                 startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
                 endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                if(year === joiningYear){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                }
             } else if (year && week) {
                 startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
                 endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
             } else if (year) {
                 startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
                 endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                if(year === joiningYear){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                }
             } else if (month && month !== "All") {
                 const currentYear = moment().year();
                 startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
                 endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                if(currentYear === joiningYear && month === joiningDate.format('MM')){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                }
             } else if (month === "All") {
                 const currentYear = moment().year();
                 startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
                 endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
+                if(currentYear === joiningYear){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
+                }
             } else if (week) {
                 const currentYear = moment().year();
                 startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
@@ -577,6 +629,10 @@ exports.getTimesheetReport = async (req, res) => {
             } else {
                 startDate = moment().startOf('month').format('YYYY-MM-DD');
                 endDate = moment().endOf('month').format('YYYY-MM-DD');
+                if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                    startDate = moment(joiningDate).format('YYYY-MM-DD')
+                    endDate = moment().endOf('month').format('YYYY-MM-DD')
+                }
             }
         
 

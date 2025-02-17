@@ -93,7 +93,7 @@ const moment = require('moment')
 
 //             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
 //             if(!jobDetail){
-//                 return res.send({ status: 401, message: 'JobTitle not found!' })
+//                 return res.send({ status: 404, message: 'JobTitle not found' })
 //             }
 //             let locationId = jobDetail?.location
 
@@ -272,7 +272,7 @@ exports.leaveRequest = async (req, res) => {
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
-                return res.send({ status: 401, message: 'JobTitle not found!' })
+                return res.send({ status: 404, message: 'JobTitle not found' })
             }
             let locationId = jobDetail?.location
 
@@ -549,7 +549,7 @@ exports.getAllOwnLeaves = async (req, res) => {
 
             const jobExists = user.jobDetails.some(job => job._id.toString() === jobId);
             if (!jobExists) {
-                return res.send({ status: 401, message: 'JobTitle not found' });
+                return res.send({ status: 404, message: 'JobTitle not found' });
             }
 
             const allLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
@@ -586,7 +586,7 @@ exports.getAllowLeaveCount = async (req, res) => {
             const jobExists = user.jobDetails.some(job => job._id.toString() === jobId);
 
             if (!jobExists) {
-                return res.send({ status: 401, message: 'JobTitle not found!' });
+                return res.send({ status: 404, message: 'JobTitle not found' });
             }
 
             const startDate = moment().startOf('year').toDate()
@@ -753,7 +753,6 @@ exports.updateLeaveRequest = async (req, res) => {
     }
 }
 
-// pending work
 exports.deleteLeaveRequest = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']

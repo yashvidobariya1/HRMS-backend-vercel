@@ -601,13 +601,13 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
 
     describe('~ For get all locations by company ID', () => {
         test('Should return 404 company not found', async () => {
-            const res = await request(app).get('/getCompanyLocations/679b11982789a90ec173fe4f').set('Authorization', `Bearer ${token}`)
+            const res = await request(app).get('/getCompanyLocations?companyId=679b11982789a90ec173fe4f').set('Authorization', `Bearer ${token}`)
             // console.log('res:', res)
             expect(JSON.parse(res.text).status).toBe(404)
             expect(JSON.parse(res.text).message).toBe('Company not found!')
         })
         test('Should return 200 companys location getted successfuly', async () => {
-            const res = await request(app).get(`/getCompanyLocations/${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
+            const res = await request(app).get(`/getCompanyLocations?companyId=${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
             // console.log('res:', res)
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Locations fetched successfully.')
