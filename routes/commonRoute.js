@@ -1,27 +1,65 @@
 const Router = require('express')
-const { login, updatePassword, emailVerification, otpVerification, forgotPassword, clockInFunc, clockOutFunc, getDetails, getOwnTimeSheet, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails } = require('../controllers/common')
 const { auth } = require('../middleware/authenticate')
+const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails, decodeJWTtoken } = require('../controllers/common')
+const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
+const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
+const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 
 const commonRoute = Router()
 
+// commonRoute.post('/decodeToken', decodeJWTtoken) // Backend developer use only
+
 commonRoute.post('/login', login)
-commonRoute.post('/updatepassword', updatePassword)
-commonRoute.post('/emailverification', emailVerification)
-commonRoute.post('/otpverification', otpVerification)
-commonRoute.post('/forgotpassword', forgotPassword)
+commonRoute.post('/logOut', auth, logOut)
+commonRoute.post('/updatePassword', updatePassword)
+commonRoute.post('/emailVerification', emailVerification)
+commonRoute.post('/otpVerification', otpVerification)
+commonRoute.post('/forgotPassword', forgotPassword)
 
+commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 
-commonRoute.post('/adduser', auth, addUser)
-commonRoute.get('/getuser/:id', auth, getUser)
-commonRoute.get('/getallusers', auth, getAllUsers)
-commonRoute.post('/updateuser/:id', auth, updateUserDetails)
-commonRoute.post('/deleteuser/:id', auth, deleteUserDetails)
+commonRoute.post('/addUser', auth, addUser)
+commonRoute.get('/getUser/:id', auth, getUser)
+commonRoute.get('/getAllUsers', auth, getAllUsers)
+commonRoute.post('/updateUser/:id', auth, updateUserDetails)
+commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
 
-commonRoute.get('/getowntimesheet', auth, getOwnTimeSheet)
-commonRoute.post('/clockin', auth, clockInFunc)
-commonRoute.post('/clockout', auth, clockOutFunc)
+commonRoute.post('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
+commonRoute.post('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
+commonRoute.post('/clockIn', auth, clockInFunc)
+commonRoute.post('/clockOut', auth, clockOutFunc)
 
 // get own details
-commonRoute.get('/getdetails', auth, getDetails)
+commonRoute.get('/getDetails', auth, getDetails)
+commonRoute.post('/updateProfileDetails', auth, updateProfileDetails)
+
+// get attendence by month and year
+// commonRoute.get('/getTimesheetByMonthAndYear', auth, getTimesheetByMonthAndYear)
+
+// generate contract letter
+// commonRoute.post('/generateContractLetter', generateContractLetter)
+
+commonRoute.get('/getNotifications', auth, getNotifications)
+commonRoute.get('/getUnreadNotificationsCount', auth, getUnreadNotificationsCount)
+commonRoute.get('/getNotification/:id', auth, getNotification)
+commonRoute.get('/readNotification/:id', auth, readNotification)
+
+// QR code scanning
+commonRoute.post('/verifyQRCode', auth, verifyQRCode) 
+
+// leave request
+commonRoute.post('/leaveRequest', auth, leaveRequest)
+commonRoute.get('/getLeaveRequest/:id', auth, getLeaveRequest)
+commonRoute.post('/getAllOwnLeaves', auth, getAllOwnLeaves)
+commonRoute.get('/getAllLeaveRequest', auth, getAllLeaveRequest)
+commonRoute.post('/updateLeaveRequest/:id', auth, updateLeaveRequest)
+commonRoute.post('/deleteLeaveRequest/:id', auth, deleteLeaveRequest)
+commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
+commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
+commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
+
+// timesheet report
+commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
+commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
 
 module.exports = commonRoute

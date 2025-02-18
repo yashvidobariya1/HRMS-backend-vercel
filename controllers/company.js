@@ -1,4 +1,7 @@
-const Company = require("../models/company")
+const Company = require("../models/company");
+const Location = require("../models/location");
+const cloudinary = require('../utils/cloudinary')
+const moment = require('moment')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -10,14 +13,53 @@ exports.addCompany = async (req, res) => {
                 contractDetails
             } = req.body
 
+            let companyLogoImg
+            if(companyDetails.companyLogo){
+                const document = companyDetails.companyLogo
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item`)
+                }
+                try {
+                    let element = await cloudinary.uploader.upload(document, {
+                        resource_type: "auto",
+                        folder: "companyLogos",
+                    });
+                    // console.log('Cloudinary response:', element);
+                    companyLogoImg = element?.secure_url
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                }
+            }
+
             const newCompany = {
-                companyDetails,
+                companyDetails: {
+                    ...companyDetails,
+                    companyLogo: companyLogoImg
+                },
                 employeeSettings,
                 contractDetails
             }
 
             // console.log('new company', newCompany)
             const company = await Company.create(newCompany)
+            // console.log('company/...', company)
+
+            const newLocation = {
+                companyId: company._id,
+                payeReferenceNumber: company?.companyDetails?.payeReferenceNumber,
+                locationName: company?.companyDetails?.locationName || "Head Office",
+                latitude: "",
+                longitude: "",
+                radius: "",
+                address: company?.companyDetails?.address,
+                addressLine2: company?.companyDetails?.addressLine2,
+                city: company?.companyDetails?.city,
+                postcode: company?.companyDetails?.postCode,
+                country: company?.companyDetails?.country
+            }
+            // console.log('location:', newLocation)
+            await Location.create(newLocation)
 
             return res.send({ status: 200, message: 'Company created successfully.', company })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -56,10 +98,23 @@ exports.getAllCompany = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
 
-            const company = await Company.find({ isDeleted: { $ne: true } })
+            const skip = (page - 1) * limit
 
-            return res.send({ status: 200, message: 'Company all get successfully.', company })
+            const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+
+            const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+
+            return res.send({
+                status: 200,
+                message: 'Company all get successfully.',
+                companies,
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / limit) || 1,
+                currentPage: page || 1
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting companies:", error);
@@ -88,59 +143,43 @@ exports.updateCompanyDetails = async (req, res) => {
                 contractDetails
             } = req.body
 
-            const updatedCompanyDetails = {
-                companyCode: companyDetails?.companyCode,
-                businessName: companyDetails?.businessName,
-                companyLogo: companyDetails?.companyLogo,
-                companyRegistrationNumber: companyDetails?.companyRegistrationNumber,
-                payeReferenceNumber: companyDetails?.payeReferenceNumber,
-                address: companyDetails?.address,
-                addressLine2: companyDetails?.addressLine2,
-                city: companyDetails?.city,
-                postCode: companyDetails?.postCode,
-                country: companyDetails?.country,
-                timeZone: companyDetails?.timeZone,
-                contactPersonFirstname: companyDetails?.contactPersonFirstname,
-                contactPersonMiddlename: companyDetails?.contactPersonMiddlename,
-                contactPersonLastname: companyDetails?.contactPersonLastname,
-                contactPersonEmail: companyDetails?.contactPersonEmail,
-                contactPhone: companyDetails?.contactPhone,
-                adminToReceiveNotification: companyDetails?.adminToReceiveNotification,
-                additionalEmailsForCompliance: companyDetails?.additionalEmailsForCompliance,
-                pensionProvider: companyDetails?.pensionProvider,
-            }
-
-            const updatedEmployeeSettinf = {
-                payrollFrequency: employeeSettings?.payrollFrequency,
-                immigrationReminderDay1st: employeeSettings?.immigrationReminderDay1st,
-                immigrationReminderDay2nd: employeeSettings?.immigrationReminderDay2nd,
-                immigrationReminderDay3rd: employeeSettings?.immigrationReminderDay3rd,
-                holidayYear: employeeSettings?.holidayYear,
-                noticePeriodDays: employeeSettings?.noticePeriodDays,
-                contactConfirmationDays: employeeSettings?.contactConfirmationDays,
-                rightToWorkCheckReminder: employeeSettings?.rightToWorkCheckReminder,
-                holidaysExcludingBank: employeeSettings?.holidaysExcludingBank,
-                sickLeaves: employeeSettings?.sickLeaves,
-            }
-
-            const updateContractDetails = {
-                startDate: contractDetails?.startDate,
-                endDate: contractDetails?.endDate,
-                maxEmployeesAllowed: contractDetails?.maxEmployeesAllowed,
+            let companyLogoImg
+            if(companyDetails.companyLogo){
+                const document = companyDetails.companyLogo
+                if (!document || typeof document !== 'string') {
+                    console.log(`Invalid or missing document for item`)
+                }
+                try {
+                    if(document.startsWith('data:')){
+                        let element = await cloudinary.uploader.upload(document, {
+                            resource_type: "auto",
+                            folder: "companyLogos",
+                        });
+                        // console.log('Cloudinary response:', element);
+                        companyLogoImg = element?.secure_url
+                    } else {
+                        companyLogoImg = document
+                    }
+                } catch (uploadError) {
+                    console.error("Error occurred while uploading file:", uploadError);
+                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                }
             }
 
             let updatedCompany = await Company.findByIdAndUpdate(
                 { _id: companyId },
                 {
                     $set: {
-                        companyDetails: updatedCompanyDetails,
-                        employeeSettings: updatedEmployeeSettinf,
-                        contractDetails: updateContractDetails,
-                        updatedAt: new Date()
+                        companyDetails: {
+                            ...companyDetails,
+                            companyLogo: companyLogoImg
+                        },
+                        employeeSettings,
+                        contractDetails,
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
-            // await updatedCompany.save()
 
             return res.send({ status: 200, message: 'Company details updated successfully.', updatedCompany })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -168,7 +207,7 @@ exports.deleteCompany = async (req, res) => {
             let deletedCompany = await Company.findByIdAndUpdate(companyId, {
                 $set: {
                     isDeleted: true,
-                    canceledAt: new Date()
+                    canceledAt: moment().toDate()
                 }
             })
 

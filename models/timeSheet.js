@@ -4,7 +4,9 @@ const TimesheetSchema = new mongoose.Schema(
     {
         userId: {
             type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         },
+        jobId: mongoose.Schema.Types.ObjectId,
         date: {
             type: String,
         },
@@ -15,8 +17,7 @@ const TimesheetSchema = new mongoose.Schema(
         clockinTime: [{
             clockIn: Date,
             clockOut: {
-                type: Date,
-                // default: ""
+                type: Date
             },
             totalTiming: {
                 type: String,
@@ -31,9 +32,10 @@ const TimesheetSchema = new mongoose.Schema(
             type: String,
             default: "0h 0m 0s"
         },
+        isOverTime: { type: Boolean, default: false },
         overTime: {
-            type: Number,
-            default: 0
+            type: String,
+            default: "0h 0m 0s"
         }
     }, {
         timestamps: true,

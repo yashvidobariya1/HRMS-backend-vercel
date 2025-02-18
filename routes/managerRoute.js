@@ -5,11 +5,11 @@ const { addManager, getManager, getAllManager, updateManagerDetails, deleteManag
 const managerRoute = Router()
 
 //crud by superAdmin, administrator
-managerRoute.post('/addmanager', auth, addManager)
-managerRoute.get('/getmanager/:id', auth, getManager)
-managerRoute.get('/getallmanager', auth, getAllManager)
-managerRoute.post('/updatemanager/:id', auth, updateManagerDetails)
-managerRoute.post('/deletemanager/:id', auth, deleteManager)
+// managerRoute.post('/addManager', auth, addManager)
+// managerRoute.get('/getManager/:id', auth, getManager)
+// managerRoute.get('/getAllManager', auth, getAllManager)
+// managerRoute.post('/updateManager/:id', auth, updateManagerDetails)
+// managerRoute.post('/deleteManager/:id', auth, deleteManager)
 
 
 module.exports = managerRoute

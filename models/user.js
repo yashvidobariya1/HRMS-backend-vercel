@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken')
+// const CryptoJS = require("crypto-js")
 
 const userSchema = new mongoose.Schema({
   isDeleted: {
@@ -40,7 +41,7 @@ const userSchema = new mongoose.Schema({
     payrollFrequency: String,
     pension: String,
   },
-  jobDetails: {
+  jobDetails: [{
     jobTitle: String,
     jobDescription: String,
     annualSalary: Number,
@@ -54,9 +55,10 @@ const userSchema = new mongoose.Schema({
     sickLeavesAllow: Number,
     leavesAllow: Number,
     location: String,
-    assignManager: String,
+    assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     role: String
-  },
+  }],
   immigrationDetails: {
     passportNumber: String,
     countryOfIssue: String,
@@ -74,16 +76,28 @@ const userSchema = new mongoose.Schema({
   },
   documentDetails: [{
     documentType: String,
-    document: String,
+    documentName: String,
+    document: String
   }],
   contractDetails: {
     contractType: String,
-    contractDocument: String,
+    contractDocument: {
+      fileName: String,
+      fileURL: String,
+    },
   },
   password: String,
   role: {
     type: String
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company'
+  },
+  locationId: [{
+    type: String,
+    ref: 'Location'
+  }],
   password: String,
   lastKnownLocation: {
     latitude: String,
@@ -102,18 +116,23 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  lastTimeLoggedIn: Date,
+  lastTimeLoggedOut: Date,
   canceledAt: Date,
 }, { timestamps: true });
 
 userSchema.methods.generateAuthToken = async function() {
   const user = this
   const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
-
-  user.token = user.token
-  await user.save()
-
   return token
 }
+
+// userSchema.methods.generateAuthToken = async function () {
+//   const user = this
+//   const JWTToken = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
+//   const encrypted_token = CryptoJS.AES.encrypt(JWTToken, process.env.ENCRYPTION_SECRET_KEY).toString()
+//   return { JWTToken, encrypted_token }
+// }
 
 const User = mongoose.model('User', userSchema);
 

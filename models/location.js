@@ -4,7 +4,13 @@ const locationSchema = new mongoose.Schema({
     isDeleted: {
         type: Boolean, default: false
     },
-    companyName: String,
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company'
+    },
+    latitude: String,
+    longitude: String,
+    radius: String,
     payeReferenceNumber: String,
     locationName: String,
     address: String,
@@ -12,7 +18,7 @@ const locationSchema = new mongoose.Schema({
     city: String,
     postcode: String,
     country: String,
-    ukviApproved: Boolean,
+    ukviApproved: { type: Boolean, default: false },
     canceledAt: Date,
 }, { timestamps: true });
 
