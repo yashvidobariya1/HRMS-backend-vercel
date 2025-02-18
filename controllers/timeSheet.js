@@ -62,7 +62,7 @@ exports.clockInFunc = async (req, res) => {
             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
 
             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 1000 // meters
+            const GEOFENCE_RADIUS = 10000 // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -280,7 +280,7 @@ exports.clockOutFunc = async (req, res) => {
             // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
 
             const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 1000 // meters
+            const GEOFENCE_RADIUS = 10000 // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
