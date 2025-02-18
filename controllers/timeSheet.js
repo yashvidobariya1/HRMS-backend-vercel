@@ -113,15 +113,15 @@ exports.clockInFunc = async (req, res) => {
                     // console.log('readBy1/..', readBy)
                 }
 
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                // console.log('administrator', administrator)
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
-                    readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
-                    })
-                }
+                // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                // // console.log('administrator', administrator)
+                // if (administrator.length > 0) {
+                //     notifiedId.push(administrator[0]._id);
+                //     readBy.push({
+                //         userId: administrator[0]._id,
+                //         role: administrator[0].role
+                //     })
+                // }
             } else if (existUser.role === 'Manager') {
                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
@@ -139,15 +139,15 @@ exports.clockInFunc = async (req, res) => {
                 })
             }
 
-            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            superAdmin.map((sa) => {
-                notifiedId.push(sa?._id)
-                readBy.push({
-                    userId: sa?._id,
-                    role: sa?.role
-                })
-            })
+            // superAdmin.map((sa) => {
+            //     notifiedId.push(sa?._id)
+            //     readBy.push({
+            //         userId: sa?._id,
+            //         role: sa?.role
+            //     })
+            // })
 
             const { firstName, lastName } = existUser.personalDetails;
             const name = [firstName, lastName].filter(Boolean).join(" ");
@@ -363,15 +363,15 @@ exports.clockOutFunc = async (req, res) => {
                     // console.log('readBy1/..', readBy)
                 }
 
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                // console.log('administrator', administrator)
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
-                    readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
-                    })
-                }
+                // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                // // console.log('administrator', administrator)
+                // if (administrator.length > 0) {
+                //     notifiedId.push(administrator[0]._id);
+                //     readBy.push({
+                //         userId: administrator[0]._id,
+                //         role: administrator[0].role
+                //     })
+                // }
             } else if (existUser.role === 'Manager') {
                 const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
@@ -389,15 +389,15 @@ exports.clockOutFunc = async (req, res) => {
                 })
             }
 
-            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            superAdmin.map((sa) => {
-                notifiedId.push(sa?._id)
-                readBy.push({
-                    userId: sa?._id,
-                    role: sa?.role
-                })
-            })
+            // superAdmin.map((sa) => {
+            //     notifiedId.push(sa?._id)
+            //     readBy.push({
+            //         userId: sa?._id,
+            //         role: sa?.role
+            //     })
+            // })
 
             const { firstName, lastName } = existUser.personalDetails;
             const name = [firstName, lastName].filter(Boolean).join(" ");
@@ -424,6 +424,11 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
             const userId = req.user._id
             const { jobId } = req.body
 
@@ -438,9 +443,18 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
-            const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
+            const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate }).skip(skip).limit(limit)
 
-            return res.send({ status: 200, message: 'Timesheet getted successfully.', timesheet: timesheet ? timesheet : {} })
+            const totalTimesheets = await Timesheet.findOne({ userId, jobId, date: currentDate }).countDocuments()
+
+            return res.send({
+                status: 200,
+                message: 'Timesheet getted successfully.',
+                timesheet: timesheet ? timesheet : {},
+                totalTimesheets,
+                totalPages: Math.ceil(totalTimesheets / limit) || 1,
+                currentPage: page || 1
+            })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while getting timesheet:', error);
@@ -453,6 +467,10 @@ exports.getOwnAllTimeSheets = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
             const userId = req.user._id
 
             const { jobId } = req.body
@@ -514,9 +532,22 @@ exports.getOwnAllTimeSheets = async (req, res) => {
                 userId,
                 jobId: jobId.toString(),
                 createdAt: { $gte: startDate, $lte: endDate }
-            }).sort({ createdAt: -1 })
+            }).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
-            return res.send({ status: 200, message: 'Timesheets getted successfully.', timesheets: timesheets.length > 0 ? timesheets : [] })
+            const totalTimesheets = await Timesheet.find({
+                userId,
+                jobId: jobId.toString(),
+                createdAt: { $gte: startDate, $lte: endDate }
+            }).sort({ createdAt: -1 }).countDocuments()
+
+            return res.send({
+                status: 200,
+                message: 'Timesheets getted successfully.',
+                timesheets: timesheets.length > 0 ? timesheets : [],
+                totalTimesheets,
+                totalPages: Math.ceil(totalTimesheets / limit) || 1,
+                currentPage: page || 1
+            })
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -809,6 +840,200 @@ exports.getTimesheetReport = async (req, res) => {
     }
 }
 
+exports.downloadTimesheetReport = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+
+            const userId = req.body.userId || req.user._id
+            const { jobId, startDate, endDate } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            // 1. Fetch timesheet entries (Check-ins/outs)
+            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            // console.log('timesheet:', timesheets)
+
+            // 2. Fetch leave requests
+            const leaves = await Leave.find({
+                userId,
+                jobId,
+                $or: [
+                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: "Approved",
+                isDeleted: { $ne: true }
+            })
+            // console.log('leaves:', leaves)
+
+            // 3. Fetch holidays
+            const holidays = await Holiday.find({
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
+                date: { $gte: startDate, $lte: endDate },
+                isDeleted: { $ne: true }
+            })
+            // console.log('holidays:', holidays)
+
+            const dateList = [];
+            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+                dateList.push(d.clone().format('YYYY-MM-DD'))
+            }
+            // console.log('dateList:', dateList)
+
+            const timesheetMap = new Map()
+            timesheets.map(TS => {
+                const dateKey = TS.createdAt.toISOString().split("T")[0]
+                timesheetMap.set(dateKey, TS)
+            })
+            // console.log('timesheets:', timesheets)
+
+            const leaveMap = new Map()
+            leaves.forEach(leave => {
+                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+                let tempDate = leaveStart.clone()
+            
+                while (tempDate.isSameOrBefore(leaveEnd)) {
+                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+                    tempDate.add(1, 'days')
+                }
+            })
+            // console.log('leaves:', leaves)
+
+            const holidayMap = new Map();
+            holidays.map(HD => {
+                holidayMap.set(HD.date, HD)
+            })
+            // console.log('holidays:', holidays)
+
+            const today = moment().format('YYYY-MM-DD')
+
+            const allReports = dateList.map(dateObj => {
+                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+                if (isWeekend || isFuture) return null
+            
+                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const leaveEntries = leaves.filter(leave => {
+                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+                });
+                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+            
+                const hasTimesheet = timesheetEntries.length > 0
+                const hasLeave = leaveEntries.length > 0
+                const hasHoliday = holidayEntries.length > 0
+                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+                let status = "Absent"
+        
+                if (hasLeave) {
+                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+                    status = isHalfLeave ? "HalfLeave" : "Leave"
+                } else if (hasTimesheet) {
+                    status = "Present"
+                } else if (hasHoliday) {
+                    status = "Holiday"
+                }
+            
+                let data = {}
+            
+                if (hasTimesheet && !hasLeave && !hasHoliday) {
+                    data.timesheetData = {
+                        date: timesheetEntries[0]?.date,
+                        clockinTime: timesheetEntries[0]?.clockinTime,
+                        totalHours: timesheetEntries[0]?.totalHours,
+                        overTime: timesheetEntries[0]?.overTime
+                    }
+                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+                    data.leaveData = {
+                        leaveType: leaveEntries[0]?.leaveType,
+                        selectionDuration: leaveEntries[0]?.selectionDuration,
+                        startDate: leaveEntries[0]?.startDate,
+                        endDate: leaveEntries[0]?.endDate,
+                        leaveDays: leaveEntries[0]?.leaveDays,
+                        leaves: leaveEntries[0]?.leaveType,
+                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                        status: leaveEntries[0]?.status,
+                    }
+                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+                    data.holidayData = {
+                        date: holidayEntries[0]?.date,
+                        occasion: holidayEntries[0]?.occasion
+                    }
+                } else if (hasTimesheet || hasLeave || hasHoliday) {
+                    data = {
+                        timesheetData: hasTimesheet ? {
+                            date: timesheetEntries[0]?.date,
+                            clockinTime: timesheetEntries[0]?.clockinTime,
+                            totalHours: timesheetEntries[0]?.totalHours,
+                            overTime: timesheetEntries[0]?.overTime
+                        } : undefined,
+                        leaveData: hasLeave ? {
+                            leaveType: leaveEntries[0]?.leaveType,
+                            selectionDuration: leaveEntries[0]?.selectionDuration,
+                            startDate: leaveEntries[0]?.startDate,
+                            endDate: leaveEntries[0]?.endDate,
+                            leaveDays: leaveEntries[0]?.leaveDays,
+                            leaves: leaveEntries[0]?.leaveType,
+                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                            status: leaveEntries[0]?.status,
+                        } : undefined,
+                        holidayData: hasHoliday ? {
+                            date: holidayEntries[0]?.date,
+                            occasion: holidayEntries[0]?.occasion
+                        } : undefined
+                    }
+                }
+            
+                return {
+                    date: dateObj,
+                    status,
+                    timesheet: hasTimesheet,
+                    leave: hasLeave,
+                    holiday: hasHoliday,
+                    absent: isAbsent,
+                    data
+                }
+            }).filter(report => report !== null)
+
+            const report = allReports.slice(skip, skip + limit)
+            const totalReports = allReports ? allReports.length : 0
+
+            return res.send({
+                status: 200,
+                message: 'Timesheet report downloaded successfully',
+                report: report ? report : [],
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit) || 1,
+                currentPage: page || 1
+            })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while downloading timesheet report:', error)
+        res.send({ message: 'Error occurred while downloading timesheet report!' })
+    }
+}
+
 
 // for generate QR code
 exports.generateQRcode = async (req, res) => {
@@ -933,11 +1158,11 @@ exports.inactivateQRCode = async (req, res) => {
                 return res.send({ status: 404, message: 'QRCode not found!' })
             }
             if(QRCode.isActive === false){
-                return res.send({ status: 400, messgae: 'The QR is already inactive' })
+                return res.send({ status: 400, message: 'The QR is already inactive' })
             }
             QRCode.isActive = false
             QRCode.save()
-            return res.send({ status: 200, message: 'QRCode inactivated successfully!', QRCode })
+            return res.send({ status: 200, message: 'QRCode inactivated successfully.', QRCode })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while inactivating the QRCode:', error)

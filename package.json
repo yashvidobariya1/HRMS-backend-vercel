@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
+    "test": "jest",
     "test:manager": "jest managerAPI.test.js",
     "test:employee": "jest employeeAPI.test.js",
     "test:administrator": "jest administratorAPI.test.js",

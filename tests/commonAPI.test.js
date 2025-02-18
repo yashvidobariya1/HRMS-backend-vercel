@@ -4000,4 +4000,56 @@ describe('~ timesheet report', () => {
             expect(JSON.parse(res.text).message).toBe('Access denied')
         })
     })
+
+    describe("~ Superadmin can download timesheet report of all users", () => {
+        let SAToken
+        let userId
+        let userJobId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingfordownloadtimesheetreportofuser@gmail.com'
+                },
+                jobDetails:[{ jobTitle: 'Software Engineer' }],
+                password: 'Password123',
+                role: 'Superadmin'
+            })
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testeruserfordownloadreport@gmail.com'
+                },
+                jobDetails:[{ jobTitle: 'Software Engineer' }],
+                password: 'Password123',
+                role: 'Manager'
+            })
+            userId = user._id
+            userJobId = user.jobDetails[0]._id
+            const login = await request(app).post('/login').send({ email: 'testingfordownloadtimesheetreportofuser@gmail.com', password: 'Password123' })
+            SAToken = JSON.parse(login.text).user.token
+            const res = await request(app).post('/downloadTimesheetReport')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for user not found', async () => {
+            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId: userJobId })
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('User not found')
+        })
+        test('should return 404 for jobTitle not found', async () => {
+            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId })
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+        })
+        test('should return 200 for timesheet download successfully', async () => {
+            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId, jobId: userJobId })
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Timesheet report downloaded successfully')
+        })
+        test('should return 403 for access denied', async () => {
+            await User.findOneAndUpdate({token: SAToken}, {$set:{role:'superadmin'}})
+            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId, jobId: userJobId })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
 })

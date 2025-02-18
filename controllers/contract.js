@@ -46,7 +46,7 @@ exports.addContract = async (req, res) => {
                     // console.log('Cloudinary response:', element);
                     contract = element.secure_url
                 } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    // console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
@@ -84,14 +84,14 @@ exports.getAllContract = async (req, res) => {
             const skip = (page - 1) * limit
 
             let contracts
+            let totalContracts
             if(req.user.role === 'Superadmin'){
                 contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalContracts = await Contract.find({ isDeleted: { $ne: true } }).countDocuments()
             } else {
                 contracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalContracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
             }
-
-
-            const totalContracts = await Contract.countDocuments({ isDeleted: { $ne: true } })
 
             return res.send({
                 status: 200,

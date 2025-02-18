@@ -448,15 +448,15 @@ exports.leaveRequest = async (req, res) => {
                     // console.log('readBy1/..', readBy)
                 }
 
-                const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
-                // console.log('administrator', administrator)
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
-                    readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
-                    })
-                }
+                // const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+                // // console.log('administrator', administrator)
+                // if (administrator.length > 0) {
+                //     notifiedId.push(administrator[0]._id);
+                //     readBy.push({
+                //         userId: administrator[0]._id,
+                //         role: administrator[0].role
+                //     })
+                // }
             } else if (req.user.role === 'Manager') {
                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
@@ -474,15 +474,15 @@ exports.leaveRequest = async (req, res) => {
                 })
             }
 
-            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            superAdmin.map((sa) => {
-                notifiedId.push(sa?._id)
-                readBy.push({
-                    userId: sa?._id,
-                    role: sa?.role
-                })
-            })
+            // superAdmin.map((sa) => {
+            //     notifiedId.push(sa?._id)
+            //     readBy.push({
+            //         userId: sa?._id,
+            //         role: sa?.role
+            //     })
+            // })
 
             const notification = new Notification({
                 userId,
@@ -495,17 +495,18 @@ exports.leaveRequest = async (req, res) => {
             // console.log('notification/..', notification)
             await notification.save();
 
-            if (usedHalfPaidLeave > 0) {
-                return res.send({
-                    status: 200,
-                    message: `Leave request submitted. ${usedPaidLeave} full days are paid, ${usedHalfPaidLeave} half-day is paid, and ${usedUnpaidLeave} days are unpaid.`,
-                    leaveRequest
-                });
-            } else if (usedPaidLeave > 0) {
-                return res.send({ status: 200, message: `Leave request submitted.${usedPaidLeave} days are paid.`, leaveRequest });
-            } else {
-                return res.send({ status: 200, message: `Leave request submitted.${usedUnpaidLeave} days are unpaid.`, leaveRequest });
-            }
+            return res.send({ status: 200, message: `Leave request submitted.`, leaveRequest })
+            // if (usedHalfPaidLeave > 0) {
+            //     return res.send({
+            //         status: 200,
+            //         message: `Leave request submitted. ${usedPaidLeave} full days are paid, ${usedHalfPaidLeave} half-day is paid, and ${usedUnpaidLeave} days are unpaid.`,
+            //         leaveRequest
+            //     });
+            // } else if (usedPaidLeave > 0) {
+            //     return res.send({ status: 200, message: `Leave request submitted.${usedPaidLeave} days are paid.`, leaveRequest });
+            // } else {
+            //     return res.send({ status: 200, message: `Leave request submitted.${usedUnpaidLeave} days are unpaid.`, leaveRequest });
+            // }
         } else return res.send({ status: 403, message: 'Access denied' });
     } catch (error) {
         console.error('Error occurred while processing leave request.', error);
@@ -652,13 +653,13 @@ exports.getAllLeaveRequest = async (req, res) => {
             
             if(req.user.role == 'Superadmin'){
                 allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
-                totalLeaveRequests = allLeaveRequests.length
+                totalLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).countDocuments()
             } else if(req.user.role == 'Administrator'){
                 const allLeaveRequestsOfEmployees = await Leave.find({
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
-                }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+                }).sort({ createdAt: -1 })
 
                 let allEmployeesLR = []
                 for (const LR of allLeaveRequestsOfEmployees) {
@@ -667,20 +668,14 @@ exports.getAllLeaveRequest = async (req, res) => {
                         allEmployeesLR.push(LR)
                     }
                 }
-                allLeaveRequests = allEmployeesLR
-                totalLeaveRequests = allEmployeesLR.length
-
-                // totalLeaveRequests = await Leave.find({
-                //     companyId: req.user.companyId,
-                //     locationId: { $in: req.user.locationId },
-                //     isDeleted: { $ne: true }
-                // }).countDocuments()
+                allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
+                totalLeaveRequests = allEmployeesLR?.length
             } else if(req.user.role == 'Manager'){
                 const leaveRequests = await Leave.find({
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
-                }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+                }).sort({ createdAt: -1 })
 
                 let allEmployeesLR = []
                 for (const LR of leaveRequests) {
@@ -689,8 +684,8 @@ exports.getAllLeaveRequest = async (req, res) => {
                         allEmployeesLR.push(LR)
                     }
                 }
-                allLeaveRequests = allEmployeesLR
-                totalLeaveRequests = allEmployeesLR.length
+                allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
+                totalLeaveRequests = allEmployeesLR?.length
             }
 
             return res.send({

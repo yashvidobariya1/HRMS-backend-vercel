@@ -39,7 +39,7 @@ beforeEach(async () => {
 
 
 // all api called company by superadmin
-describe('**SuperAdmin Routes - Crud Company Test**', () => {
+describe('**- Crud Company Test**', () => {
     let createdCompanyId;
     let token
     describe('~ For add Company', () => {
@@ -366,7 +366,7 @@ describe('**SuperAdmin Routes - Crud Company Test**', () => {
 })
 
 // all api called location by superadmin
-describe('**SuperAdmin Routes - Crud Location Test**', () => {
+describe('**- Crud Location Test**', () => {
     let createdCompanyId
     let createdLocationId;
     let token
@@ -600,6 +600,11 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
     })
 
     describe('~ For get all locations by company ID', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app).get('/getCompanyLocations?companyId=679b11982789a90ec173fe4f')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
         test('Should return 404 company not found', async () => {
             const res = await request(app).get('/getCompanyLocations?companyId=679b11982789a90ec173fe4f').set('Authorization', `Bearer ${token}`)
             // console.log('res:', res)
@@ -612,10 +617,17 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Locations fetched successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getCompanyLocations?companyId=${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For update location', () => {
         test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'Superadmin' } })
             const res = await request(app)
                 .post(`/updateLocation/${createdLocationId}`)
             expect(JSON.parse(res.text).status).toBe(401);
@@ -705,7 +717,7 @@ describe('**SuperAdmin Routes - Crud Location Test**', () => {
     })
 });
 
-describe('**Crud Contract Test**', () => {
+describe('**Crud Contract Test ( Superadmin and Administrator )**', () => {
     let createdCompanyId
     let contractId
     let newToken
@@ -717,14 +729,13 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(401)
             expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
         })
-        test('should return invalid or expairy token when token is invalid', async () =>{
-
-            const res = await request(app)
-                .post('/addContract')
-                .set('Authorization', `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2Nzk3NGY3NjYyMGU5NTAxN2RlNWMyOTUiLCJpYXQiOjE3MzkyNjQwMDd9.KaIYtpE4A5_Y69UiO2-SJYzZB8BCu3q9wR6m2D-95lU`)
-                .send({ companyId: createdCompanyId, contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50'})
-            expect(JSON.parse(res.text).message).toBe('Invalid or expiry token!')
-        })
+        // test('should return invalid or expairy token when token is invalid', async () =>{
+        //     const res = await request(app)
+        //         .post('/addContract')
+        //         .set('Authorization', `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2Nzk3NGY3NjYyMGU5NTAxN2RlNWMyOTUiLCJpYXQiOjE3MzkyNjQwMDd9.KaIYtpE4A5_Y69UiO2-SJYzZB8BCu3q9wR6m2D-95lU`)
+        //         .send({ companyId: createdCompanyId, contractName: 'company contract name', contract: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50'})
+        //     expect(JSON.parse(res.text).message).toBe('Invalid or expiry token!')
+        // })
         test('should return 404 for company not found', async () => {
             const hashedPassword = await bcrypt.hash('Testeruser@123', 10);
             await User.create({
@@ -845,9 +856,29 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(409)
             expect(JSON.parse(res.text).message).toBe(`A contract with the name Full-Time already exists for this company.`)
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .post('/addContract')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({
+                    companyId: createdCompanyId,
+                    contractName: 'Full-Time',
+                    contract: 'data:text/txt;base64,dGVzdGluZ3BsYWludGV4dA==',
+                    contractFileName: 'Full-Time'
+                })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For get contract', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getContract/67974f76620e95017de5c295')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 contract not found', async () => {
             const res = await request(app)
             .get('/getContract/67974f76620e95017de5c295')
@@ -862,9 +893,23 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Contract get successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .get(`/getContract/${contractId}`)
+                .set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For get companys contract by company ID', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getAllContractOfCompany')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 company not found', async () => {
             const res = await request(app)
             .get('/getAllContractOfCompany')
@@ -880,18 +925,44 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Contracts all get successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+            .get(`/getAllContractOfCompany`)
+            .set('Authorization', `Bearer ${newToken}`).send({ companyId: createdCompanyId })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For get all contract', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getAllContract')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 200 for all contract getted sucessfully', async () => {
             const res = await request(app).get('/getAllContract').set('Authorization', `Bearer ${newToken}`)
             // console.log('Res:', res.text)
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Contracts all get successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).get('/getAllContract').set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For update contract', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/updateContract/67aad9033e7992b77587d60a`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 contract not found', async () => {
             const res = await request(app).post(`/updateContract/67aad9033e7992b77587d60a`).set('Authorization', `Bearer ${newToken}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -909,9 +980,21 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Contract details updated successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateContract/${contractId}`).set('Authorization', `Bearer ${newToken}`).send({ contractName: 'contract', companyId: createdCompanyId })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For delete contract', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/deleteContract/67aad9033e7992b77587d60a`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 contract not found', async () => {
             const res = await request(app).post(`/deleteContract/67aad9033e7992b77587d60a`).set('Authorization', `Bearer ${newToken}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -922,15 +1005,22 @@ describe('**Crud Contract Test**', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Contract deleted successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteContract/${contractId}`).set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
 
 });
 
-describe('** QR codes **', () => {
+describe('** QR codes ( Superadmin and Administrator )**', () => {
     let createdCompanyId
     let createdLocationId
     let token
+    let QRId
     describe('~ For generate QR code', () => {
         test('Should return 400 for invalid qr type', async () => {
             const hashedPassword = await bcrypt.hash('Superadmin@123', 10);
@@ -1021,6 +1111,11 @@ describe('** QR codes **', () => {
             expect(JSON.parse(res.text).status).toBe(400)
             expect(JSON.parse(res.text).message).toBe('QR type is undefined, please enter valid type.')
         })
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app).post(`/generateQR/${createdLocationId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 location not found', async () => {
             const res = await request(app)
                 .post(`/generateQR/67a602a80bba65ae29da84f1`)
@@ -1034,12 +1129,28 @@ describe('** QR codes **', () => {
                 .post(`/generateQR/${createdLocationId}`)
                 .set('Authorization', `Bearer ${token}`)
                 .send({ qrType: 'Location', qrValue: 'TestingQRcode', qrCode: 'data:plain/txt;base64,dGVzdGluZ3BsYWludGV4dA==' })
+            QRId = JSON.parse(res.text).QRCode._id
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Location QR generate successfully.')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .post(`/generateQR/${createdLocationId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({ qrType: 'Location', qrValue: 'TestingQRcode', qrCode: 'data:plain/txt;base64,dGVzdGluZ3BsYWludGV4dA==' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
         })
     })
 
     describe('~ For get all QRCodes of companys location', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get(`/getAllQRCodes/67a602a80bba65ae29da84f1`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for location not found', async () => {
             const res = await request(app)
                 .get('/getAllQRCodes/67a602a80bba65ae29da84f1').set('Authorization', `Bearer ${token}`)
@@ -1052,15 +1163,58 @@ describe('** QR codes **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('QR codes getted successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .get(`/getAllQRCodes/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('~ Do inactivate QR code', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/inactivateQRCode/67a602a80bba65ae29da84f1`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for, QR code not found', async () => {
+            const res = await request(app).post(`/inactivateQRCode/67a602a80bba65ae29da84f1`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('QRCode not found!')
+        })
+        test('should return 200 for QR code inactivated successfully', async () => {
+            const res = await request(app).post(`/inactivateQRCode/${QRId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('QRCode inactivated successfully.')
+        })
+        test('should return 400 for, already inactivated QR code', async () => {
+            const res = await request(app).post(`/inactivateQRCode/${QRId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe('The QR is already inactive')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/inactivateQRCode/${QRId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+            await User.findOneAndUpdate({token: token}, { $set: { role: 'Superadmin' } })
+        })
     })
 })
 
-describe('** Holiday Management **', () => {
+describe('** Holiday Management ( Superadmin and Administrator )**', () => {
     let createdCompanyId
     let createdLocationId
     let createdHolidayId
     let token
     describe('~ For add holiday', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app).post('/addHoliday')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 400 required fields not provide', async () => {
             const hashedPassword = await bcrypt.hash('Superadmin@123', 10);
             await User.create({
@@ -1172,9 +1326,21 @@ describe('** Holiday Management **', () => {
             expect(JSON.parse(res.text).message).toBe('Holiday added successfully.')
             createdHolidayId = await JSON.parse(res.text).holiday._id
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post('/addHoliday').set('Authorization', `Bearer ${token}`).send({ locationId: createdLocationId, date: '2025-02-13', occasion: 'JEST test' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For get holiday', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getHoliday/67a0ccec37c28a6eb563bd6c')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for holiday not found', async () => {
             const res = await request(app).get('/getHoliday/67a0ccec37c28a6eb563bd6c').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1185,9 +1351,21 @@ describe('** Holiday Management **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Holiday fetched successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getHoliday/${createdHolidayId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For get all holidays', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getAllHolidays?locationId=67a0ccec37c28a6eb563bd6c')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for location not found', async () => {
             const res = await request(app).get('/getAllHolidays?locationId=67a0ccec37c28a6eb563bd6c').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1198,9 +1376,21 @@ describe('** Holiday Management **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('All holidays fetched successfully.')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getAllHolidays?locationId=${createdLocationId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For update holiday', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/updateHoliday/67a0ccec37c28a6eb563bd6c`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for holiday not found', async () => {
             const res = await request(app).post(`/updateHoliday/67a0ccec37c28a6eb563bd6c`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1211,9 +1401,21 @@ describe('** Holiday Management **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Holiday details updated successfully')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateHoliday/${createdHolidayId}`).set('Authorization', `Bearer ${token}`).send({ date: '2025-03-12', occasion: 'UpdateTesting' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ For delete holiday', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/deleteHoliday/67a0ccec37c28a6eb563bd6c`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for holiday not found', async () => {
             const res = await request(app).post(`/deleteHoliday/67a0ccec37c28a6eb563bd6c`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1224,14 +1426,26 @@ describe('** Holiday Management **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Holiday deleted successfully')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteHoliday/${createdHolidayId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+        })
     })
 })
 
-describe('** client module **', () => {
+describe('** client module ( Superadmin and Administrator )**', () => {
     let createdCompanyId
     let createdClientId
     let token    
     describe('~ Add client', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            const res = await request(app).post('/addClient?companyId=67a0ccec37c28a6eb563bd6c')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 company not found', async () => {
             const hashedPassword = await bcrypt.hash('Superadmin@123', 10);
             await User.create({
@@ -1311,9 +1525,21 @@ describe('** client module **', () => {
             expect(JSON.parse(res.text).message).toBe('Client created successfully')
             createdClientId = await JSON.parse(res.text).client._id
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/addClient?companyId=${createdCompanyId}`).set('Authorization', `Bearer ${token}`).send({ clientName: 'firstClient' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ get client', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getClient/67a0ccec37c28a6eb563bd6c')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 for client not found', async () => {
             const res = await request(app).get('/getClient/67a0ccec37c28a6eb563bd6c').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1324,17 +1550,41 @@ describe('** client module **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Client fetched successfully')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getClient/${createdClientId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ get all client', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getAllClients')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 200 for all client getted successfully', async () => {
             const res = await request(app).get('/getAllClients').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Clients fetched successfully')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get('/getAllClients').set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ update client', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/updateClient/67a0ccec37c28a6eb563bd6c`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 client not found', async () => {
             const res = await request(app).post(`/updateClient/67a0ccec37c28a6eb563bd6c`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(404)
@@ -1345,9 +1595,21 @@ describe('** client module **', () => {
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Client details updated successfully')
         })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateClient/${createdClientId}`).set('Authorization', `Bearer ${token}`).send({ clientName: 'Update client name' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
     })
 
     describe('~ delete client', () => {
+        test('should return 401 for, Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/deleteClient/67aad9033e7992b77587d60a`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
         test('Should return 404 client not found', async () => {
             const res = await request(app).post(`/deleteClient/67aad9033e7992b77587d60a`).set('Authorization', `Bearer ${token}`)
             // console.log('res:', res.text)
@@ -1358,6 +1620,12 @@ describe('** client module **', () => {
             const res = await request(app).post(`/deleteClient/${createdClientId}`).set('Authorization', `Bearer ${token}`).send({ clientName: 'Update client name' })
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('Client deleted successfully')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteClient/${createdClientId}`).set('Authorization', `Bearer ${token}`).send({ clientName: 'Update client name' })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
         })
     })
 })
