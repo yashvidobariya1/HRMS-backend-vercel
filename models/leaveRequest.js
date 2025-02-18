@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const leaveRequestSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-    jobTitle: String,
+    jobId: mongoose.Schema.Types.ObjectId,
     userName: String,
     userEmail: String,
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
@@ -11,14 +11,22 @@ const leaveRequestSchema = new mongoose.Schema({
     selectionDuration: String,
     startDate: String,
     endDate: String,
-    leaveDays: String,
+    leaveDays: Number,
+    numberOfApproveLeaves: Number,
+    leaves: [{
+        leaveDate: String,
+        leaveType: String,
+        isPaidLeave: Boolean,
+        isHalfPaidLeave: Boolean,
+        isApproved: { type: Boolean, default: false }
+    }],
     reasonOfLeave: String,
     status: {
         type: String,
         enum: ['Pending', 'Approved', 'Rejected'],
         default: 'Pending'
     },
-    isPaidLeave: Boolean,
+    // isPaidLeave: Boolean,
     approverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approverRole: String,
     approvalReason: String,

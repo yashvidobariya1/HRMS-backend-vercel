@@ -1,8 +1,9 @@
 const Notification = require("../models/notification");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
+const moment = require("moment");
 
-// manager or administartor : get all their notifications pending work
+// manager or administrator : get all their notifications pending work
 // exports.getNotifications = async (req, res) => {
 //     try {
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -142,12 +143,17 @@ exports.getNotifications = async (req, res) => {
             let useMatchStage = true
 
             if (req.user.role === "Superadmin") {
-                useMatchStage = false
-            } else {
-                const existingUser = await User.findById(userId).select("companyId")
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
     
                 if (!existingUser) {
-                    return res.status(404).json({ message: "User not found" })
+                    return res.send({ status: 404, message: "User not found" })
+                }
+                useMatchStage = false
+            } else {
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
+    
+                if (!existingUser) {
+                    return res.send({ status: 404, message: "User not found" })
                 }
     
                 if (req.user.role === "Administrator") {
@@ -296,19 +302,19 @@ exports.getNotifications = async (req, res) => {
                 unreadNotificationsCount,
                 notifications,
                 totalNotifications,
-                totalPages: Math.ceil(totalNotifications / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalNotifications / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.status(500).json({ message: "Error occurred while fetching notifications!" })
+        res.send({ message: "Error occurred while fetching notifications!" })
     }
 }
 
 exports.getUnreadNotificationsCount = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const userId = req.user._id
             let matchStage = {}
@@ -316,10 +322,10 @@ exports.getUnreadNotificationsCount = async (req, res) => {
             // if (req.user.role === "Superadmin") {
             //     matchStage = {}
             // } else {
-                const existingUser = await User.findById(userId).select("companyId")
+                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
                 if (!existingUser) {
-                    return res.status(404).json({ message: "User not found" })
+                    return res.send({ status: 404, message: "User not found" })
                 }
     
                 if (req.user.role === "Administrator") {
@@ -376,7 +382,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.status(500).json({ message: "Error occurred while fetching notifications!" })
+        res.send({ message: "Error occurred while fetching notifications!" })
     }
 }
 
@@ -385,9 +391,9 @@ exports.getNotification = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const notificationId = req.params.id
-            const notification = await Notification.findById(notificationId)
+            const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
-                return res.send({ status: 404, messgae: 'Notification not found.' })
+                return res.send({ status: 404, message: 'Notification not found.' })
             }
             // console.log('notification', notification)
             res.send({ status: 200, notification })
@@ -404,16 +410,16 @@ exports.readNotification = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const notificationId = req.params.id
 
-            const notification = await Notification.findById(notificationId)
+            const notification = await Notification.findOne({ _id: notificationId, isDeleted: { $ne: true } })
             if(!notification){
-                return res.status(404).json({ message: 'Notification not found' })
+                return res.send({ status: 404, message: 'Notification not found' })
             }
             
             notification?.readBy.map((item) => {
                 if(item.userId.toString() === req.user._id.toString()){
                     // console.log('notification read by ' + item.role)
                     item.isRead = true
-                    item.readAt = new Date()
+                    item.readAt = moment().toDate()
                 }
                 // console.log('item:', item)
             })

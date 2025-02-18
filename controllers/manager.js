@@ -2,6 +2,7 @@ const User = require('../models/user')
 const bcrypt = require('bcrypt')
 const { transporter } = require('../utils/nodeMailer')
 const cloudinary = require('../utils/cloudinary');
+const moment = require('moment')
 
 exports.addManager = async (req, res) => {
     // try {
@@ -201,20 +202,17 @@ exports.getAllManager = async (req, res) => {
     //         const limit = parseInt(req.query.limit) || 10
 
     //         const skip = (page - 1) * limit
-    //         const managers = await User.find({
-    //             role: "Manager",
-    //             isDeleted: { $ne: true }
-    //         }).skip(skip).limit(limit)
+    //         const managers = await User.find({ role: "Manager", isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-    //         const totalManagers = await User.countDocuments({ role: 'Manager', isDeleted: { $ne: true } })
+    //         const totalManagers = await User.find({ role: "Manager", isDeleted: { $ne: true } }).countDocuments()
 
     //         return res.send({
     //             status: 200,
     //             message: 'Manager all get successfully.',
     //             managers,
     //             totalManagers,
-    //             totalPage: Math.ceil(totalManagers / limit),
-    //             currentPage: page
+    //             totalPages: Math.ceil(totalManagers / limit) || 1,
+    //             currentPage: page || 1
     //         })
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
@@ -229,7 +227,7 @@ exports.updateManagerDetails = async (req, res) => {
     //     if (allowedRoles.includes(req.user.role)) {
     //         const managerId = req.params.id
 
-    //         const manager = await User.findById({
+    //         const manager = await User.findOne({
     //             _id: managerId,
     //             isDeleted: { $ne: true }
     //         })
@@ -330,7 +328,7 @@ exports.updateManagerDetails = async (req, res) => {
     //                     immigrationDetails,
     //                     documentDetails: documentDetailsFile,
     //                     contractDetails: contractDetailsFile,
-    //                     updatedAt: new Date()
+    //                     updatedAt: moment().toDate()
     //                 }
     //             }, { new: true }
     //         )
@@ -361,7 +359,7 @@ exports.deleteManager = async (req, res) => {
     //         let deletedManager = await User.findByIdAndUpdate(managerId, {
     //             $set: {
     //                 isDeleted: true,
-    //                 canceledAt: new Date()
+    //                 canceledAt: moment().toDate()
     //             }
     //         })
 

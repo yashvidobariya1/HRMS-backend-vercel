@@ -2,6 +2,7 @@ const User = require("../models/user")
 const bcrypt = require('bcrypt')
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
+const moment = require('moment')
 
 exports.addEmployee = async (req, res) => {
     // try {
@@ -208,15 +209,15 @@ exports.getAllEmployees = async (req, res) => {
 
     //         const employees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-    //         const totalEmployees = await User.countDocuments({ role: 'Employee', isDeleted: { $ne: true } })
+    //         const totalEmployees = await User.find({ role: 'Employee', isDeleted: { $ne: true } }).countDocuments()
             
     //         return res.send({
     //             status: 200,
     //             message: 'Employee all get successfully.',
     //             employees,
     //             totalEmployees,
-    //             totalPages: Math.ceil(totalEmployees / limit),
-    //             currentPage: page
+    //             totalPages: Math.ceil(totalEmployees / limit) || 1,
+    //             currentPage: page || 1
     //         })
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
@@ -331,7 +332,7 @@ exports.updateEmployee = async (req, res) => {
     //                     immigrationDetails,
     //                     documentDetails: documentDetailsFile,
     //                     contractDetails: contractDetailsFile,
-    //                     updatedAt: new Date()
+    //                     updatedAt: moment().toDate()
     //                 }
     //             }, { new: true }
     //         )
@@ -362,7 +363,7 @@ exports.deleteEmployee = async (req, res) => {
     //         let deletedEmployee = await User.findByIdAndUpdate(employeeId, {
     //             $set: {
     //                 isDeleted: true,
-    //                 canceledAt: new Date()
+    //                 canceledAt: moment().toDate()
     //             }
     //         })
 

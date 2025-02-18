@@ -8,6 +8,9 @@ const locationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'
     },
+    latitude: String,
+    longitude: String,
+    radius: String,
     payeReferenceNumber: String,
     locationName: String,
     address: String,

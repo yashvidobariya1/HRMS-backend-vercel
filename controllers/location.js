@@ -1,20 +1,24 @@
+const { default: mongoose } = require("mongoose");
 const Company = require("../models/company");
 const Location = require("../models/location");
 const User = require("../models/user");
+const Client = require("../models/client");
+const contract = require("../models/contract");
+const moment = require("moment");
 
 exports.addLocation = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved } = req.body
+            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius } = req.body
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found.' })
             }
             const locations = await Location.find({ companyId: companyId })
-            console.log('locations/...', locations)
+            // console.log('locations/...', locations)
             if (Array.isArray(locations)) {
                 for (const loc of locations) {
                     if (loc.locationName == locationName) {
@@ -27,6 +31,9 @@ exports.addLocation = async (req, res) => {
                 companyId,
                 payeReferenceNumber,
                 locationName,
+                latitude,
+                longitude,
+                radius,
                 address,
                 addressLine2,
                 city,
@@ -82,19 +89,15 @@ exports.getAllLocation = async (req, res) => {
 
             const locations = await Location.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-            const totalLocations = await Location.countDocuments({ isDeleted: { $ne: true } })
-
-            if (!locations) {
-                return res.send({ status: 404, message: 'Locations not found' })
-            }
+            const totalLocations = await Location.find({ isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,
                 message: 'Location all get successfully.',
-                locations,
+                locations: locations ? locations : [],
                 totalLocations,
-                totalPages: Math.ceil(totalLocations / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalLocations / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -105,92 +108,122 @@ exports.getAllLocation = async (req, res) => {
 
 exports.getCompanyLocations = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administartor', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
-            const companyId = req.params.id
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const companyId = req.query.companyId || req.user.companyId
 
-            const skip = (page - 1) * limit
-
-            const locations = await Location.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-
-            const totalCompanyLocations = await Location.countDocuments({ companyId, isDeleted: { $ne: true } })
-
-            if (!locations || locations.length === 0) {
-                return res.send({ status: 404, message: 'Location not found' })
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found!' })
             }
+
+            const clients = await Client.find({ companyId, isDeleted: { $ne: true } })
+            const formattedClients = clients.map(client => ({
+                _id: client._id,
+                name: client.clientName
+            }))
+
+            const companysContract = await contract.find({ companyId, isDeleted: { $ne: true } })
+            const formattedContract = companysContract.map(contract => ({
+                _id: contract._id,
+                contractType: contract.contractName,
+                contractDocument: contract.contractFileName
+            }))
+
+            let superadmin = {}
+            if(req.user.role === 'Superadmin'){
+                const existSuperadmin = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                superadmin._id = existSuperadmin?._id
+                superadmin.name = `${existSuperadmin?.personalDetails?.firstName} ${existSuperadmin?.personalDetails?.lastName}`
+                superadmin.role = req.user.role
+            }
+            
+            const locations = await Location.find({ companyId, isDeleted: { $ne: true } })
 
             const companiesAllLocations = await Promise.all(
                 locations.map(async (loc) => {
-                    const managers = await User.find({
+                    let assignee = []
+
+                    const allManagers = await User.find({
                         companyId,
-                        locationId: loc._id,
+                        locationId: { $in: [new mongoose.Types.ObjectId(loc._id)] },
                         role: 'Manager',
                         isDeleted: false,
                     }).then((managers) =>
                         managers.map((manager) => ({
                             _id: manager._id,
-                            managerName: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName}`,
+                            name: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName}`,
                             role: manager.role
                         }))
                     )        
 
-                    const administrator = await User.find({
+                    const administrators = await User.find({
                         companyId,
-                        locationId: loc._id,
+                        locationId: { $in: [new mongoose.Types.ObjectId(loc._id)] },
                         role: 'Administrator',
                         isDeleted: false,
                     })
-                    // console.log('administrator:', administrator)
-                    .then((administrator) =>
-                        administrator.map((admin) => ({
+                    // console.log('administrators:', administrators)
+                    .then((admins) =>
+                        admins.map((admin) => ({
                             _id: admin._id,
-                            administratorName: `${admin.personalDetails.firstName} ${admin.personalDetails.lastName}`,
+                            name: `${admin.personalDetails.firstName} ${admin.personalDetails.lastName}`,
                             role: admin.role
                         }))
                     )
 
-                    let assigning = []
-                    assigning.push(
-                        ...managers,
-                        administrator[0],
-                        superAdmin = {
-                            _id: req.user._id,
-                            superAdminName: `${req.user.personalDetails.firstName} ${req.user.personalDetails.lastName}`,
-                            role: req.user.role
-                        }
-                    )
+                    if (req.user.role === 'Superadmin') {
+                        if (allManagers.length > 0) assignee.push(...allManagers)
+                        if (administrators.length > 0) assignee.push(...administrators)
+                        assignee.push(superadmin)
+                    } else if (req.user.role === 'Administrator') {
+                        if (allManagers.length > 0) assignee.push(...allManagers)
+                        if(administrators.length > 0) assignee.push(...administrators) 
+                    } else if (req.user.role === 'Manager') {
+                        if (allManagers.length > 0) assignee.push(...allManagers)
+                    }
+                    
 
                     return {
                         _id: loc._id,
-                        locationName: loc.locationName,
-                        assigning
-                        // assigning: {
-                        //     managers,
-                        //     administrator: administrator[0],
-                        //     superAdmin: {
-                        //         _id: req.user._id,
-                        //         superAdminName: `${req.user.personalDetails.firstName} ${req.user.personalDetails.lastName}`,
-                        //         role: req.user.role
-                        //     }
-                        // }
+                        locationName: `${loc?.locationName} (${company?.companyDetails?.businessName})`,
+                        assignee,
                     }
                 })
             )
-        
+
+            let filteredLocations
+
+            if(req.user.role === 'Superadmin'){
+                filteredLocations = companiesAllLocations.filter((loc) => loc !== null)
+            } else if(req.user.role == 'Administrator'){
+                filteredLocations = companiesAllLocations.filter((loc) => {
+                    const allowedLocation = req.user?.locationId
+                    if(allowedLocation.includes(loc._id)){
+                        return loc
+                    }
+                })
+            } else if(req.user.role === 'Manager'){
+                filteredLocations = companiesAllLocations.filter((loc) => {
+                    const allowedLocation = req.user?.locationId
+                    if(allowedLocation.includes(loc._id)){
+                        return loc
+                    }
+                })
+            }
+
             return res.send({
-                status:200,
-                message: 'Location getted successfully.',
-                companiesAllLocations,
-                totalCompanyLocations,
-                totalPages: Math.ceil(totalCompanyLocations / limit),
-                currentPage: page,
-            })
-        } else return res.send({ status: 403, message: "Access denied" })
+                status: 200,
+                message: 'Locations fetched successfully.',
+                companyId,
+                companiesAllLocations: filteredLocations,
+                clients: formattedClients,
+                contracts: formattedContract
+            });
+        } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {
         console.error("Error occurred while getting location:", error);
-        res.send({ message: "Something went wrong while getting location!" })
+        res.send({ message: "Something went wrong while getting location!" });
     }
 }
 
@@ -216,13 +249,16 @@ exports.updateLocationDetails = async (req, res) => {
                         companyId: req.body.companyId,
                         payeReferenceNumber: req.body.payeReferenceNumber,
                         locationName: req.body.locationName,
+                        latitude: req.body.latitude,
+                        longitude: req.body.longitude,
+                        radius: req.body.radius,
                         address: req.body.address,
                         addressLine2: req.body.addressLine2,
                         city: req.body.city,
                         postcode: req.body.postcode,
                         country: req.body.country,
                         ukviApproved: req.body.ukviApproved,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -255,7 +291,7 @@ exports.deleteLocation = async (req, res) => {
                 {
                     $set: {
                         isDeleted: true,
-                        canceledAt: new Date()
+                        canceledAt: moment().toDate()
                     }
                 })
 

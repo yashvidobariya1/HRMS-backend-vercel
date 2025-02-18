@@ -1,6 +1,7 @@
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const cloudinary = require('../utils/cloudinary');
+const moment = require('moment');
 
 exports.addContract = async (req, res) => {
     try {
@@ -14,9 +15,9 @@ exports.addContract = async (req, res) => {
                 contractFileName
             } = req.body
 
-            const company = await Company.findById(companyId)
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
-                return res.send({ status: 404, message: 'Compnay not found.' })
+                return res.send({ status: 404, message: 'Company not found.' })
             }
 
             if (!contractName || !contract) {
@@ -45,7 +46,7 @@ exports.addContract = async (req, res) => {
                     // console.log('Cloudinary response:', element);
                     contract = element.secure_url
                 } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    // console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
@@ -82,17 +83,23 @@ exports.getAllContract = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-
-            const totalContracts = await Contract.countDocuments({ isDeleted: { $ne: true } })
+            let contracts
+            let totalContracts
+            if(req.user.role === 'Superadmin'){
+                contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalContracts = await Contract.find({ isDeleted: { $ne: true } }).countDocuments()
+            } else {
+                contracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalContracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            }
 
             return res.send({
                 status: 200,
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalContracts / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalContracts / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -109,18 +116,23 @@ exports.getAllContractOfCompany = async (req, res) => {
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
+            const companyId = req.body.companyId || req.user.companyId
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
 
-            const contracts = await Contract.find({ companyId: req.body.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const contracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-            const totalContracts = await Contract.countDocuments({ companyId: req.body.companyId, isDeleted: { $ne: true } })
+            const totalContracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,
                 message: 'Contracts all get successfully.',
                 contracts,
                 totalContracts,
-                totalPages: Math.ceil(totalContracts / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalContracts / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -213,7 +225,7 @@ exports.updateContract = async (req, res) => {
                         contract,
                         contractFileName,
                         companyId,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -241,7 +253,15 @@ exports.deleteContract = async (req, res) => {
                 return res.send({ status: 404, message: 'Contract not found' })
             }
 
-            let deletedContract = await Contract.findByIdAndDelete(contractId)
+            let deletedContract = await Contract.findByIdAndUpdate(
+                { _id: contractId, isDeleted: { $ne: true } },
+                { 
+                    $set: { 
+                        isDeleted: true,
+                        cancelAt: moment().toDate()
+                    }
+                }
+            )
 
             return res.send({ status: 200, message: 'Contract deleted successfully.', deletedContract })
         } else return res.send({ status: 403, message: "Access denied" })

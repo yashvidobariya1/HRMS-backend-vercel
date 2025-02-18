@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken')
+// const CryptoJS = require("crypto-js")
 
 const userSchema = new mongoose.Schema({
   isDeleted: {
@@ -55,6 +56,7 @@ const userSchema = new mongoose.Schema({
     leavesAllow: Number,
     location: String,
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     role: String
   }],
   immigrationDetails: {
@@ -115,18 +117,22 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId
   },
   lastTimeLoggedIn: Date,
+  lastTimeLoggedOut: Date,
   canceledAt: Date,
 }, { timestamps: true });
 
 userSchema.methods.generateAuthToken = async function() {
   const user = this
   const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
-
-  user.token = user.token
-  await user.save()
-
   return token
 }
+
+// userSchema.methods.generateAuthToken = async function () {
+//   const user = this
+//   const JWTToken = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
+//   const encrypted_token = CryptoJS.AES.encrypt(JWTToken, process.env.ENCRYPTION_SECRET_KEY).toString()
+//   return { JWTToken, encrypted_token }
+// }
 
 const User = mongoose.model('User', userSchema);
 

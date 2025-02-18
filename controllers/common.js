@@ -2,6 +2,9 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
+const Location = require("../models/location");
+const moment = require('moment')
+// const CryptoJS = require("crypto-js")
 
 exports.login = async (req, res) => {
     try {
@@ -17,6 +20,7 @@ exports.login = async (req, res) => {
 
         const token = await isExist.generateAuthToken()
         isExist.token = token
+        // isExist.token = token.JWTToken
         isExist.save()
 
         const personalDetails = isExist?.personalDetails
@@ -25,11 +29,12 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
-            isExist.lastTimeLoggedIn = new Date()
+            isExist.lastTimeLoggedIn = moment().toDate()
             return res.send({
                 status: 200,
                 message: "User login successfully",
                 user: { personalDetails, role, token, createdAt, _id },
+                // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
             });
         } else {
             const hashedPassword = isExist.password;
@@ -39,13 +44,14 @@ exports.login = async (req, res) => {
                     return res.send({ status: 500, message: "Internal server error" });
                 }
                 if (!result) {
-                    return res.send({ status: 404, message: "Invalid credential" });
+                    return res.send({ status: 401, message: "Invalid credential" });
                 }
-                isExist.lastTimeLoggedIn = new Date()
+                isExist.lastTimeLoggedIn = moment().toDate()
                 return res.send({
                     status: 200,
                     message: "User login successfully",
                     user: { personalDetails, role, token, createdAt, _id },
+                    // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
                 });
             });
         }
@@ -54,6 +60,45 @@ exports.login = async (req, res) => {
         res.send({ message: "Something went wrong while login!" })
     }
 };
+
+exports.logOut = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!existUser){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            existUser.token = ""
+            existUser.lastTimeLoggedOut = moment().toDate()
+            await existUser.save()
+            return res.send({ status: 200, message: 'Logging out successfully.' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while logging out:', error)
+        res.send({ message: 'Error occurred while logging out!' })
+    }
+}
+
+// Backend developer use only
+exports.decodeJWTtoken = async (req, res) => {
+    // try {
+    //     const { token } = req.body
+
+    //     const bytes = CryptoJS.AES.decrypt(token, process.env.ENCRYPTION_SECRET_KEY)
+
+    //     const decryptToken = bytes.toString(CryptoJS.enc.Utf8)
+
+    //     return res.send({ status: 200, message: 'Decode successfully', decryptToken })
+
+    // } catch (error) {
+    //     console.error('Error occurred while decoding token:', error)
+    //     res.send({ message: 'Error occurred while decoding token!' })
+    // }
+}
 
 exports.emailVerification = async (req, res) => {
     try {
@@ -224,6 +269,77 @@ exports.getDetails = async (req, res) => {
     }
 }
 
+exports.updateProfileDetails = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+
+            const {
+                firstName,
+                middleName,
+                lastName,
+                dateOfBirth,
+                gender,
+                maritalStatus,
+                phone,
+                homeTelephone,
+                email,
+            } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const updatedUser = await User.findByIdAndUpdate(
+                { _id: user._id, isDeleted: { $ne: true } },
+                {
+                    $set: {
+                        personalDetails: {
+                            firstName,
+                            middleName,
+                            lastName,
+                            dateOfBirth,
+                            gender,
+                            maritalStatus,
+                            phone,
+                            homeTelephone,
+                            email,
+                            niNumber: user?.personalDetails?.niNumber,
+                            sendRegistrationLink: user?.personalDetails?.sendRegistrationLink,
+                        },
+                        addressDetails: user?.addressDetails,
+                        kinDetails: user?.kinDetails,
+                        financialDetails: user?.financialDetails,
+                        immigrationDetails: user?.immigrationDetails,
+                        jobDetails: user?.jobDetails,
+                        documentDetails: user?.documentDetails,
+                        contractDetails: user?.contractDetails,
+                    }
+                }, { new: true }
+            )
+
+            let uUser = {
+                firstName: updatedUser?.personalDetails?.firstName,
+                middleName: updatedUser?.personalDetails?.middleName,
+                lastName: updatedUser?.personalDetails?.lastName,
+                dateOfBirth: updatedUser?.personalDetails?.dateOfBirth,
+                gender: updatedUser?.personalDetails?.gender,
+                maritalStatus: updatedUser?.personalDetails?.maritalStatus,
+                phone: updatedUser?.personalDetails?.phone,
+                homeTelephone: updatedUser?.personalDetails?.homeTelephone,
+                email: updatedUser?.personalDetails?.email,
+            }
+
+            return res.send({ status:200, message: 'Profile updated successfully.', updatedUser: uUser })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while updating profile details:', error)
+        res.send({ message: 'Error occurred while updating profile details!' })
+    }
+}
+
 exports.addUser = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -234,12 +350,24 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
-                companyId,
+                // companyId,
                 // locationId,
                 immigrationDetails,
                 documentDetails,
                 contractDetails
             } = req.body
+
+            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            // if(!company){
+            //     return res.send({ status: 404, message: 'Company not found' })
+            // }
+
+            // const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
+            // console.log('allCompanysEmployees:', allCompanysEmployees)
+            // console.log('company?.contractDetails?.maxEmployeesAllowed:', company?.contractDetails?.maxEmployeesAllowed)
+            // if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
+            //     return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
+            // }
 
             if (personalDetails && personalDetails.email) {
                 const user = await User.findOne({ "personalDetails.email": personalDetails.email })
@@ -282,7 +410,7 @@ exports.addUser = async (req, res) => {
             }
 
             let contractDetailsFile
-            if (contractDetails) {
+            if (contractDetails?.contractDocument) {
                 const document = contractDetails.contractDocument
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document')
@@ -321,6 +449,11 @@ exports.addUser = async (req, res) => {
 
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
+
+            let companyId
+            const locationId = jobDetails[0]?.location
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            companyId = location?.companyId
 
             const newUser = {
                 personalDetails,
@@ -373,7 +506,7 @@ exports.addUser = async (req, res) => {
                     };
 
                     await transporter.sendMail(mailOptions);
-                    console.log('Email sent successfully');
+                    // console.log('Email sent successfully');
                 } catch (error) {
                     console.log('Error occurred:', error);
                 }
@@ -425,17 +558,27 @@ exports.getAllUsers = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            let users
+            let totalUsers
 
-            const totalUsers = await User.countDocuments({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } })
+            if(req.user.role === 'Superadmin'){
+                users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            } else if(req.user.role === 'Administrator') {
+                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            } else {
+                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            }
 
             return res.send({
                 status: 200,
-                message: 'Users get successfully.',
+                message: 'Users got successfully.',
                 users,
                 totalUsers,
-                totalPages: Math.ceil(totalUsers / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalUsers / limit) || 1,
+                currentPage: page || 1
             })
         } else {
             return res.send({ status: 403, message: "Access denied" })
@@ -568,7 +711,7 @@ exports.updateUserDetails = async (req, res) => {
                         immigrationDetails,
                         documentDetails: documentDetailsFile,
                         contractDetails: contractDetailsFile,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -599,7 +742,7 @@ exports.deleteUserDetails = async (req, res) => {
             let deletedUser = await User.findByIdAndUpdate(userId, {
                 $set: {
                     isDeleted: true,
-                    canceledAt: new Date()
+                    canceledAt: moment().toDate()
                 }
             })
 
@@ -613,21 +756,21 @@ exports.deleteUserDetails = async (req, res) => {
 
 exports.getUserJobTitles = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const userId = req.user._id
-            const user = await User.findById(userId)
+            const userId = req.query.EmployeeId || req.user._id
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
-            const jobTitle = []
+            const jobTitles = []
             user?.jobDetails.map((job) => {
-                jobTitle.push(job.jobTitle)
+                jobTitles.push({ jobId: job._id, jobName: job.jobTitle })
             })
-            if(jobTitle.length > 1){
-                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: true, jobTitle })
+            if(jobTitles.length > 1){
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: true, jobTitles })
             } else {
-                res.send({ status: 200, message: 'User role and job type get successfully.', multipleJobTitle: false, jobTitle })
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: false, jobTitles })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -644,12 +787,13 @@ exports.getUserJobTitles = async (req, res) => {
 
 // =================================================================pending work for generating the offer letter===========================================================
 
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const axios = require("axios");
-const pdf = require('pdf-parse');
-const puppeteer = require('puppeteer');
-const streamifier = require("streamifier");
-const Contract = require("../models/contract");
+// const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+// const axios = require("axios");
+// const pdf = require('pdf-parse');
+// const puppeteer = require('puppeteer');
+// const streamifier = require("streamifier");
+// const Contract = require("../models/contract");
+// const Company = require("../models/company");
 
 
 // first method
@@ -788,7 +932,7 @@ async function replacePlaceholdersInPDF(pdfBytes, data) {
 
 const getContractById = async (contractId) => {
     
-    const contract = await Contract.findById(contractId)
+    const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
 
     return {
         contractName: contract?.contractName,
@@ -809,7 +953,7 @@ const getContractById = async (contractId) => {
 
 //         const gettedContract = await getContractById(contractId)
 //         if(!gettedContract){
-//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//             return res.send({ status: 404, message: 'Contract not found!' })
 //         }
 //         const cloudinaryUrl = gettedContract?.contractURL;
 //         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
@@ -1166,7 +1310,7 @@ exports.generateContractLetter = async (req, res) => {
 
 //         const gettedContract = await getContractById(contractId)
 //         if(!gettedContract){
-//             return res.send({ status: 404, meesage: 'Contract not found!' })
+//             return res.send({ status: 404, message: 'Contract not found!' })
 //         }
 //         const cloudinaryUrl = gettedContract?.contractURL;
 //         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });

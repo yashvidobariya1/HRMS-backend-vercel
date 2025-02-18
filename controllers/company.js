@@ -1,6 +1,7 @@
 const Company = require("../models/company");
 const Location = require("../models/location");
 const cloudinary = require('../utils/cloudinary')
+const moment = require('moment')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -48,6 +49,9 @@ exports.addCompany = async (req, res) => {
                 companyId: company._id,
                 payeReferenceNumber: company?.companyDetails?.payeReferenceNumber,
                 locationName: company?.companyDetails?.locationName || "Head Office",
+                latitude: "",
+                longitude: "",
+                radius: "",
                 address: company?.companyDetails?.address,
                 addressLine2: company?.companyDetails?.addressLine2,
                 city: company?.companyDetails?.city,
@@ -101,15 +105,15 @@ exports.getAllCompany = async (req, res) => {
 
             const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
 
-            const totalCompanies = await Company.countDocuments({ isDeleted: { $ne: true } })
+            const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
 
             return res.send({
                 status: 200,
                 message: 'Company all get successfully.',
                 companies,
                 totalCompanies,
-                totalPages: Math.ceil(totalCompanies / limit),
-                currentPage: page
+                totalPages: Math.ceil(totalCompanies / limit) || 1,
+                currentPage: page || 1
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
@@ -172,7 +176,7 @@ exports.updateCompanyDetails = async (req, res) => {
                         },
                         employeeSettings,
                         contractDetails,
-                        updatedAt: new Date()
+                        updatedAt: moment().toDate()
                     }
                 }, { new: true }
             )
@@ -203,7 +207,7 @@ exports.deleteCompany = async (req, res) => {
             let deletedCompany = await Company.findByIdAndUpdate(companyId, {
                 $set: {
                     isDeleted: true,
-                    canceledAt: new Date()
+                    canceledAt: moment().toDate()
                 }
             })
 
