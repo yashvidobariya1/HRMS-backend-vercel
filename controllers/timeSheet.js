@@ -16,6 +16,8 @@ exports.clockInFunc = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobId, isMobile, qrValue } = req.body
 
+            console.log("location",location);
+            
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
