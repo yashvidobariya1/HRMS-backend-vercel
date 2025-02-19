@@ -290,7 +290,8 @@ exports.leaveRequest = async (req, res) => {
             const holidays = await Holiday.find({
                 companyId: user.companyId,
                 locationId: { $in: user.locationId },
-                date: { $gte: startDate, $lte: endDate ? endDate : startDate }
+                date: { $gte: startDate, $lte: endDate ? endDate : startDate },
+                isDeleted: { $ne: true }
             });
 
             const holidayDates = holidays.map(holiday => holiday.date);
@@ -424,7 +425,7 @@ exports.leaveRequest = async (req, res) => {
                 selectionDuration,
                 startDate,
                 endDate,
-                leaveDays,
+                totalLeaveDays: leaveDays,
                 numberOfApproveLeaves: 0,
                 leaves,
                 reasonOfLeave,
@@ -595,14 +596,14 @@ exports.getAllowLeaveCount = async (req, res) => {
 
             const allLeavesOfUser = await Leave.find({
                 userId,
-                status: 'Approved',
+                // status: 'Approved',
                 jobId,
                 isDeleted: { $ne: true },
                 createdAt: { $gte: startDate, $lte: endDate }
             })
 
             const leaveCountByType = allLeavesOfUser.reduce((acc, leave) => {
-                const leaveDays = parseFloat(leave.leaveDays)
+                const leaveDays = parseFloat(leave.totalLeaveDays)
                 if (leaveDays > 0) {
                     leave.leaves.forEach(day => {
                         if (day.isApproved === true) {
@@ -710,13 +711,20 @@ exports.updateLeaveRequest = async (req, res) => {
             const LRId = req.params.id
             const {
                 leaveType,
-                slectionDuration,
+                selectionDuration,
                 startDate,
                 endDate,
-                leaveDays,
+                jobId,
+                // leaveDays,
                 reasonOfLeave,
-                isPaidLeave,
+                // isPaidLeave,
             } = req.body
+
+            const user = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
             const leaveRequest = await Leave.findOne({_id: LRId, isDeleted: { $ne: true }})
             if(!leaveRequest){
                 return res.send({ status: 404, message: 'Leave request not found' })
@@ -725,17 +733,130 @@ exports.updateLeaveRequest = async (req, res) => {
                 return res.send({ status: 403, message: `Leave request has already been ${leaveRequest.status}.` })
             }
 
+            const mockReq = { body: { jobId }, user }
+            const mockRes = { send: (response) => response }
+            
+            const leaveCountResponse = await this.getAllowLeaveCount(mockReq, mockRes)
+            if (leaveCountResponse.status !== 200) {
+                return res.send(leaveCountResponse)
+            }
+
+            const remainingLeaves = leaveCountResponse.leaveCount
+            let paidLeaveBalance = remainingLeaves[leaveType] || 0
+
+            const holidays = await Holiday.find({
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
+                date: { $gte: startDate, $lte: endDate ? endDate : startDate },
+                isDeleted: { $ne: true }
+            });
+
+            const holidayDates = holidays.map(holiday => holiday.date);
+
+            const start = moment(startDate, 'YYYY-MM-DD'); 
+            const end = endDate ? moment(endDate, 'YYYY-MM-DD') : start.clone()
+            const totalDays = end.diff(start, 'days') + 1
+
+            if (!start.isValid() || !end.isValid() || start.isAfter(end)) {
+                return res.send({ status: 400, message: "Invalid date range!" })
+            }
+
+            let effectiveLeaveDays = 0
+            let weekends = 0
+            let holidaysInLeavePeriod = 0
+
+            for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'days')) {
+                let formattedDate = date.format('YYYY-MM-DD')
+
+                if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
+                    weekends++
+                    continue
+                }
+
+                if (holidayDates.includes(formattedDate)) {
+                    holidaysInLeavePeriod++
+                    continue
+                }
+
+                effectiveLeaveDays++
+            }
+
+            if (effectiveLeaveDays <= 0) {
+                return res.send({ status: 400, message: "Selected leave period contains weekends or holidays, no leave required!" })
+            }
+
+            let leaveDays
+            if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
+                leaveDays = 0.5
+            } else if (selectionDuration === 'Multiple') {
+                leaveDays = effectiveLeaveDays
+            } else leaveDays = 1
+
+            let usedPaidLeave = 0
+            let usedHalfPaidLeave = 0
+            let usedUnpaidLeave = 0
+            let leaves = []
+
+            for (let i = 0; i < totalDays; i++) {
+                let leaveDate = start.clone().add(i, 'days').format('YYYY-MM-DD');
+                if (!holidayDates.includes(leaveDate) && moment(leaveDate).isoWeekday() !== 6 && moment(leaveDate).isoWeekday() !== 7) {
+                    let isPaidLeave = false;
+                    let isHalfPaidLeave = false;
+                
+                    if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
+                        if (paidLeaveBalance >= 0.5) {
+                            isHalfPaidLeave = true;
+                            paidLeaveBalance -= 0.5;
+                            usedHalfPaidLeave++;
+                        } else {
+                            usedUnpaidLeave += 0.5;
+                        }
+                
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave: false,
+                            isHalfPaidLeave: true, 
+                            isApproved: false,
+                            selectionDuration
+                        });
+                
+                        break; // Stop after adding a single half-day leave entry
+                    } else {
+                        if (paidLeaveBalance >= 1) {
+                            isPaidLeave = true;
+                            paidLeaveBalance -= 1;
+                            usedPaidLeave++;
+                        } else if (paidLeaveBalance > 0) {
+                            isHalfPaidLeave = true;
+                            paidLeaveBalance = 0; // Half-day leave fully consumed
+                            usedHalfPaidLeave++;
+                        } else {
+                            usedUnpaidLeave++;
+                        }
+                
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave,
+                            isHalfPaidLeave,
+                            isApproved: false
+                        });
+                    }
+                }
+            }
+
             const updatedLeaveRequest = await Leave.findByIdAndUpdate(
                 { _id: LRId },
                 {
                     $set: {
                         leaveType,
-                        slectionDuration,
+                        selectionDuration,
                         startDate,
                         endDate,
-                        leaveDays,
+                        totalLeaveDays: leaveDays,
+                        leaves,
                         reasonOfLeave,
-                        isPaidLeave,
                     }
                 }, { new: true }
             )

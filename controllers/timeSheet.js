@@ -1125,7 +1125,7 @@ exports.getAllQRCodes = async (req, res) => {
             const QRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).skip(skip).limit(limit)
             const totalQRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).countDocuments()
 
-            let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
+            let qrValue = `${location?.locationName}-${company?.companyDetails?.businessName}`
 
             return res.send({
                 status: 200,

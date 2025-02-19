@@ -1831,7 +1831,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                     jobId: userJobId,
                     location: { latitude: 12.121212, longitude: 21.212121 }
                 })
-                console.log('res:', res.text)
+                // console.log('res:', res.text)
             expect(JSON.parse(res.text).status).toBe(200)
         })
         test('should return 404 for non-existing user', async () => {
@@ -2869,6 +2869,16 @@ describe('leave management======================================================
                 expect(JSON.parse(res.text).status).toBe(401)
                 expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
             })
+            test('should return 404 for JobTitle not found', async () => {
+                await User.findOneAndUpdate(
+                    { _id: userId },
+                    { $set: { isDeleted: false, role: 'Administrator' } }
+                )
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${ADToken}`)
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
             test('should return 404 for leave request not found', async () => {
                 await User.findOneAndUpdate(
                     { _id: userId },
@@ -2879,8 +2889,14 @@ describe('leave management======================================================
                 expect(JSON.parse(res.text).status).toBe(404)
                 expect(JSON.parse(res.text).message).toBe('Leave request not found')
             })
+            test('should return 400 for Invalid date range', async () => {
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${ADToken}`).send({ jobId: userJobId, reasonOfLeave: 'update leave reason' })
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(400)
+                expect(JSON.parse(res.text).message).toBe('Invalid date range!')
+            })
             test('should return 200 for leave request updated successfully', async () => {
-                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${ADToken}`)
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${ADToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
                 expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
@@ -3123,8 +3139,24 @@ describe('leave management======================================================
                 expect(JSON.parse(res.text).status).toBe(404)
                 expect(JSON.parse(res.text).message).toBe('Leave request not found')
             })
-            test('should return 200 for leave request updated successfully', async () => {
+            test('should return 404 for jobtile not found', async () => {
+                await User.findOneAndUpdate(
+                    { _id: userId },
+                    { $set: { isDeleted: false, role: 'Manager' } }
+                )
                 const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${MToken}`)
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
+            test('should return 400 for Invalid date range', async () => {
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${MToken}`).send({ jobId: userJobId, reasonOfLeave: 'update leave reason' })
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(400)
+                expect(JSON.parse(res.text).message).toBe('Invalid date range!')
+            })
+            test('should return 200 for leave request updated successfully', async () => {
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${MToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
                 expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
@@ -3341,8 +3373,24 @@ describe('leave management======================================================
                 expect(JSON.parse(res.text).status).toBe(404)
                 expect(JSON.parse(res.text).message).toBe('Leave request not found')
             })
-            test('should return 200 for leave request updated successfully', async () => {
+            test('should return 404 for jobTitle not found', async () => {
+                await User.findOneAndUpdate(
+                    { _id: userId },
+                    { $set: { isDeleted: false, role: 'Employee' } }
+                )
                 const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${EToken}`)
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
+            test('should return 400 for Invalid date range', async () => {
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${EToken}`).send({ jobId: userJobId, reasonOfLeave: 'update leave reason' })
+                // console.log('res:', JSON.parse(res.text))
+                expect(JSON.parse(res.text).status).toBe(400)
+                expect(JSON.parse(res.text).message).toBe('Invalid date range!')
+            })
+            test('should return 200 for leave request updated successfully', async () => {
+                const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${EToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
                 expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
