@@ -15,6 +15,7 @@ exports.clockInFunc = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobId, isMobile, qrValue } = req.body
+            console.log('Location:', location)
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
@@ -28,7 +29,7 @@ exports.clockInFunc = async (req, res) => {
                 const qrCode = await QR.findOne({
                     qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
+                    isActive: { $ne: false },
                     locationId: { $in: existUser?.locationId },
                 })
                 
@@ -37,10 +38,12 @@ exports.clockInFunc = async (req, res) => {
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -49,18 +52,13 @@ exports.clockInFunc = async (req, res) => {
             await User.updateOne(
                 { _id: existUser._id },
                 { $set: { lastKnownLocation: location } }
-            )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 1000 // meters
+            )            
+            
+            const GEOFENCE_CENTER = {
+                latitude: companyLocation?.latitude,
+                longitude: companyLocation?.longitude
+            }
+            const GEOFENCE_RADIUS = companyLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -233,6 +231,7 @@ exports.clockOutFunc = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobId, isMobile, qrValue } = req.body
+            console.log('Location:', location)
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
@@ -246,7 +245,7 @@ exports.clockOutFunc = async (req, res) => {
                 const qrCode = await QR.findOne({
                     qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
+                    isActive: { $ne: false },
                     locationId: { $in: existUser?.locationId },
                 })
                 
@@ -260,6 +259,8 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
             }
@@ -269,16 +270,11 @@ exports.clockOutFunc = async (req, res) => {
                 { $set: { lastKnownLocation: location } }
             )
 
-            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 1000 // meters
+            const GEOFENCE_CENTER = {
+                latitude: companyLocation?.latitude,
+                longitude: companyLocation?.longitude
+            }
+            const GEOFENCE_RADIUS = companyLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },

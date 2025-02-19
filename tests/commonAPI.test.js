@@ -1798,13 +1798,21 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                     businessName: 'testingCompany'
                 }
             })
+            const location = await Location.create({
+                companyId: company._id,
+                latitude: "12.121212",
+                longitude: "21.212121",
+                radius: "1000",
+                locationName: "second location",
+                ukviApproved: true
+            })
             const user = await User.create({
                 personalDetails: {
                     email: 'testingforclockin@gmail.com'
                 },
                 companyId: company._id,
                 password: 'Password123',
-                jobDetails: [{ jobTitle: 'webDeveloper' }],
+                jobDetails: [{ jobTitle: 'webDeveloper', location: location._id }],
                 role: 'Employee'
             })
             userId = user._id
@@ -1821,8 +1829,9 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
+                console.log('res:', res.text)
             expect(JSON.parse(res.text).status).toBe(200)
         })
         test('should return 404 for non-existing user', async () => {
@@ -1838,7 +1847,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
             .send({
                 userId,
                 jobId: userJobId,
-                location: { latitude: 21.2337, longitude: 72.8138 },
+                location: { latitude: 12.121212, longitude: 21.212121 },
                 isMobile: true
             })
             expect(JSON.parse(res.text).status).toBe(400)
@@ -1876,7 +1885,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(400)
             expect(JSON.parse(res.text).message).toBe('Please clock out before clockin again.')
@@ -1887,7 +1896,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(403)
             expect(JSON.parse(res.text).message).toBe('Access denied')
@@ -1903,13 +1912,21 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                     businessName: 'testingCompany'
                 }
             })
+            const location = await Location.create({
+                companyId: company._id,
+                latitude: "12.121212",
+                longitude: "21.212121",
+                radius: "1000",
+                locationName: "second location",
+                ukviApproved: true
+            })
             const user = await User.create({
                 personalDetails: {
                     email: 'testingforclockout@gmail.com'
                 },
                 companyId: company._id,
                 password: 'Password123',
-                jobDetails: [{ jobTitle: 'webDeveloper' }],
+                jobDetails: [{ jobTitle: 'webDeveloper', location: location._id }],
                 role: 'Employee'
             })
             userId = user._id
@@ -1934,7 +1951,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
             .send({
                 userId,
                 jobId: userJobId,
-                location: { latitude: 21.2337, longitude: 72.8138 },
+                location: { latitude: 12.121212, longitude: 21.212121 },
                 isMobile: true
             })
             expect(JSON.parse(res.text).status).toBe(400)
@@ -1972,7 +1989,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(404)
             expect(JSON.parse(res.text).message).toBe('No timesheet found for today.')
@@ -1982,14 +1999,14 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(clockIn.text).status).toBe(200)
             const res = await request(app).post('/clockOut').set('Authorization', `Bearer ${userToken}`)
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(200)
         })
@@ -1998,7 +2015,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(400)
             expect(JSON.parse(res.text).message).toBe("You can't clock-out without an active clock-in.")
@@ -2009,7 +2026,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 .send({
                     userId,
                     jobId: userJobId,
-                    location: { latitude: 21.2337, longitude: 72.8138 }
+                    location: { latitude: 12.121212, longitude: 21.212121 }
                 })
             expect(JSON.parse(res.text).status).toBe(403)
             expect(JSON.parse(res.text).message).toBe('Access denied')
