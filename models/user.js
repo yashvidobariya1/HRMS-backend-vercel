@@ -85,6 +85,7 @@ const userSchema = new mongoose.Schema({
       fileName: String,
       fileURL: String,
     },
+    contractId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' }
   },
   password: String,
   role: {

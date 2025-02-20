@@ -83,23 +83,6 @@ exports.logOut = async (req, res) => {
     }
 }
 
-// Backend developer use only
-exports.decodeJWTtoken = async (req, res) => {
-    // try {
-    //     const { token } = req.body
-
-    //     const bytes = CryptoJS.AES.decrypt(token, process.env.ENCRYPTION_SECRET_KEY)
-
-    //     const decryptToken = bytes.toString(CryptoJS.enc.Utf8)
-
-    //     return res.send({ status: 200, message: 'Decode successfully', decryptToken })
-
-    // } catch (error) {
-    //     console.error('Error occurred while decoding token:', error)
-    //     res.send({ message: 'Error occurred while decoding token!' })
-    // }
-}
-
 exports.emailVerification = async (req, res) => {
     try {
         const { email } = req.body

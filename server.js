@@ -9,6 +9,8 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 require("./db").connect();
 require("dotenv").config();
 
+app.set("view engine", "ejs");
+
 let port = process.env.PORT || 3001;
 
 const managerRoute = require('./routes/managerRoute');

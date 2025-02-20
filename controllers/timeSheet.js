@@ -9,6 +9,10 @@ const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 const moment = require('moment');
 const Holiday = require("../models/holiday");
+const ejs = require("ejs");
+const puppeteer = require("puppeteer");
+const ExcelJS = require("exceljs")
+const path = require("path");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -552,35 +556,6 @@ exports.getOwnAllTimeSheets = async (req, res) => {
     }
 }
 
-// pending work
-exports.getTimesheetByMonthAndYear = async (req, res) =>{
-    // try {
-    //     const allowedRoles = ['Superadmin', 'Administrator'];
-    //     if (allowedRoles.includes(req.user.role)) {
-    //         const { month, year } = req.body;
-
-    //         if (!month || !year) {
-    //             return res.status(400).json({ message: 'Month and year are required' });
-    //         }
-
-        
-    //         const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
-    //         const endDate = new Date(startDate);
-    //         endDate.setMonth(startDate.getMonth() + 1);
-
-    //         const timesheets = await Timesheet.find({
-    //             createdAt: { $gte: startDate, $lt: endDate }
-    //         }).populate('userId', 'personalDetails jobDetails')
-
-    //         res.send({ status: 200, timesheets });
-
-    //     } else return res.send({ status: 403, message: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error osccured while getting timesheet:', error)
-    //     res.send({ message: 'Something went wrong while getting timesheet!' })
-    // }
-}
-
 exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
@@ -836,17 +811,231 @@ exports.getTimesheetReport = async (req, res) => {
     }
 }
 
-exports.downloadTimesheetReport = async (req, res) => {
+// old method
+// exports.downloadTimesheetReport = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+//         if(allowedRoles.includes(req.user.role)){
+//             const page = parseInt(req.query.page) || 1
+//             const limit = parseInt(req.query.limit) || 10
+
+//             const skip = (page - 1) * limit
+
+//             const userId = req.body.userId || req.user._id
+//             const { jobId, startDate, endDate } = req.body
+
+//             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+//             if(!user){
+//                 return res.send({ status: 404, message: 'User not found' })
+//             }
+
+//             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+//             if(!jobDetail){
+//                 return res.send({ status: 404, message: 'JobTitle not found' })
+//             }
+
+//             // 1. Fetch timesheet entries (Check-ins/outs)
+//             const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+//             // console.log('timesheet:', timesheets)
+
+//             // 2. Fetch leave requests
+//             const leaves = await Leave.find({
+//                 userId,
+//                 jobId,
+//                 $or: [
+//                     { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+//                     { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+//                 ],
+//                 status: "Approved",
+//                 isDeleted: { $ne: true }
+//             })
+//             // console.log('leaves:', leaves)
+
+//             // 3. Fetch holidays
+//             const holidays = await Holiday.find({
+//                 companyId: user.companyId,
+//                 locationId: { $in: user.locationId },
+//                 date: { $gte: startDate, $lte: endDate },
+//                 isDeleted: { $ne: true }
+//             })
+//             // console.log('holidays:', holidays)
+
+//             const dateList = [];
+//             for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+//                 dateList.push(d.clone().format('YYYY-MM-DD'))
+//             }
+//             // console.log('dateList:', dateList)
+
+//             const timesheetMap = new Map()
+//             timesheets.map(TS => {
+//                 const dateKey = TS.createdAt.toISOString().split("T")[0]
+//                 timesheetMap.set(dateKey, TS)
+//             })
+//             // console.log('timesheets:', timesheets)
+
+//             const leaveMap = new Map()
+//             leaves.forEach(leave => {
+//                 const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+//                 const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+//                 let tempDate = leaveStart.clone()
+            
+//                 while (tempDate.isSameOrBefore(leaveEnd)) {
+//                     leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+//                     tempDate.add(1, 'days')
+//                 }
+//             })
+//             // console.log('leaves:', leaves)
+
+//             const holidayMap = new Map();
+//             holidays.map(HD => {
+//                 holidayMap.set(HD.date, HD)
+//             })
+//             // console.log('holidays:', holidays)
+
+//             const today = moment().format('YYYY-MM-DD')
+
+//             const allReports = dateList.map(dateObj => {
+//                 const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+//                 const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+//                 const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+//                 if (isWeekend || isFuture) return null
+            
+//                 const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+//                 const leaveEntries = leaves.filter(leave => {
+//                     const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+//                     const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+//                     return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+//                 });
+//                 const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+            
+//                 const hasTimesheet = timesheetEntries.length > 0
+//                 const hasLeave = leaveEntries.length > 0
+//                 const hasHoliday = holidayEntries.length > 0
+//                 const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+//                 let status = "Absent"
+        
+//                 if (hasLeave) {
+//                     const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+//                     status = isHalfLeave ? "HalfLeave" : "Leave"
+//                 } else if (hasTimesheet) {
+//                     status = "Present"
+//                 } else if (hasHoliday) {
+//                     status = "Holiday"
+//                 }
+            
+//                 let data = {}
+            
+//                 if (hasTimesheet && !hasLeave && !hasHoliday) {
+//                     data.timesheetData = {
+//                         date: timesheetEntries[0]?.date,
+//                         clockinTime: timesheetEntries[0]?.clockinTime,
+//                         totalHours: timesheetEntries[0]?.totalHours,
+//                         overTime: timesheetEntries[0]?.overTime
+//                     }
+//                 } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+//                     data.leaveData = {
+//                         leaveType: leaveEntries[0]?.leaveType,
+//                         selectionDuration: leaveEntries[0]?.selectionDuration,
+//                         startDate: leaveEntries[0]?.startDate,
+//                         endDate: leaveEntries[0]?.endDate,
+//                         leaveDays: leaveEntries[0]?.leaveDays,
+//                         leaves: leaveEntries[0]?.leaveType,
+//                         reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+//                         status: leaveEntries[0]?.status,
+//                     }
+//                 } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+//                     data.holidayData = {
+//                         date: holidayEntries[0]?.date,
+//                         occasion: holidayEntries[0]?.occasion
+//                     }
+//                 } else if (hasTimesheet || hasLeave || hasHoliday) {
+//                     data = {
+//                         timesheetData: hasTimesheet ? {
+//                             date: timesheetEntries[0]?.date,
+//                             clockinTime: timesheetEntries[0]?.clockinTime,
+//                             totalHours: timesheetEntries[0]?.totalHours,
+//                             overTime: timesheetEntries[0]?.overTime
+//                         } : undefined,
+//                         leaveData: hasLeave ? {
+//                             leaveType: leaveEntries[0]?.leaveType,
+//                             selectionDuration: leaveEntries[0]?.selectionDuration,
+//                             startDate: leaveEntries[0]?.startDate,
+//                             endDate: leaveEntries[0]?.endDate,
+//                             leaveDays: leaveEntries[0]?.leaveDays,
+//                             leaves: leaveEntries[0]?.leaveType,
+//                             reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+//                             status: leaveEntries[0]?.status,
+//                         } : undefined,
+//                         holidayData: hasHoliday ? {
+//                             date: holidayEntries[0]?.date,
+//                             occasion: holidayEntries[0]?.occasion
+//                         } : undefined
+//                     }
+//                 }
+            
+//                 return {
+//                     date: dateObj,
+//                     status,
+//                     timesheet: hasTimesheet,
+//                     leave: hasLeave,
+//                     holiday: hasHoliday,
+//                     absent: isAbsent,
+//                     data
+//                 }
+//             }).filter(report => report !== null)
+
+//             const report = allReports.slice(skip, skip + limit)
+//             const totalReports = allReports ? allReports.length : 0
+
+//             return res.send({
+//                 status: 200,
+//                 message: 'Timesheet report downloaded successfully',
+//                 report: report ? report : [],
+//                 totalReports,
+//                 totalPages: Math.ceil(totalReports / limit) || 1,
+//                 currentPage: page || 1
+//             })
+
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while downloading timesheet report:', error)
+//         res.send({ message: 'Error occurred while downloading timesheet report!' })
+//     }
+// }
+
+const convertToSeconds = (timeStr) => {
+    if (!timeStr) return 0;
+
+    let totalSeconds = 0;
+    const match = timeStr.match(/(\d+)h|(\d+)m|(\d+)s/g);
+    
+    if (match) {
+        match.forEach(unit => {
+            if (unit.includes("h")) totalSeconds += parseInt(unit) * 3600;
+            if (unit.includes("m")) totalSeconds += parseInt(unit) * 60;
+            if (unit.includes("s")) totalSeconds += parseInt(unit);
+        });
+    }
+
+    return totalSeconds;
+}
+
+const formatTimeFromSeconds = (totalSeconds) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+exports. downloadTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
-
-            const skip = (page - 1) * limit
-
             const userId = req.body.userId || req.user._id
-            const { jobId, startDate, endDate } = req.body
+            const { jobId, startDate, endDate, format } = req.body
 
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
@@ -857,172 +1046,275 @@ exports.downloadTimesheetReport = async (req, res) => {
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
+            
+            const joiningDate = moment(jobDetail?.joiningDate, "YYYY-MM-DD")
+            let startMoment = moment(startDate, "YYYY-MM-DD")
+            let endMoment = moment(endDate, "YYYY-MM-DD")
 
-            // 1. Fetch timesheet entries (Check-ins/outs)
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
-            // console.log('timesheet:', timesheets)
-
-            // 2. Fetch leave requests
-            const leaves = await Leave.find({
-                userId,
-                jobId,
-                $or: [
-                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
-                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
-                ],
-                status: "Approved",
-                isDeleted: { $ne: true }
-            })
-            // console.log('leaves:', leaves)
-
-            // 3. Fetch holidays
-            const holidays = await Holiday.find({
-                companyId: user.companyId,
-                locationId: { $in: user.locationId },
-                date: { $gte: startDate, $lte: endDate },
-                isDeleted: { $ne: true }
-            })
-            // console.log('holidays:', holidays)
-
-            const dateList = [];
-            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
-                dateList.push(d.clone().format('YYYY-MM-DD'))
+            if (joiningDate.isBetween(startMoment, endMoment, undefined, '[]')) {
+                startMoment = joiningDate
             }
-            // console.log('dateList:', dateList)
+
+            // Generate all dates within the range
+            const allDates = []
+            for(let d = startMoment.clone(); d.isSameOrBefore(endMoment, "day"); d.add(1, "day")){
+                allDates.push(d.format("YYYY-MM-DD"))
+            }
+
+            // Fetch timesheet, leave, and holiday data
+            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+
+            const leaves = await Leave.find({ 
+                userId, jobId, 
+                status: "Approved", 
+                isDeleted: { $ne: true } 
+            })
+
+            // const holidays = await Holiday.find({ 
+            //     companyId: user.companyId, 
+            //     locationId: { $in: user.locationId } 
+            // })
 
             const timesheetMap = new Map()
-            timesheets.map(TS => {
-                const dateKey = TS.createdAt.toISOString().split("T")[0]
-                timesheetMap.set(dateKey, TS)
+            timesheets.forEach(ts => {
+                const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                timesheetMap.set(dateKey, ts)
             })
-            // console.log('timesheets:', timesheets)
 
             const leaveMap = new Map()
             leaves.forEach(leave => {
-                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
-                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                const leaveStart = moment(leave.startDate, "YYYY-MM-DD")
+                const leaveEnd = leave.endDate ? moment(leave.endDate, "YYYY-MM-DD") : leaveStart.clone()
                 
                 let tempDate = leaveStart.clone()
-            
-                while (tempDate.isSameOrBefore(leaveEnd)) {
-                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
-                    tempDate.add(1, 'days')
+                while (tempDate.isSameOrBefore(leaveEnd, "day")) {
+                    leaveMap.set(tempDate.format("YYYY-MM-DD"), leave)
+                    tempDate.add(1, "day")
                 }
             })
-            // console.log('leaves:', leaves)
 
-            const holidayMap = new Map();
-            holidays.map(HD => {
-                holidayMap.set(HD.date, HD)
-            })
-            // console.log('holidays:', holidays)
+            // const holidayMap = new Map()
+            // holidays.forEach(holiday => {
+            //     holidayMap.set(moment(holiday.date).format("YYYY-MM-DD"), holiday)
+            // })
 
-            const today = moment().format('YYYY-MM-DD')
+            const weeklyData = new Map()
 
-            const allReports = dateList.map(dateObj => {
-                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
-                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
-                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
-
-                if (isWeekend || isFuture) return null
+            // Generate the final report data
+            const reportData = allDates.map(date => {
+                const timesheetEntry = timesheetMap.get(date)
+                const leaveEntry = leaveMap.get(date)
+                // const holidayEntry = holidayMap.get(date)
             
-                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
-                const leaveEntries = leaves.filter(leave => {
-                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
-                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
-                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
-                });
-                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+                let status = ""
+                let clockinTime = "-"
+                let clockoutTime = "-"
+                let totalHours = 0
+                let overTime = 0
+                let leaveType = "-"
+                // let holidayOccasion = "-"
             
-                const hasTimesheet = timesheetEntries.length > 0
-                const hasLeave = leaveEntries.length > 0
-                const hasHoliday = holidayEntries.length > 0
-                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
-
-                let status = "Absent"
-        
-                if (hasLeave) {
-                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
-                    status = isHalfLeave ? "HalfLeave" : "Leave"
-                } else if (hasTimesheet) {
+                if (timesheetEntry) {
                     status = "Present"
-                } else if (hasHoliday) {
-                    status = "Holiday"
+                    clockinTime = timesheetEntry.clockinTime.map(t => moment(t.clockIn, "HH:mm").format("h:mm A")).join(" || ")
+                    clockoutTime = timesheetEntry.clockinTime.map(t => t.clockOut ? moment(t.clockOut, "HH:mm").format("h:mm A") : "-").join(" || ")
+                    
+                    // Convert total hours from "3h 45m 30s" to seconds
+                    totalHours = convertToSeconds(timesheetEntry.totalHours)
+                    
+                    // Convert overtime from "1h 30m 0s" to seconds
+                    overTime = convertToSeconds(timesheetEntry.overTime)
+                } else if (leaveEntry) {
+                    status = leaveEntry.selectionDuration === "First-Half" || leaveEntry.selectionDuration === "Second-Half" ? "Half Leave" : "Leave"
+                    leaveType = leaveEntry.leaveType
+                } 
+                // else if (holidayEntry) {
+                //     status = "Holiday"
+                //     holidayOccasion = holidayEntry.occasion
+                // }
+            
+                // Determine the week key
+                if (moment(date).day() === 6 || moment(date).day() === 0) {
+                    return null
+                }
+                const weekKey = moment(date).startOf("isoWeek").format("YYYY-MM-DD")
+            
+                // Accumulate weekly data
+                if (!weeklyData.has(weekKey)) {
+                    weeklyData.set(weekKey, { totalHours: 0, overTime: 0 })
                 }
             
-                let data = {}
-            
-                if (hasTimesheet && !hasLeave && !hasHoliday) {
-                    data.timesheetData = {
-                        date: timesheetEntries[0]?.date,
-                        clockinTime: timesheetEntries[0]?.clockinTime,
-                        totalHours: timesheetEntries[0]?.totalHours,
-                        overTime: timesheetEntries[0]?.overTime
-                    }
-                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
-                    data.leaveData = {
-                        leaveType: leaveEntries[0]?.leaveType,
-                        selectionDuration: leaveEntries[0]?.selectionDuration,
-                        startDate: leaveEntries[0]?.startDate,
-                        endDate: leaveEntries[0]?.endDate,
-                        leaveDays: leaveEntries[0]?.leaveDays,
-                        leaves: leaveEntries[0]?.leaveType,
-                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
-                        status: leaveEntries[0]?.status,
-                    }
-                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
-                    data.holidayData = {
-                        date: holidayEntries[0]?.date,
-                        occasion: holidayEntries[0]?.occasion
-                    }
-                } else if (hasTimesheet || hasLeave || hasHoliday) {
-                    data = {
-                        timesheetData: hasTimesheet ? {
-                            date: timesheetEntries[0]?.date,
-                            clockinTime: timesheetEntries[0]?.clockinTime,
-                            totalHours: timesheetEntries[0]?.totalHours,
-                            overTime: timesheetEntries[0]?.overTime
-                        } : undefined,
-                        leaveData: hasLeave ? {
-                            leaveType: leaveEntries[0]?.leaveType,
-                            selectionDuration: leaveEntries[0]?.selectionDuration,
-                            startDate: leaveEntries[0]?.startDate,
-                            endDate: leaveEntries[0]?.endDate,
-                            leaveDays: leaveEntries[0]?.leaveDays,
-                            leaves: leaveEntries[0]?.leaveType,
-                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
-                            status: leaveEntries[0]?.status,
-                        } : undefined,
-                        holidayData: hasHoliday ? {
-                            date: holidayEntries[0]?.date,
-                            occasion: holidayEntries[0]?.occasion
-                        } : undefined
-                    }
-                }
+                const weekEntry = weeklyData.get(weekKey)
+                weekEntry.totalHours += totalHours
+                weekEntry.overTime += overTime
+                weeklyData.set(weekKey, weekEntry)
             
                 return {
-                    date: dateObj,
+                    date,
+                    clockinTime,
+                    clockoutTime,
+                    totalHours: totalHours ? formatTimeFromSeconds(totalHours) : "-",
+                    overTime: overTime ? formatTimeFromSeconds(overTime) : "-",
                     status,
-                    timesheet: hasTimesheet,
-                    leave: hasLeave,
-                    holiday: hasHoliday,
-                    absent: isAbsent,
-                    data
+                    leaveType,
+                    // holidayOccasion,
+                    weekKey
                 }
-            }).filter(report => report !== null)
+            }).filter(Boolean).filter(entry => entry.status !== "")
+            // console.log('reportData:', reportData)
 
-            const report = allReports.slice(skip, skip + limit)
-            const totalReports = allReports ? allReports.length : 0
+            const weeklySummary = Array.from(weeklyData, ([weekKey, data]) => {
+                let startDate = moment(weekKey)
+                
+                if (startDate.day() === 6 || startDate.day() === 0) {
+                    return null
+                }
 
-            return res.send({
-                status: 200,
-                message: 'Timesheet report downloaded successfully',
-                report: report ? report : [],
-                totalReports,
-                totalPages: Math.ceil(totalReports / limit) || 1,
-                currentPage: page || 1
-            })
+                const endDate = startDate.clone().add(4, "days")
+            
+                return {
+                    weekRange: `${startDate.format("DD-MM-YYYY")} to ${endDate.format("DD-MM-YYYY")}`,
+                    totalHours: formatTimeFromSeconds(data.totalHours),
+                    overTime: formatTimeFromSeconds(data.overTime)
+                }
+            }).filter(Boolean)
+            // console.log('weeklySummary:', weeklySummary)
 
+            const data = {
+                startDate: moment(startDate).format("DD-MM-YYYY"),
+                endDate: moment(endDate).format("DD-MM-YYYY"),
+                userName: `${user?.personalDetails.firstName} ${user?.personalDetails.lastName}`,
+                userEmail: user?.personalDetails?.email,
+                userContactNumber: user?.personalDetails?.phone,
+                userJobTitle: jobDetail?.jobTitle,
+                userRole: jobDetail?.role
+            }          
+            
+            if(format === 'pdf'){
+                // Render the EJS template
+                const templatePath = path.join(__dirname, "../views/timesheetReportFormat.ejs")
+                const htmlContent = await ejs.renderFile(templatePath, { reportData, weeklySummary, data, moment })
+
+                // Generate PDF using Puppeteer
+                const browser = await puppeteer.launch()
+                const page = await browser.newPage()
+                await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+                await page.waitForSelector("table")
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                const pdfBuffer = await page.pdf({ format: "A4" })
+
+                await browser.close()
+
+                // Send PDF response
+                res.set({
+                    "Content-Type": "application/pdf",
+                    "Content-Disposition": 'inline; filename="timesheet_report.pdf"',
+                    "Content-Length": pdfBuffer.length
+                })
+                return res.end(pdfBuffer)
+            } else if(format === 'excel'){
+                // Generate Excel file
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet("Timesheet Report");
+
+                //  1. Add Title
+                const titleRow = worksheet.addRow(["Timesheet Report"]);
+                titleRow.font = { bold: true, size: 20 };
+                titleRow.alignment = { horizontal: "center" };
+                worksheet.mergeCells(`A${titleRow.number}:F${titleRow.number}`); // Merging across columns
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 2. Add User Details
+                function addMergedRow(worksheet, text) {
+                    const row = worksheet.addRow([text]); // Add row with text
+                    row.font = { bold: true };
+                    worksheet.mergeCells(`A${row.number}:B${row.number}`);
+                }
+                
+                // Adding User Details with Merged Cells (First Two Columns)
+                addMergedRow(worksheet, `Name:   ${data.userName}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, `Email:   ${data.userEmail}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, `Contact Number:   ${data.userContactNumber}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, `Job Title:   ${data.userJobTitle}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, `Role:   ${data.userRole}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, `Time-Duration:   ${data.startDate} to ${data.endDate}`, worksheet.lastRow.number);
+
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 3. Add Detailed weekly summary data
+                const weeklySummaryTitleRow = worksheet.addRow(["Weekly Summary"]);
+                weeklySummaryTitleRow.font = { bold: true, size: 14 };
+                weeklySummaryTitleRow.alignment = { horizontal: "center" };
+                worksheet.mergeCells(weeklySummaryTitleRow.number, 1, weeklySummaryTitleRow.number, 4);
+                const summaryHeaders = worksheet.addRow(["Week", "Time Duration", "Total Hours", "Overtime"])
+                summaryHeaders.font = { bold: true, size: 12 };
+                summaryHeaders.alignment = { horizontal: "center" };
+
+                // Add weekly summary data
+                weeklySummary.forEach((week, index) => {
+                    const newRaw = worksheet.addRow([
+                        index + 1, week.weekRange, week.totalHours, week.overTime
+                    ]);
+                    newRaw.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                });
+
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 4. Add Detailed Timesheet Data
+                const tableHeader = worksheet.addRow(["Date", "Clock Timing", "Total Hours", "Overtime", "Status", "Leave Type"]);
+                tableHeader.font = { bold: true, size: 12 }
+                tableHeader.alignment = { horizontal: "center", vertical: "middle" }
+
+                // Adding daily timesheet data
+                reportData.forEach((row) => {
+                    let clockTiming = '';
+                    
+                    const clockInArray = row.clockinTime.split('||').map(time => time.trim());
+                    const clockOutArray = row.clockoutTime.split('||').map(time => time.trim());
+                    
+                    if (clockInArray.length === clockOutArray.length) {
+                        clockTiming = clockInArray.map((time, index) => {
+                            let formattedTime
+                            if(time !== '-'){
+                                formattedTime = `${time} || ${clockOutArray[index]}`
+                            } else {
+                                formattedTime = '-'
+                            }
+                            return formattedTime;
+                        }).join('\n');
+                    }
+                
+                    const newRow = worksheet.addRow([
+                        moment(row.date).format('DD-MM-YYYY'),
+                        clockTiming,
+                        row.totalHours,
+                        row.overTime,
+                        row.status,
+                        row.leaveType
+                    ]);
+
+                    newRow.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                });
+
+                worksheet.columns.forEach((column) => {
+                    let maxLength = 0;
+                    column.eachCell({ includeEmpty: true }, (cell) => {
+                        const cellValue = cell.value ? cell.value.toString() : "";
+                        maxLength = Math.max(maxLength, cellValue.length);
+                    });
+                    column.width = maxLength + 1; // Add some padding for better spacing
+                });
+
+                // Set response headers for Excel file
+                res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                res.setHeader("Content-Disposition", "attachment; filename=timesheet_report.xlsx");
+
+                // Write the workbook to the response stream
+                await workbook.xlsx.write(res);
+                res.end();
+            } else {
+                return res.send({ status: 400, message: "Invalid format. Please specify 'pdf' or 'excel'." })
+            }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while downloading timesheet report:', error)

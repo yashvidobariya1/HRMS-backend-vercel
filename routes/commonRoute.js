@@ -7,46 +7,39 @@ const { getNotifications, getUnreadNotificationsCount, readNotification, getNoti
 
 const commonRoute = Router()
 
-// commonRoute.post('/decodeToken', decodeJWTtoken) // Backend developer use only
-
 commonRoute.post('/login', login)
 commonRoute.post('/logOut', auth, logOut)
 commonRoute.post('/updatePassword', updatePassword)
 commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
-
+// get user job title
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
-
+// user
 commonRoute.post('/addUser', auth, addUser)
 commonRoute.get('/getUser/:id', auth, getUser)
 commonRoute.get('/getAllUsers', auth, getAllUsers)
 commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
-
+// get own timesheet
 commonRoute.post('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
 commonRoute.post('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
+// clock in/out
 commonRoute.post('/clockIn', auth, clockInFunc)
 commonRoute.post('/clockOut', auth, clockOutFunc)
 
 // get own details
 commonRoute.get('/getDetails', auth, getDetails)
 commonRoute.post('/updateProfileDetails', auth, updateProfileDetails)
-
-// get attendence by month and year
-// commonRoute.get('/getTimesheetByMonthAndYear', auth, getTimesheetByMonthAndYear)
-
 // generate contract letter
 // commonRoute.post('/generateContractLetter', generateContractLetter)
-
+// notification
 commonRoute.get('/getNotifications', auth, getNotifications)
 commonRoute.get('/getUnreadNotificationsCount', auth, getUnreadNotificationsCount)
 commonRoute.get('/getNotification/:id', auth, getNotification)
 commonRoute.get('/readNotification/:id', auth, readNotification)
-
 // QR code scanning
-commonRoute.post('/verifyQRCode', auth, verifyQRCode) 
-
+// commonRoute.post('/verifyQRCode', auth, verifyQRCode)
 // leave request
 commonRoute.post('/leaveRequest', auth, leaveRequest)
 commonRoute.get('/getLeaveRequest/:id', auth, getLeaveRequest)
@@ -57,7 +50,6 @@ commonRoute.post('/deleteLeaveRequest/:id', auth, deleteLeaveRequest)
 commonRoute.post('/leaveRequestApprove/:id', auth, approveLeaveRequest)
 commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
-
 // timesheet report
 commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
 commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
