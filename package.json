@@ -42,6 +42,7 @@
     "pizzip": "^3.1.8",
     "puppeteer": "^24.1.1",
     "streamifier": "^0.1.1",
-    "supertest": "^7.0.0"
+    "supertest": "^7.0.0",
+    "useragent": "^2.3.0"
   }
 }

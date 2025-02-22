@@ -117,6 +117,10 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  isLoggedIn: Boolean,
+  usedBrowser: String,
+  userIPAddess: String,
+  lastTimeAccess: Date,
   lastTimeLoggedIn: Date,
   lastTimeLoggedOut: Date,
   canceledAt: Date,

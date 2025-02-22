@@ -2,6 +2,7 @@ const Notification = require("../models/notification");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
 const moment = require("moment");
+const useragent = require("useragent")
 
 // manager or administrator : get all their notifications pending work
 // exports.getNotifications = async (req, res) => {
@@ -140,7 +141,6 @@ exports.getNotifications = async (req, res) => {
             const userId = req.user._id
 
             let matchStage = {}
-            let useMatchStage = true
 
             if (req.user.role === "Superadmin") {
                 const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -148,7 +148,13 @@ exports.getNotifications = async (req, res) => {
                 if (!existingUser) {
                     return res.send({ status: 404, message: "User not found" })
                 }
-                useMatchStage = false
+                matchStage = {
+                    "readBy": {
+                        $elemMatch: {
+                            userId: new mongoose.Types.ObjectId(String(userId))
+                        }
+                    }
+                }
             } else {
                 const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).select("companyId")
     
@@ -192,14 +198,8 @@ exports.getNotifications = async (req, res) => {
                         as: "user"
                     }
                 },
-                { $unwind: "$user" }
-            ]
-
-            if (useMatchStage) {
-                pipeline.push({ $match: matchStage })
-            }
-
-            pipeline.push(
+                { $unwind: "$user" },
+                { $match: matchStage },
                 { $sort: { createdAt: -1 } },
                 {
                     $addFields: {
@@ -235,7 +235,7 @@ exports.getNotifications = async (req, res) => {
                         isRead: 1
                     }
                 }
-            )
+            ]
 
             const notifications = await Notification.aggregate(pipeline).skip(skip).limit(limit)
 
@@ -243,62 +243,35 @@ exports.getNotifications = async (req, res) => {
             const totalNotifications = totalNotificationsResult.length > 0 ? totalNotificationsResult[0].total : 0;
 
             let unreadNotificationsCount = 0
-            if (useMatchStage) {
-                const unreadNotifications = await Notification.aggregate([
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "userId",
-                            foreignField: "_id",
-                            as: "user"
-                        }
-                    },
-                    { $unwind: "$user" },
-                    { 
-                        $match: {
-                            ...matchStage,
-                            readBy: {
-                                $elemMatch: {
-                                    userId: new mongoose.Types.ObjectId(String(userId)),
-                                    isRead: false,
-                                }
+            const unreadNotifications = await Notification.aggregate([
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "userId",
+                        foreignField: "_id",
+                        as: "user"
+                    }
+                },
+                { $unwind: "$user" },
+                { 
+                    $match: {
+                        ...matchStage,
+                        readBy: {
+                            $elemMatch: {
+                                userId: new mongoose.Types.ObjectId(String(userId)),
+                                isRead: false,
                             }
                         }
-                    },
-                    { $count: 'unreadNotificationsCount' }
-                ])
+                    }
+                },
+                { $count: 'unreadNotificationsCount' }
+            ])
 
-                unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
-            } else {
-                const unreadNotifications = await Notification.aggregate([
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "userId",
-                            foreignField: "_id",
-                            as: "user"
-                        }
-                    },
-                    { $unwind: "$user" },
-                    { 
-                        $match: {
-                            readBy: {
-                                $elemMatch: {
-                                    userId: new mongoose.Types.ObjectId(String(userId)),
-                                    isRead: false,
-                                }
-                            }
-                        }
-                    },
-                    { $count: 'unreadNotificationsCount' }
-                ])
-
-                unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
-            }
+            unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
 
             res.send({
                 status: 200,
-                message: 'All notifications getted successfully.',
+                message: 'Notifications fetched successfully.',
                 unreadNotificationsCount,
                 notifications,
                 totalNotifications,
@@ -308,7 +281,7 @@ exports.getNotifications = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.send({ message: "Error occurred while fetching notifications!" })
+        res.send({ message: "Error occurred while fetching notifications!" }) 
     }
 }
 
@@ -381,8 +354,8 @@ exports.getUnreadNotificationsCount = async (req, res) => {
             res.send({ status: 200, count })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error("Error occurred while fetching notifications:", error)
-        res.send({ message: "Error occurred while fetching notifications!" })
+        console.error("Error occurred while fetching notifications count:", error)
+        res.send({ message: "Error occurred while fetching notifications count!" })
     }
 }
 
@@ -399,8 +372,8 @@ exports.getNotification = async (req, res) => {
             res.send({ status: 200, notification })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting notification:', error)
-        res.send({ message: 'Error occurred while getting notification!' })
+        console.error('Error occurred while fetching notification:', error)
+        res.send({ message: 'Error occurred while fetching notification!' })
     }
 }
 

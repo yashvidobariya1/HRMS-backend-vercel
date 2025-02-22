@@ -10,6 +10,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const Company = require('../models/company');
 const Location = require('../models/location');
 const leaveRequest = require('../models/leaveRequest');
+const moment = require('moment');
 
 jest.mock('nodemailer', () => ({
     createTransport: jest.fn().mockReturnValue({
@@ -272,7 +273,7 @@ describe('Forgot Password process API===========================================
                 .send({
                     email: 'test@example.com'
                 });
-            const otp = JSON.parse(res.text).message;
+            const otp = JSON.parse(res.text).otp;
             const res2 = await request(app)
                 .post('/otpVerification')
                 .send({
@@ -2071,7 +2072,7 @@ describe("~ administartor, manager and employee can get own today's timesheet===
     test('should return 200 for, timesheet got successfully', async () => {
         const res = await request(app).post('/getOwnTodaysTimesheet').set('Authorization', `Bearer ${userToken}`).send({ jobId: userJobId })
         expect(JSON.parse(res.text).status).toBe(200)
-        expect(JSON.parse(res.text).message).toBe('Timesheet getted successfully.')
+        expect(JSON.parse(res.text).message).toBe('Timesheet fetched successfully.')
     })
     test('should return 403 for, acces denied', async () => {
         await User.findOneAndUpdate({ _id: userId }, { $set: { role: 'employee' } })
@@ -2118,7 +2119,7 @@ describe('~ administrator, manager and employee can get own all timesheet=======
     test('should return 200 for, timesheet got successfully', async () => {
         const res = await request(app).post('/getOwnAllTimesheet').set('Authorization', `Bearer ${userToken}`).send({ jobId: userJobId })
         expect(JSON.parse(res.text).status).toBe(200)
-        expect(JSON.parse(res.text).message).toBe('Timesheets getted successfully.')
+        expect(JSON.parse(res.text).message).toBe('Timesheets fetched successfully.')
     })
 })
 
@@ -2475,7 +2476,7 @@ describe('get all Notifications=================================================
             SAID = await JSON.parse(login.text).user._id
             const res = await request(app).get('/getNotifications').set('Authorization', `Bearer ${SAToken}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('All notifications getted successfully.')
+            expect(JSON.parse(res.text).message).toBe('Notifications fetched successfully.')
         })
         test('Should return 403 for Access denied', async () => {
             const user = await User.findOne({ _id: SAID })
@@ -2513,7 +2514,7 @@ describe('get all Notifications=================================================
             ADID = await JSON.parse(login.text).user._id
             const res = await request(app).get('/getNotifications').set('Authorization', `Bearer ${ADToken}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('All notifications getted successfully.')
+            expect(JSON.parse(res.text).message).toBe('Notifications fetched successfully.')
         })
         test('Should return 403 for Access denied', async () => {
             const user = await User.findOne({ _id: ADID })
@@ -2551,7 +2552,7 @@ describe('get all Notifications=================================================
             MID = await JSON.parse(login.text).user._id
             const res = await request(app).get('/getNotifications').set('Authorization', `Bearer ${MToken}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('All notifications getted successfully.')
+            expect(JSON.parse(res.text).message).toBe('Notifications fetched successfully.')
         })
         test('Should return 403 for Access denied', async () => {
             const user = await User.findOne({ _id: MID })
@@ -2589,7 +2590,7 @@ describe('get all Notifications=================================================
             EID = await JSON.parse(login.text).user._id
             const res = await request(app).get('/getNotifications').set('Authorization', `Bearer ${EToken}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('All notifications getted successfully.')
+            expect(JSON.parse(res.text).message).toBe('Notifications fetched successfully.')
         })
         test('Should return 403 for Access denied', async () => {
             const user = await User.findOne({ _id: EID })
@@ -2815,7 +2816,7 @@ describe('leave management======================================================
             test('should return 200 for leave requests got successfully', async () => {
                 const res = await request(app).post(`/getAllOwnLeaves`).set('Authorization', `Bearer ${ADToken}`).send({ jobId: userJobId })
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('All leave requests getted successfully.')
+                expect(JSON.parse(res.text).message).toBe('All leave requests fetched successfully.')
             })
             test('should return 404 for user not found', async () => {
                 await User.findOneAndUpdate(
@@ -2850,7 +2851,7 @@ describe('leave management======================================================
                 )
                 const res = await request(app).get(`/getAllLeaveRequest`).set(`Authorization`, `Bearer ${ADToken}`)
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('All leave requests got successfully.')
+                expect(JSON.parse(res.text).message).toBe('All leave requests fetched successfully.')
             })
             test('should return 403 access denied', async () => {
                 await User.findOneAndUpdate(
@@ -2899,7 +2900,7 @@ describe('leave management======================================================
                 const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${ADToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
+                expect(JSON.parse(res.text).message).toBe('Leave request updated successfully')
             })
             test('should return 403 for leave already approved or rejected', async () => {
                 const LeaveRequest = await leaveRequest.create({
@@ -3075,7 +3076,7 @@ describe('leave management======================================================
             test('should return 200 for leave requests got successfully', async () => {
                 const res = await request(app).post(`/getAllOwnLeaves`).set('Authorization', `Bearer ${MToken}`).send({ jobId: userJobId })
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('All leave requests getted successfully.')
+                expect(JSON.parse(res.text).message).toBe('All leave requests fetched successfully.')
             })
             test('should return 404 for user not found', async () => {
                 await User.findOneAndUpdate(
@@ -3110,7 +3111,7 @@ describe('leave management======================================================
                 )
                 const res = await request(app).get(`/getAllLeaveRequest`).set(`Authorization`, `Bearer ${MToken}`)
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('All leave requests got successfully.')
+                expect(JSON.parse(res.text).message).toBe('All leave requests fetched successfully.')
             })
             test('should return 403 access denied', async () => {
                 await User.findOneAndUpdate(
@@ -3159,7 +3160,7 @@ describe('leave management======================================================
                 const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${MToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
+                expect(JSON.parse(res.text).message).toBe('Leave request updated successfully')
             })
             test('should return 403 for leave already approved or rejected', async () => {
                 const LeaveRequest = await leaveRequest.create({
@@ -3335,7 +3336,7 @@ describe('leave management======================================================
             test('should return 200 for leave requests got successfully', async () => {
                 const res = await request(app).post(`/getAllOwnLeaves`).set('Authorization', `Bearer ${EToken}`).send({ jobId: userJobId })
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('All leave requests getted successfully.')
+                expect(JSON.parse(res.text).message).toBe('All leave requests fetched successfully.')
             })
             test('should return 404 for user not found', async () => {
                 await User.findOneAndUpdate(
@@ -3393,7 +3394,7 @@ describe('leave management======================================================
                 const res = await request(app).post(`/updateLeaveRequest/${LRId}`).set('Authorization', `Bearer ${EToken}`).send({ jobId: userJobId, startDate: '2025-03-05', reasonOfLeave: 'update leave reason' })
                 // console.log('res:', JSON.parse(res.text))
                 expect(JSON.parse(res.text).status).toBe(200)
-                expect(JSON.parse(res.text).message).toBe('Leave request update successfully')
+                expect(JSON.parse(res.text).message).toBe('Leave request updated successfully')
             })
             test('should return 403 for leave already approved or rejected', async () => {
                 const LeaveRequest = await leaveRequest.create({
@@ -4066,55 +4067,258 @@ describe('~ timesheet report', () => {
         })
     })
 
-    describe("~ Superadmin can download timesheet report of all users", () => {
-        let SAToken
-        let userId
-        let userJobId
-        test('should return 401 for Unauthorized: Invalid API key', async () => {
-            await User.create({
-                personalDetails: {
-                    email: 'testingfordownloadtimesheetreportofuser@gmail.com'
-                },
-                jobDetails:[{ jobTitle: 'Software Engineer' }],
-                password: 'Password123',
-                role: 'Superadmin'
+    describe('timesheet report download', () => {    
+        describe("~ Superadmin can download timesheet report of all users", () => {
+            let SAToken
+            let userId
+            let userJobId
+            test('should return 401 for Unauthorized: Invalid API key', async () => {
+                const company = await Company.create({
+                    companyDetails: {
+                        businessName: 'testingCompany'
+                    }
+                })
+                const location = await Location.create({
+                    companyId: company._id,
+                    latitude: "12.121212",
+                    longitude: "21.212121",
+                    radius: "1000",
+                    locationName: "second location",
+                    ukviApproved: true
+                })
+                await User.create({
+                    personalDetails: {
+                        email: 'testingfordownloadtimesheetreportofuser@gmail.com'
+                    },
+                    jobDetails:[{ jobTitle: 'Software Engineer' }],
+                    password: 'Password123',
+                    role: 'Superadmin'
+                })
+                const user = await User.create({
+                    personalDetails: {
+                        email: 'testeruserfordownloadreport@gmail.com'
+                    },
+                    jobDetails:[{ jobTitle: 'Software Engineer', location: location._id }],
+                    password: 'Password123',
+                    role: 'Manager'
+                })
+                userId = user._id
+                userJobId = user.jobDetails[0]._id
+                const login = await request(app).post('/login').send({ email: 'testingfordownloadtimesheetreportofuser@gmail.com', password: 'Password123' })
+                SAToken = JSON.parse(login.text).user.token
+                const res = await request(app).post('/downloadTimesheetReport')
+                expect(JSON.parse(res.text).status).toBe(401)
+                expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
             })
-            const user = await User.create({
-                personalDetails: {
-                    email: 'testeruserfordownloadreport@gmail.com'
-                },
-                jobDetails:[{ jobTitle: 'Software Engineer' }],
-                password: 'Password123',
-                role: 'Manager'
+            test('should return 404 for user not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('User not found')
             })
-            userId = user._id
-            userJobId = user.jobDetails[0]._id
-            const login = await request(app).post('/login').send({ email: 'testingfordownloadtimesheetreportofuser@gmail.com', password: 'Password123' })
-            SAToken = JSON.parse(login.text).user.token
-            const res = await request(app).post('/downloadTimesheetReport')
-            expect(JSON.parse(res.text).status).toBe(401)
-            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+            test('should return 404 for jobTitle not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId })
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
+            test('should return 200 for timesheet download successfully', async () => {
+                const login = await request(app).post('/login').send({ email: 'testeruserfordownloadreport@gmail.com', password: 'Password123' })
+                await request(app).post('/clockIn').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                await request(app).post('/clockOut').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                let startDate = moment().toDate().toISOString().split('T')[0]
+                let endDate = moment().add(1, 'days').toDate().toISOString().split('T')[0]
+                const res = await request(app).post('/downloadTimesheetReport')
+                    .set('Authorization', `Bearer ${SAToken}`)
+                    .send({ userId, jobId: userJobId, startDate, endDate, format: 'pdf' })
+                    .buffer()
+                    .parse((res, callback) => {
+                        res.setEncoding('binary'); // Ensure response is treated as binary
+                        let data = '';
+                        res.on('data', (chunk) => (data += chunk));
+                        res.on('end', () => callback(null, Buffer.from(data, 'binary')));
+                    });
+                    expect(res.status).toBe(200);
+                    expect(res.body).toBeInstanceOf(Buffer);
+            })
+            test('should return 403 for access denied', async () => {
+                await User.findOneAndUpdate({token: SAToken}, {$set:{role:'superadmin'}})
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId, jobId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(403)
+                expect(JSON.parse(res.text).message).toBe('Access denied')
+            })
         })
-        test('should return 404 for user not found', async () => {
-            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId: userJobId })
-            expect(JSON.parse(res.text).status).toBe(404)
-            expect(JSON.parse(res.text).message).toBe('User not found')
+
+        describe('~ Administrator and manager can download timesheet report of specific user', () => {
+            let ADToken
+            let userId
+            let userJobId
+            test('should return 401 for Unauthorized: Invalid API key', async () => {
+                const company = await Company.create({
+                    companyDetails: {
+                        businessName: 'testingCompany'
+                    }
+                })
+                const location = await Location.create({
+                    companyId: company._id,
+                    latitude: "12.121212",
+                    longitude: "21.212121",
+                    radius: "1000",
+                    locationName: "second location",
+                    ukviApproved: true
+                })
+                await User.create({
+                    personalDetails: {
+                        email: 'testingfordownloadtimesheetreportoftheiremployee@gmail.com'
+                    },
+                    jobDetails:[{ jobTitle: 'Software Engineer' }],
+                    password: 'Password123',
+                    role: 'Administrator'
+                })
+                const user = await User.create({
+                    personalDetails: {
+                        email: 'tester2userfordownloadreport@gmail.com'
+                    },
+                    jobDetails:[{ jobTitle: 'Software Engineer', location: location._id }],
+                    password: 'Password123',
+                    role: 'Manager'
+                })
+                userId = user._id
+                userJobId = user.jobDetails[0]._id
+                const login = await request(app).post('/login').send({ email: 'testingfordownloadtimesheetreportoftheiremployee@gmail.com', password: 'Password123' })
+                ADToken = JSON.parse(login.text).user.token
+                const res = await request(app).post('/downloadTimesheetReport')
+                expect(JSON.parse(res.text).status).toBe(401)
+                expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+            })
+            test('should return 404 for user not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${ADToken}`).send({ userId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('User not found')
+            })
+            test('should return 404 for jobTitle not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${ADToken}`).send({ userId })
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
+            test('should return 200 for timesheet download successfully', async () => {
+                const login = await request(app).post('/login').send({ email: 'tester2userfordownloadreport@gmail.com', password: 'Password123' })
+                await request(app).post('/clockIn').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                await request(app).post('/clockOut').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                let startDate = moment().toDate().toISOString().split('T')[0]
+                let endDate = moment().add(1, 'days').toDate().toISOString().split('T')[0]
+                const res = await request(app).post('/downloadTimesheetReport')
+                    .set('Authorization', `Bearer ${ADToken}`)
+                    .send({ userId, jobId: userJobId, startDate, endDate, format: 'pdf' })
+                    .buffer()
+                    .parse((res, callback) => {
+                        res.setEncoding('binary'); // Ensure response is treated as binary
+                        let data = '';
+                        res.on('data', (chunk) => (data += chunk));
+                        res.on('end', () => callback(null, Buffer.from(data, 'binary')));
+                    });
+                    expect(res.status).toBe(200);
+                    expect(res.body).toBeInstanceOf(Buffer);
+            })
+            test('should return 403 for access denied', async () => {
+                await User.findOneAndUpdate({token: ADToken}, {$set:{role:'administrator'}})
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${ADToken}`).send({ userId, jobId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(403)
+                expect(JSON.parse(res.text).message).toBe('Access denied')
+            })
         })
-        test('should return 404 for jobTitle not found', async () => {
-            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId })
-            expect(JSON.parse(res.text).status).toBe(404)
-            expect(JSON.parse(res.text).message).toBe('JobTitle not found')
-        })
-        test('should return 200 for timesheet download successfully', async () => {
-            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId, jobId: userJobId })
-            expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Timesheet report downloaded successfully')
-        })
-        test('should return 403 for access denied', async () => {
-            await User.findOneAndUpdate({token: SAToken}, {$set:{role:'superadmin'}})
-            const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${SAToken}`).send({ userId, jobId: userJobId })
-            expect(JSON.parse(res.text).status).toBe(403)
-            expect(JSON.parse(res.text).message).toBe('Access denied')
+
+        describe('Administratoe, Manager and employee can download own timesheet report', () => {
+            let EToken
+            let userId
+            let userJobId
+            test('should return 401 for Unauthorized: Invalid API key', async () => {
+                const company = await Company.create({
+                    companyDetails: {
+                        businessName: 'testingCompany'
+                    }
+                })
+                const location = await Location.create({
+                    companyId: company._id,
+                    latitude: "12.121212",
+                    longitude: "21.212121",
+                    radius: "1000",
+                    locationName: "second location",
+                    ukviApproved: true
+                })
+                const user = await User.create({
+                    personalDetails: {
+                        email: 'tester2userfordownloadreport@gmail.com'
+                    },
+                    jobDetails:[{ jobTitle: 'Software Engineer', location: location._id }],
+                    password: 'Password123',
+                    role: 'Employee'
+                })
+                userId = user._id
+                userJobId = user.jobDetails[0]._id
+                const login = await request(app).post('/login').send({ email: 'tester2userfordownloadreport@gmail.com', password: 'Password123' })
+                EToken = JSON.parse(login.text).user.token
+                const res = await request(app).post('/downloadTimesheetReport')
+                expect(JSON.parse(res.text).status).toBe(401)
+                expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+            })
+            test('should return 404 for user not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${EToken}`).send({ userId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('User not found')
+            })
+            test('should return 404 for jobTitle not found', async () => {
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${EToken}`)
+                expect(JSON.parse(res.text).status).toBe(404)
+                expect(JSON.parse(res.text).message).toBe('JobTitle not found')
+            })
+            test('should return 200 for timesheet download successfully', async () => {
+                const login = await request(app).post('/login').send({ email: 'tester2userfordownloadreport@gmail.com', password: 'Password123' })
+                await request(app).post('/clockIn').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                await request(app).post('/clockOut').set('Authorization', `Bearer ${JSON.parse(login.text).user.token}`).send({
+                    userId,
+                    jobId: userJobId,
+                    location: { latitude: 12.121212, longitude: 21.212121 }
+                })
+                let startDate = moment().toDate().toISOString().split('T')[0]
+                let endDate = moment().add(1, 'days').toDate().toISOString().split('T')[0]
+                const res = await request(app).post('/downloadTimesheetReport')
+                    .set('Authorization', `Bearer ${EToken}`)
+                    .send({ jobId: userJobId, startDate, endDate, format: 'pdf' })
+                    .buffer()
+                    .parse((res, callback) => {
+                        res.setEncoding('binary'); // Ensure response is treated as binary
+                        let data = '';
+                        res.on('data', (chunk) => (data += chunk));
+                        res.on('end', () => callback(null, Buffer.from(data, 'binary')));
+                    });
+                    expect(res.status).toBe(200);
+                    expect(res.body).toBeInstanceOf(Buffer);
+            })
+            test('should return 403 for access denied', async () => {
+                await User.findOneAndUpdate({token: EToken}, {$set:{role:'employee'}})
+                const res = await request(app).post('/downloadTimesheetReport').set('Authorization', `Bearer ${EToken}`).send({ jobId: userJobId })
+                expect(JSON.parse(res.text).status).toBe(403)
+                expect(JSON.parse(res.text).message).toBe('Access denied')
+            })
         })
     })
 })

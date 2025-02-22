@@ -156,7 +156,7 @@ describe('**- Crud Company Test**', () => {
         test('should return 200 for fetch a company by ID', async () => {
             const getResponse = await request(app).get(`/getCompany/${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getResponse.text).status).toBe(200);
-            expect(JSON.parse(getResponse.text).message).toBe('Company get successfully.');
+            expect(JSON.parse(getResponse.text).message).toBe('Company fetched successfully.');
         });
         test('should return 409 for ID pass null', async () => {
             const getResponse = await request(app).get(`/getCompany/null`).set('Authorization', `Bearer ${token}`)
@@ -204,7 +204,7 @@ describe('**- Crud Company Test**', () => {
         test('should return 200 for fetch all companys', async () => {
             const getAllResponse = await request(app).get('/getAllCompany').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getAllResponse.text).status).toBe(200);
-            expect(JSON.parse(getAllResponse.text).message).toBe('Company all get successfully.');
+            expect(JSON.parse(getAllResponse.text).message).toBe('Companines fetched successfully.');
             expect(JSON.parse(getAllResponse.text).companies).toBeInstanceOf(Array);
         })
         test('should return 403 for Access denied', async () => {
@@ -522,7 +522,7 @@ describe('**- Crud Location Test**', () => {
         test('should return 200 for fetch a location by ID', async () => {
             const getResponse = await request(app).get(`/getLocation/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getResponse.text).status).toBe(200);
-            expect(JSON.parse(getResponse.text).message).toBe('Location get successfully.');
+            expect(JSON.parse(getResponse.text).message).toBe('Location fetched successfully.');
         });
         test('should return 409 for ID pass null', async () => {
             const getResponse = await request(app).get(`/getLocation/null`).set('Authorization', `Bearer ${token}`)
@@ -570,7 +570,7 @@ describe('**- Crud Location Test**', () => {
         test('should return 200 for fetch all locations', async () => {
             const getAllResponse = await request(app).get('/getAllLocation').set('Authorization', `Bearer ${token}`)
             expect(getAllResponse.body.status).toBe(200);
-            expect(getAllResponse.body.message).toBe('Location all get successfully.');
+            expect(getAllResponse.body.message).toBe('Locations fetched successfully.');
             expect(getAllResponse.body.locations).toBeInstanceOf(Array);
         })
         test('should return 403 for Access denied', async () => {
@@ -615,7 +615,7 @@ describe('**- Crud Location Test**', () => {
             const res = await request(app).get(`/getCompanyLocations?companyId=${createdCompanyId}`).set('Authorization', `Bearer ${token}`)
             // console.log('res:', res)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Locations fetched successfully.')
+            expect(JSON.parse(res.text).message).toBe("Company's locations fetched successfully.")
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
@@ -891,7 +891,7 @@ describe('**Crud Contract Test ( Superadmin and Administrator )**', () => {
             .get(`/getContract/${contractId}`)
             .set('Authorization', `Bearer ${newToken}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Contract get successfully.')
+            expect(JSON.parse(res.text).message).toBe('Contract fetched successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
@@ -923,7 +923,7 @@ describe('**Crud Contract Test ( Superadmin and Administrator )**', () => {
             .get(`/getAllContractOfCompany`)
             .set('Authorization', `Bearer ${newToken}`).send({ companyId: createdCompanyId })
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Contracts all get successfully.')
+            expect(JSON.parse(res.text).message).toBe('Contracts fetched successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
@@ -946,7 +946,7 @@ describe('**Crud Contract Test ( Superadmin and Administrator )**', () => {
             const res = await request(app).get('/getAllContract').set('Authorization', `Bearer ${newToken}`)
             // console.log('Res:', res.text)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Contracts all get successfully.')
+            expect(JSON.parse(res.text).message).toBe('Contracts fetched successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
@@ -1131,7 +1131,7 @@ describe('** QR codes ( Superadmin and Administrator )**', () => {
                 .send({ qrType: 'Location', qrValue: 'TestingQRcode', qrCode: 'data:plain/txt;base64,dGVzdGluZ3BsYWludGV4dA==' })
             QRId = JSON.parse(res.text).QRCode._id
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Location QR generate successfully.')
+            expect(JSON.parse(res.text).message).toBe('Location QR generated successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
@@ -1161,7 +1161,7 @@ describe('** QR codes ( Superadmin and Administrator )**', () => {
             const res = await request(app)
                 .get(`/getAllQRCodes/${createdLocationId}`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('QR codes getted successfully.')
+            expect(JSON.parse(res.text).message).toBe('QR codes fetched successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: token}, { $set: { role: 'superadmin' } })
@@ -1323,7 +1323,7 @@ describe('** Holiday Management ( Superadmin and Administrator )**', () => {
             .post('/addHoliday').set('Authorization', `Bearer ${token}`).send({ locationId: createdLocationId, date: '2025-02-13', occasion: 'JEST test' })
             // console.log('res:', res.text)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Holiday added successfully.')
+            expect(JSON.parse(res.text).message).toBe('Holiday created successfully.')
             createdHolidayId = await JSON.parse(res.text).holiday._id
         })
         test('should return 403 for, access denied', async () => {
@@ -1374,7 +1374,7 @@ describe('** Holiday Management ( Superadmin and Administrator )**', () => {
         test('Should return 200 for get all holidays', async () => {
             const res = await request(app).get(`/getAllHolidays?locationId=${createdLocationId}`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('All holidays fetched successfully.')
+            expect(JSON.parse(res.text).message).toBe('Holidays fetched successfully.')
         })
         test('should return 403 for, access denied', async () => {
             await User.findOneAndUpdate({token: token }, { $set: { role: 'superadmin' } })
@@ -1629,3 +1629,202 @@ describe('** client module ( Superadmin and Administrator )**', () => {
         })
     })
 })
+
+describe('**Crud Template Test ( Superadmin )**', () => {
+    let templateId
+    let newToken
+    describe('~ For add template', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const res = await request(app)
+                .post('/addTemplate')
+                .send({ templateName: 'template name', template: 'data:plain/txt;base64,dGVzdGluZyBwYXNzaW5nIHBsYWluIGluIGRvY3VtZW50' })
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 400 for can not passed reqired fileds', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testeruserfortemplate@gmail.com',
+                },
+                jobDetails: [{
+                    role: 'Superadmin',
+                }],
+                role: 'Superadmin',
+                password: 'Password123'
+            })
+            const loginUser = await request(app)
+                .post('/login')
+                .send({
+                    email: 'testeruserfortemplate@gmail.com',
+                    password: 'Password123'
+                })
+            newToken = await JSON.parse(loginUser.text).user.token
+            const res = await request(app)
+                .post('/addTemplate')
+                .set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe('Template name and template are required.')
+        })
+        test('Should return 400 for file uploading error', async () => {
+            const res = await request(app)
+                .post('/addTemplate')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({
+                    templateName: 'Full-Time',
+                    template: '123',
+                    templateFileName: 'Full-Time'
+                })
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe(`Error occurred while uploading file. Please try again.`)
+        })
+        test('Should return 200 for template added successfully', async () => {
+            const res = await request(app)
+                .post('/addTemplate')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({
+                    templateName: 'Full-Time',
+                    template: 'data:text/txt;base64,dGVzdGluZ3BsYWludGV4dA==',
+                    templateFileName: 'Full-Time'
+                })
+            templateId = await JSON.parse(res.text).newTemplate._id
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Template form created successfully.')
+        })
+        test('Should return 409 for exist template added', async () => {
+            const res = await request(app)
+                .post('/addTemplate')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({
+                    templateName: 'Full-Time',
+                    template: 'data:text/txt;base64,dGVzdGluZ3BsYWludGV4dA==',
+                    templateFileName: 'Full-Time'
+                })
+            expect(JSON.parse(res.text).status).toBe(409)
+            expect(JSON.parse(res.text).message).toBe(`A template with the name Full-Time already exists.`)
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .post('/addTemplate')
+                .set('Authorization', `Bearer ${newToken}`)
+                .send({
+                    templateName: 'Full-Time',
+                    template: 'data:text/txt;base64,dGVzdGluZ3BsYWludGV4dA==',
+                    templateFileName: 'Full-Time'
+                })
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('~ For get template', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getTemplate/67974f76620e95017de5c295')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 404 template not found', async () => {
+            const res = await request(app)
+            .get('/getTemplate/67974f76620e95017de5c295')
+            .set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Template not found')
+        })
+        test('Should return 200 for template getted successfully', async () => {
+            const res = await request(app)
+            .get(`/getTemplate/${templateId}`)
+            .set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Template fetched successfully.')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app)
+                .get(`/getTemplate/${templateId}`)
+                .set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('~ For get all template', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).get('/getAllTemplates')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 200 for all template getted sucessfully', async () => {
+            const res = await request(app).get('/getAllTemplates').set('Authorization', `Bearer ${newToken}`)
+            // console.log('Res:', res.text)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Templates fetched successfully.')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).get('/getAllTemplates').set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('~ For update template', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/updateTemplate/67aad9033e7992b77587d60a`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 404 template not found', async () => {
+            const res = await request(app).post(`/updateTemplate/67aad9033e7992b77587d60a`).set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Template not found')
+        })
+        test('Should return 409 already exist template', async () => {
+            await request(app).post('/addTemplate').set('Authorization', `Bearer ${newToken}`).send({templateName: 'FullTime',template: 'data:text/txt;base64,dGVzdGluZ3BsYWludGV4dA==',templateFileName: 'FullTime'})
+            const res = await request(app).post(`/updateTemplate/${templateId}`).set('Authorization', `Bearer ${newToken}`).send({ templateName: 'FullTime'})
+            // console.log('res:', res.text)
+            expect(JSON.parse(res.text).status).toBe(409)
+            expect(JSON.parse(res.text).message).toBe('A template with the name "FullTime" already exists.')
+        })
+        test('Should return 200 for update template', async () => {
+            const res = await request(app).post(`/updateTemplate/${templateId}`).set('Authorization', `Bearer ${newToken}`).send({ templateName: 'template'})
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Template details updated successfully.')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateTemplate/${templateId}`).set('Authorization', `Bearer ${newToken}`).send({ templateName: 'template'})
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('~ For delete template', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'Superadmin' } })
+            const res = await request(app).post(`/deleteTemplate/67aad9033e7992b77587d60a`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 404 template not found', async () => {
+            const res = await request(app).post(`/deleteTemplate/67aad9033e7992b77587d60a`).set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Template not found')
+        })
+        test('Should return 200 for template deleted successfully', async () => {
+            const res = await request(app).post(`/deleteTemplate/${templateId}`).set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Template deleted successfully.')
+        })
+        test('should return 403 for, access denied', async () => {
+            await User.findOneAndUpdate({token: newToken}, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteTemplate/${templateId}`).set('Authorization', `Bearer ${newToken}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+
+});

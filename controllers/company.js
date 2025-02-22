@@ -86,11 +86,11 @@ exports.getCompany = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            return res.send({ status: 200, message: 'Company get successfully.', company })
+            return res.send({ status: 200, message: 'Company fetched successfully.', company })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting company:", error);
-        res.send({ message: "Something went wrong while getting company!" })
+        console.error("Error occurred while fetching company:", error);
+        res.send({ message: "Something went wrong while fetching company!" })
     }
 }
 
@@ -109,7 +109,7 @@ exports.getAllCompany = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Company all get successfully.',
+                message: 'Companines fetched successfully.',
                 companies,
                 totalCompanies,
                 totalPages: Math.ceil(totalCompanies / limit) || 1,
@@ -117,8 +117,8 @@ exports.getAllCompany = async (req, res) => {
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting companies:", error);
-        res.send({ message: "Something went wrong while getting companies!" })
+        console.error("Error occurred while fetching companies:", error);
+        res.send({ message: "Something went wrong while fetching companies!" })
     }
 }
 

@@ -449,7 +449,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Timesheet getted successfully.',
+                message: 'Timesheet fetched successfully.',
                 timesheet: timesheet ? timesheet : {},
                 totalTimesheets,
                 totalPages: Math.ceil(totalTimesheets / limit) || 1,
@@ -457,8 +457,8 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error('Error occurred while getting timesheet:', error);
-        res.send({ message: "Something went wrong while getting the timesheet!" });
+        console.error('Error occurred while fetching timesheet:', error);
+        res.send({ message: "Something went wrong while fetching the timesheet!" });
     }
 }
 
@@ -542,7 +542,7 @@ exports.getOwnAllTimeSheets = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Timesheets getted successfully.',
+                message: 'Timesheets fetched successfully.',
                 timesheets: timesheets.length > 0 ? timesheets : [],
                 totalTimesheets,
                 totalPages: Math.ceil(totalTimesheets / limit) || 1,
@@ -551,8 +551,8 @@ exports.getOwnAllTimeSheets = async (req, res) => {
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error('Error occurred while getting time sheet:', error)
-        res.send({ message: 'Something went wrong while getting time sheet!' })
+        console.error('Error occurred while fetching time sheet:', error)
+        res.send({ message: 'Something went wrong while fetching time sheet!' })
     }
 }
 
@@ -1051,6 +1051,7 @@ exports. downloadTimesheetReport = async (req, res) => {
             let startMoment = moment(startDate, "YYYY-MM-DD")
             let endMoment = moment(endDate, "YYYY-MM-DD")
 
+            // passed startMoment as joining date
             if (joiningDate.isBetween(startMoment, endMoment, undefined, '[]')) {
                 startMoment = joiningDate
             }
@@ -1359,7 +1360,7 @@ exports.generateQRcode = async (req, res) => {
                     qrType
                 })
     
-                return res.send({ status: 200, message: 'Company QR generate successfully.', QRCode })
+                return res.send({ status: 200, message: 'Company QR generated successfully.', QRCode })
             } else if(qrType == 'Location'){
                 const location = await Location.findOne({ _id: id, isDeleted: { $ne: true } })
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
@@ -1383,7 +1384,7 @@ exports.generateQRcode = async (req, res) => {
                     qrType
                 })
     
-                return res.send({ status: 200, message: 'Location QR generate successfully.', QRCode })
+                return res.send({ status: 200, message: 'Location QR generated successfully.', QRCode })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -1421,7 +1422,7 @@ exports.getAllQRCodes = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'QR codes getted successfully.',
+                message: 'QR codes fetched successfully.',
                 qrValue,
                 QRCodes,
                 totalQRCodes,
@@ -1431,8 +1432,8 @@ exports.getAllQRCodes = async (req, res) => {
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting company QR codes:', error)
-        res.send({ message: 'Error occurred while getting QR codes!' })
+        console.error('Error occurred while fetching company QR codes:', error)
+        res.send({ message: 'Error occurred while fetching QR codes!' })
     }
 }
 

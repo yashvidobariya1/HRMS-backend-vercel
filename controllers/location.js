@@ -48,8 +48,8 @@ exports.addLocation = async (req, res) => {
             return res.send({ status: 200, message: 'Location created successfully.', location })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while adding location:", error);
-        res.send({ message: "Something went wrong while adding location!" })
+        console.error("Error occurred while creating location:", error);
+        res.send({ message: "Something went wrong while creating location!" })
     }
 }
 
@@ -70,11 +70,11 @@ exports.getLocation = async (req, res) => {
                 return res.send({ status: 404, message: 'Location not found' })
             }
 
-            return res.send({ status: 200, message: 'Location get successfully.', location })
+            return res.send({ status: 200, message: 'Location fetched successfully.', location })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting location:", error);
-        res.send({ message: "Something went wrong while getting location!" })
+        console.error("Error occurred while fetching location:", error);
+        res.send({ message: "Something went wrong while fetching location!" })
     }
 }
 
@@ -93,7 +93,7 @@ exports.getAllLocation = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Location all get successfully.',
+                message: 'Locations fetched successfully.',
                 locations: locations ? locations : [],
                 totalLocations,
                 totalPages: Math.ceil(totalLocations / limit) || 1,
@@ -101,8 +101,8 @@ exports.getAllLocation = async (req, res) => {
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting locations:", error);
-        res.send({ message: "Something went wrong while getting locations!" })
+        console.error("Error occurred while fetching locations:", error);
+        res.send({ message: "Something went wrong while fetching locations!" })
     }
 }
 
@@ -214,7 +214,7 @@ exports.getCompanyLocations = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Locations fetched successfully.',
+                message: "Company's locations fetched successfully.",
                 companyId,
                 companiesAllLocations: filteredLocations,
                 clients: formattedClients,
@@ -222,8 +222,8 @@ exports.getCompanyLocations = async (req, res) => {
             });
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {
-        console.error("Error occurred while getting location:", error);
-        res.send({ message: "Something went wrong while getting location!" });
+        console.error("Error occurred while fetching locations:", error);
+        res.send({ message: "Something went wrong while fetching locations!" });
     }
 }
 

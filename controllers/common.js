@@ -131,7 +131,9 @@ exports.emailVerification = async (req, res) => {
                 }
             });
 
-            return res.send({ status: 200, message: otp })
+            return res.send({ status: 200, message: 'OTP will be send to your registered email', otp
+
+             })
         } else {
             return res.send({ status: 400, message: "OTP not generated." })
         }
@@ -340,20 +342,20 @@ exports.addUser = async (req, res) => {
                 contractDetails
             } = req.body
 
-            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            // if(!company){
-            //     return res.send({ status: 404, message: 'Company not found' })
-            // }
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
 
-            // const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
+            const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
             // console.log('allCompanysEmployees:', allCompanysEmployees)
             // console.log('company?.contractDetails?.maxEmployeesAllowed:', company?.contractDetails?.maxEmployeesAllowed)
-            // if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
-            //     return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
-            // }
+            if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
+                return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
+            }
 
             if (personalDetails && personalDetails.email) {
-                const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+                const user = await User.findOne({ "personalDetails.email": personalDetails.email, isDeleted: { $ne: true } })
                 if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }

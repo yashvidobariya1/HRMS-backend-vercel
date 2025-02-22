@@ -23,7 +23,7 @@ exports.addTemplate = async (req, res) => {
             }
 
             if (templateName) {
-                const existingTemplate = await Template.findOne({ templateName });
+                const existingTemplate = await Template.findOne({ templateName, isDeleted: { $ne: true } });
                 if (existingTemplate) {
                     return res.send({ status: 409, message: `A template with the name ${templateName} already exists.` });
                 }
@@ -67,8 +67,8 @@ exports.addTemplate = async (req, res) => {
             return res.send({ status: 200, message: `Template form created successfully.`, newTemplate })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while adding template form:', error)
-        res.send({ message: 'Error occurred while adding templates form!' })
+        console.error('Error occurred while creating template form:', error)
+        res.send({ message: 'Error occurred while creating templates form!' })
     }
 }
 
@@ -148,7 +148,7 @@ exports.updateTemplate = async (req, res) => {
             } = req.body
 
             if (templateName && isExist.templateName != templateName) {
-                const existingTemplate = await Template.findOne({ templateName });
+                const existingTemplate = await Template.findOne({ templateName, isDeleted: { $ne: true } });
                 if (existingTemplate) {
                     return res.send({ status: 409, message: `A template with the name "${templateName}" already exists.` });
                 }

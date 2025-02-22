@@ -560,7 +560,7 @@ exports.getAllOwnLeaves = async (req, res) => {
             
             return res.send({
                 status: 200,
-                message: 'All leave requests getted successfully.',
+                message: 'All leave requests fetched successfully.',
                 allLeaves,
                 totalLeaves,
                 totalPages: Math.ceil(totalLeaves / limit) || 1,
@@ -568,8 +568,8 @@ exports.getAllOwnLeaves = async (req, res) => {
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting all leaves requests:', error)
-        res.send({ message: 'Error occurred while getting all leave requests!' })
+        console.error('Error occurred while fetching all leaves requests:', error)
+        res.send({ message: 'Error occurred while fetching all leave requests!' })
     }
 }
 
@@ -635,8 +635,8 @@ exports.getAllowLeaveCount = async (req, res) => {
             return res.send({ status: 200, leaveCount })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting leave count:', error)
-        res.send({ message: 'Error occurred while getting leave count!' })
+        console.error('Error occurred while fetching leave count:', error)
+        res.send({ message: 'Error occurred while fetching leave count!' })
     }
 }
 
@@ -691,7 +691,7 @@ exports.getAllLeaveRequest = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'All leave requests got successfully.',
+                message: 'All leave requests fetched successfully.',
                 allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
                 totalLeaveRequests,
                 totalPages: Math.ceil(totalLeaveRequests / limit) || 1,
@@ -699,8 +699,8 @@ exports.getAllLeaveRequest = async (req, res) => {
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting own company employees leave requests:', error)
-        res.send({ message: 'Error occurred while getting own company employees leave requests!' })
+        console.error('Error occurred while fetching own company employees leave requests:', error)
+        res.send({ message: 'Error occurred while fetching own company employees leave requests!' })
     }
 }
 
@@ -861,7 +861,7 @@ exports.updateLeaveRequest = async (req, res) => {
                 }, { new: true }
             )
 
-            return res.send({ status: 200, message: 'Leave request update successfully', updatedLeaveRequest })
+            return res.send({ status: 200, message: 'Leave request updated successfully', updatedLeaveRequest })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating leave request:', error)
