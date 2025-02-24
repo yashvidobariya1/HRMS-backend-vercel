@@ -670,6 +670,7 @@ describe('User CRUD==================================================', () => {
         let createdSAToken
         let createdSAID
         let createdEmployeeId
+        let location
         describe('~ add user', () => {
             test('should return 401 for Unauthorized: Invalid API key', async () => {
                 await User.create({
@@ -703,7 +704,7 @@ describe('User CRUD==================================================', () => {
                         businessName: 'addTestCompanyForSuperadmin'
                     }
                 })
-                const location = await Location.create({
+                location = await Location.create({
                     locationName: 'addTestLocationForSuperadmin',
                     companyId: company._id
                 })
@@ -790,6 +791,17 @@ describe('User CRUD==================================================', () => {
                         "phone": "1234567890",
                         "email": "jane.doe@example.com",
                     },
+                    "jobDetails": [{
+                        "jobTitle": "Marketing Specialist",
+                        "jobDescription": "Handles marketing strategies and campaigns.",
+                        "annualSalary": 50000,
+                        "hourlyRate": 25,
+                        "weeklyWorkingHours": "40",
+                        "joiningDate": "2024-01-15",
+                        "location": location._id,
+                        "assignManager": createdSAID,
+                        "role": "Employee"
+                    }]
                 })
                 expect(JSON.parse(res.text).status).toBe(409);
                 expect(JSON.parse(res.text).message).toBe('Email already exists.');
@@ -1043,6 +1055,7 @@ describe('User CRUD==================================================', () => {
         let createdADToken
         let createdADID
         let createdEmployeeId
+        let location
         describe('~ add user', () => {
             test('should return 401 for Unauthorized: Invalid API key', async () => {
                 await User.create({
@@ -1076,7 +1089,7 @@ describe('User CRUD==================================================', () => {
                         businessName: 'addTestCompanyForAdministrator'
                     }
                 })
-                const location = await Location.create({
+                location = await Location.create({
                     locationName: 'addTestLocationForAdministrator',
                     companyId: company._id
                 })
@@ -1163,6 +1176,17 @@ describe('User CRUD==================================================', () => {
                         "phone": "1234567890",
                         "email": "jane.doe2@example.com",
                     },
+                    "jobDetails": [{
+                        "jobTitle": "Marketing Specialist",
+                        "jobDescription": "Handles marketing strategies and campaigns.",
+                        "annualSalary": 50000,
+                        "hourlyRate": 25,
+                        "weeklyWorkingHours": "40",
+                        "joiningDate": "2024-01-15",
+                        "location": location._id,
+                        "assignManager": createdADID,
+                        "role": "Employee"
+                    }]
                 })
                 expect(JSON.parse(res.text).status).toBe(409);
                 expect(JSON.parse(res.text).message).toBe('Email already exists.');
@@ -1417,6 +1441,7 @@ describe('User CRUD==================================================', () => {
         let createdMToken
         let createdMID
         let createdEmployeeId
+        let location
         describe('~ add user', () => {
             test('should return 401 for Unauthorized: Invalid API key', async () => {
                 await User.create({
@@ -1450,7 +1475,7 @@ describe('User CRUD==================================================', () => {
                         businessName: 'addTestCompanyForManager'
                     }
                 })
-                const location = await Location.create({
+                location = await Location.create({
                     locationName: 'addTestLocationForManager',
                     companyId: company._id
                 })
@@ -1537,6 +1562,17 @@ describe('User CRUD==================================================', () => {
                         "phone": "1234567890",
                         "email": "jane.doe2@example.com",
                     },
+                    "jobDetails": [{
+                        "jobTitle": "Marketing Specialist",
+                        "jobDescription": "Handles marketing strategies and campaigns.",
+                        "annualSalary": 50000,
+                        "hourlyRate": 25,
+                        "weeklyWorkingHours": "40",
+                        "joiningDate": "2024-01-15",
+                        "location": location._id,
+                        "assignManager": createdMID,
+                        "role": "Employee"
+                    }]
                 })
                 expect(JSON.parse(res.text).status).toBe(409);
                 expect(JSON.parse(res.text).message).toBe('Email already exists.');

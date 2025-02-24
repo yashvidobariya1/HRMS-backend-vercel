@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema({
     leavesAllow: Number,
     location: String,
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
+    assignClient: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     role: String
   }],
   immigrationDetails: {
@@ -80,11 +80,11 @@ const userSchema = new mongoose.Schema({
     document: String
   }],
   contractDetails: {
-    contractType: String,
-    contractDocument: {
-      fileName: String,
-      fileURL: String,
-    },
+    // contractType: String,
+    // contractDocument: {
+    //   fileName: String,
+    //   fileURL: String,
+    // },
     contractId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' }
   },
   password: String,
@@ -117,7 +117,7 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
-  isLoggedIn: Boolean,
+  isActive: Boolean,
   usedBrowser: String,
   userIPAddess: String,
   lastTimeAccess: Date,

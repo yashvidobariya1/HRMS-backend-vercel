@@ -1,7 +1,8 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, generateContractLetter, getUserJobTitles, updateProfileDetails, decodeJWTtoken } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, getTimesheetByMonthAndYear, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
+const { lastAccess } = require('../middleware/lastAccess')
+const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getUserJobTitles, updateProfileDetails } = require('../controllers/common')
+const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 
@@ -31,8 +32,6 @@ commonRoute.post('/clockOut', auth, clockOutFunc)
 // get own details
 commonRoute.get('/getDetails', auth, getDetails)
 commonRoute.post('/updateProfileDetails', auth, updateProfileDetails)
-// generate contract letter
-// commonRoute.post('/generateContractLetter', generateContractLetter)
 // notification
 commonRoute.get('/getNotifications', auth, getNotifications)
 commonRoute.get('/getUnreadNotificationsCount', auth, getUnreadNotificationsCount)

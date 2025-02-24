@@ -1202,7 +1202,7 @@ exports. downloadTimesheetReport = async (req, res) => {
                 await page.setContent(htmlContent, { waitUntil: "networkidle0" })
                 await page.waitForSelector("table")
                 await new Promise(resolve => setTimeout(resolve, 1000))
-                const pdfBuffer = await page.pdf({ format: "A4" })
+                const pdfBuffer = await page.pdf({ format: "A4", printBackground: true   })
 
                 await browser.close()
 
