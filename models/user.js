@@ -57,6 +57,7 @@ const userSchema = new mongoose.Schema({
     location: String,
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     assignClient: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
     role: String
   }],
   immigrationDetails: {
@@ -86,6 +87,10 @@ const userSchema = new mongoose.Schema({
     //   fileURL: String,
     // },
     contractId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' }
+  },
+  documents: {
+    userContractURL: String,
+    userTemplateURL: String
   },
   password: String,
   role: {

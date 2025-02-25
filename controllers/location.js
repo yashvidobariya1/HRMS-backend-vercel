@@ -3,7 +3,8 @@ const Company = require("../models/company");
 const Location = require("../models/location");
 const User = require("../models/user");
 const Client = require("../models/client");
-const contract = require("../models/contract");
+const Contract = require("../models/contract");
+const Template = require("../models/template");
 const moment = require("moment");
 
 exports.addLocation = async (req, res) => {
@@ -123,11 +124,17 @@ exports.getCompanyLocations = async (req, res) => {
                 name: client.clientName
             }))
 
-            const companysContract = await contract.find({ companyId, isDeleted: { $ne: true } })
+            const companysContract = await Contract.find({ companyId, isDeleted: { $ne: true } })
             const formattedContract = companysContract.map(contract => ({
                 _id: contract._id,
                 contractType: contract.contractName,
                 contractDocument: contract.contractFileName
+            }))
+
+            const templates = await Template.find({ isDeleted: { $ne: true } })
+            const formattedTemplates = templates.map(template => ({
+                _id: template._id,
+                templateName: template?.templateName
             }))
 
             let superadmin = {}
@@ -218,7 +225,8 @@ exports.getCompanyLocations = async (req, res) => {
                 companyId,
                 companiesAllLocations: filteredLocations,
                 clients: formattedClients,
-                contracts: formattedContract
+                contracts: formattedContract,
+                templates: formattedTemplates
             });
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {

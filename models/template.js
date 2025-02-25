@@ -19,4 +19,6 @@ const templateSchema = new mongoose.Schema({
     cancelAt: Date
 }, { timestamps: true });
 
-module.exports = mongoose.model('Templates', templateSchema);
+const Template = mongoose.model('Templates', templateSchema);
+
+ module.exports = Template

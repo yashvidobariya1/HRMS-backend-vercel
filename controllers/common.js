@@ -332,9 +332,6 @@ exports.updateProfileDetails = async (req, res) => {
 const generateContractForUser = async (userData, contractId) => {
     try {       
         const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-        if(!contract){
-            return res.send({ status: 404, message: 'Contract not found' })
-        }
        
         const response = await axios.get(contract?.contract, { responseType: 'arraybuffer' })
         const content = response.data
@@ -504,16 +501,22 @@ exports.addUser = async (req, res) => {
             const contractId = contractDetails?.contractId
             let generatedContract
             if(contractId){
+                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
                 generatedContract = await generateContractForUser(userData, contractId)
+            } else {
+                return res.send({ status: 404, message: 'Contract not found' })
             }
 
             if (personalDetails.sendRegistrationLink == true) {
                 try {
-                    const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`                    
+                    const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
                     let mailOptions = {
                         from: process.env.NODEMAILER_EMAIL,
                         to: newUser.personalDetails.email,
-                        subject: "Welcome to [Company Name]'s HRMS Portal",
+                        subject: `Welcome to ${company?.companyDetails?.businessName}'s HRMS Portal`,
                         html: `
                             <p>Welcome to HRMS Portal!</p>
 
@@ -744,6 +747,43 @@ exports.updateUserDetails = async (req, res) => {
                 contractDetailsFile = {
                     contractId: contractDetails?.contractId,
                 }
+
+                const contract = await Contract.findOne({ _id: contractDetailsFile?.contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+
+                const company = await Company.findOne({ _id: user?.companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
+                let userData = {
+                    EMPLOYEE_NAME: `${personalDetails?.firstName} ${personalDetails?.lastName}`,
+                    EMPLOYEE_EMAIL: personalDetails?.email,
+                    EMPLOYEE_CONTACT_NUMBER: personalDetails?.phone,
+                    JOB_START_DATE: 'START_DATE',
+                    EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
+                    WEEKLY_HOURS: 'WEEKLY_HOURS',
+                    ANNUAL_SALARY: 'ANNUAL_SALARY',
+                    COMPANY_NAME: company?.companyDetails?.businessName
+                }
+
+                const generatedContract = await generateContractForUser(userData, contractDetailsFile?.contractId)
+                const attachedFileName = `${personalDetails?.firstName}${personalDetails?.lastName}-updated-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
+                
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: personalDetails?.email,
+                    subject: "Your contract will be updated",
+                    html: `
+                        <p>Dear ${personalDetails?.firstName}${personalDetails?.lastName},</p>
+                        <p>Your contract has been updated. Please find the attached updated contract.</p>
+                        <p>Best Regards,<br>${company?.companyDetails?.businessName}</p>
+                    `,
+                    attachments: [{ filename: attachedFileName, content: generatedContract }],
+                }
+                await transporter.sendMail(mailOptions)
             }
 
             let updatedUser = await User.findByIdAndUpdate(

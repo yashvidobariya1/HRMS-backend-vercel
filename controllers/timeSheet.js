@@ -151,14 +151,14 @@ exports.clockInFunc = async (req, res) => {
             //     })
             // })
 
-            const { firstName, lastName } = existUser.personalDetails;
-            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const firstName = existUser.personalDetails?.firstName || ""
+            const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${name}`,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'ClockIn',
-                message: `${name} entered the geofence at ${currentDate}`,
+                message: `${firstName} ${lastName} entered the geofence at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -399,14 +399,14 @@ exports.clockOutFunc = async (req, res) => {
             //     })
             // })
 
-            const { firstName, lastName } = existUser.personalDetails;
-            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const firstName = existUser.personalDetails?.firstName || ""
+            const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${name}`,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'ClockOut',
-                message: `${name} exited the geofence at ${currentDate}`,
+                message: `${firstName} ${lastName} exited the geofence at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -463,15 +463,15 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 }
 
 // for view hours frontend page
-exports.getOwnAllTimeSheets = async (req, res) => {
+exports.getAllTimeSheets = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
-            const userId = req.user._id
+            const userId = req.body.userId || req.user._id
 
             const { jobId } = req.body
             const { month, year } = req.query

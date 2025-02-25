@@ -20,4 +20,6 @@ const contractSchema = new mongoose.Schema({
     cancelAt: Date
 }, { timestamps: true });
 
-module.exports = mongoose.model('Contract', contractSchema);
+const Contract= mongoose.model('Contract', contractSchema);
+
+module.exports = Contract

@@ -485,12 +485,15 @@ exports.leaveRequest = async (req, res) => {
             //     })
             // })
 
+            const firstName = user?.personalDetails?.firstName || ""
+            const lastName = user?.personalDetails?.lastName || ""
+
             const notification = new Notification({
                 userId,
-                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request',
-                message: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
+                message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
                 readBy
             });
             // console.log('notification/..', notification)
@@ -940,8 +943,8 @@ exports.approveLeaveRequest = async (req, res) => {
             await leave.save()
 
             // ---------------send notification---------------
-            let firstName = req.user?.personalDetails?.firstName
-            let lastName = req.user?.personalDetails?.lastName
+            let firstName = req.user?.personalDetails?.firstName || ""
+            let lastName = req.user?.personalDetails?.lastName || ""
 
             let notifiedId = []
             let readBy = []
@@ -969,6 +972,7 @@ exports.approveLeaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId: req.user._id,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request approveral',
                 message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.`,
@@ -1006,8 +1010,8 @@ exports.rejectLeaveRequest = async (req, res) => {
             await leave.save()
 
             // ---------------send notification---------------
-            let firstName = req.user?.personalDetails?.firstName
-            let lastName = req.user?.personalDetails?.lastName
+            let firstName = req.user?.personalDetails?.firstName || ""
+            let lastName = req.user?.personalDetails?.lastName || ""
 
             let notifiedId = []
             let readBy = []
@@ -1035,6 +1039,7 @@ exports.rejectLeaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId: req.user._id,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request reject',
                 message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request.`,

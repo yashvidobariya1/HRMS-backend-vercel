@@ -2,9 +2,10 @@ const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { lastAccess } = require('../middleware/lastAccess')
 const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getUserJobTitles, updateProfileDetails } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getOwnAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
+const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
+const { generateEmployeeTemplate } = require('../controllers/templates')
 
 const commonRoute = Router()
 
@@ -24,7 +25,7 @@ commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
 // get own timesheet
 commonRoute.post('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
-commonRoute.post('/getOwnAllTimesheet', auth, getOwnAllTimeSheets)
+commonRoute.post('/getAllTimesheets', auth, getAllTimeSheets)
 // clock in/out
 commonRoute.post('/clockIn', auth, clockInFunc)
 commonRoute.post('/clockOut', auth, clockOutFunc)
@@ -52,5 +53,7 @@ commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
 // timesheet report
 commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
 commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
+// generate template
+commonRoute.post('/generateTemplate', auth, generateEmployeeTemplate)
 
 module.exports = commonRoute
