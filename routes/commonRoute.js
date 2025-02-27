@@ -5,7 +5,7 @@ const { login, logOut, updatePassword, emailVerification, otpVerification, forgo
 const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
-const { generateEmployeeTemplate } = require('../controllers/templates')
+const { generateEmployeeTemplate, saveTemplateWithSignature } = require('../controllers/templates')
 
 const commonRoute = Router()
 
@@ -55,5 +55,6 @@ commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
 commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
 // generate template
 commonRoute.post('/generateTemplate', auth, generateEmployeeTemplate)
+commonRoute.post('/signedTemplate', auth, saveTemplateWithSignature)
 
 module.exports = commonRoute

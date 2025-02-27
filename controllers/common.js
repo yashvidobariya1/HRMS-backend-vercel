@@ -135,9 +135,10 @@ exports.emailVerification = async (req, res) => {
                 }
             });
 
-            return res.send({ status: 200, message: 'OTP will be send to your registered email', otp
+            findUser.isEmailVerified = true
+            await findUser.save()
 
-             })
+            return res.send({ status: 200, message: 'OTP will be send to your registered email', otp })
         } else {
             return res.send({ status: 400, message: "OTP not generated." })
         }
@@ -151,8 +152,13 @@ exports.otpVerification = async (req, res) => {
     try {
         const { email, otp } = req.body
         const findUser = await User.findOne({ "personalDetails.email": email, isDeleted: false })
+        if(findUser?.isEmailVerified !== true){
+            return res.send({ status: 400, message: 'Email is not verified, please verify your email!' })
+        } 
         if (findUser) {
             if (findUser.otp === otp) {
+                findUser.isOTPVerified = true
+                await findUser.save()
                 return res.send({ status: 200, message: "OTP verified successfully." })
             } else {
                 return res.send({ status: 409, message: "Invalid OTP." })
@@ -178,6 +184,10 @@ exports.forgotPassword = async (req, res) => {
             return res.send({ status: 404, message: "User not found" })
         }
 
+        if(user?.isEmailVerified !== true){
+            return res.send({ status: 400, message: 'Email is not verified, please verify your email!' })
+        } 
+
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
         if (!passwordRegex.test(newPassword)) {
             return res.send({
@@ -192,6 +202,8 @@ exports.forgotPassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
         user.password = hashedPassword
+        user.isEmailVerified = false
+        user.isOTPVerified = false
         await user.save()
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
@@ -250,7 +262,7 @@ exports.getDetails = async (req, res) => {
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            return res.send({ status: 200, user })
+            return res.send({ status: 200, user: user?.personalDetails })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
@@ -448,9 +460,9 @@ exports.addUser = async (req, res) => {
             //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
             //     }
             // }
-            if(contractDetails?.contractId){
+            if(contractDetails?.contractType){
                 contractDetailsFile = {
-                    contractId: contractDetails?.contractId,
+                    contractId: contractDetails?.contractType,
                 }
             }
 
@@ -498,7 +510,7 @@ exports.addUser = async (req, res) => {
                 COMPANY_NAME: company?.companyDetails?.businessName
             }
 
-            const contractId = contractDetails?.contractId
+            const contractId = contractDetails?.contractType
             let generatedContract
             if(contractId){
                 const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
@@ -739,13 +751,13 @@ exports.updateUserDetails = async (req, res) => {
             //     }
             // }
 
-            if(user?.contractDetails?.contractId == contractDetails?.contractId){
+            if(user?.contractDetails?.contractId == contractDetails?.contractType){
                 contractDetailsFile = {
                     contractId: user?.contractDetails?.contractId
                 }
             } else {
                 contractDetailsFile = {
-                    contractId: contractDetails?.contractId,
+                    contractId: contractDetails?.contractType,
                 }
 
                 const contract = await Contract.findOne({ _id: contractDetailsFile?.contractId, isDeleted: { $ne: true } })

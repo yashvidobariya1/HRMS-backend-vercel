@@ -439,12 +439,12 @@ exports.leaveRequest = async (req, res) => {
             let readBy = []
             if (req.user.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
                     // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
                     readBy.push({
                         userId: jobDetail.assignManager,
-                        role: assignManager[0].role
+                        role: assignManager?.role
                     })
                     // console.log('readBy1/..', readBy)
                 }
@@ -459,19 +459,19 @@ exports.leaveRequest = async (req, res) => {
                 //     })
                 // }
             } else if (req.user.role === 'Manager') {
-                const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+                const administrator = await User.findOne({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
+                    notifiedId.push(administrator?._id);
                     readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
+                        userId: administrator?._id,
+                        role: administrator?.role
                     })
                 }
             } else if (req.user.role === 'Administrator' && user?.creatorId) {
-                notifiedId.push(user.creatorId);
+                notifiedId.push(user?.creatorId);
                 readBy.push({
-                    userId: user.creatorId,
-                    role: user.createdBy
+                    userId: user?.creatorId,
+                    role: user?.createdBy
                 })
             }
 
@@ -902,7 +902,11 @@ exports.approveLeaveRequest = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
-            const { updates, approvalReason } = req.body
+            const { leaves, approvalReason } = req.body
+
+            if(!approvalReason){
+                return res.send({ status: 400, message: 'Approval reason is required' })
+            }
 
             const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
 
@@ -910,14 +914,14 @@ exports.approveLeaveRequest = async (req, res) => {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
 
-            if (leave.selectionDuration === 'Multiple' && Array.isArray(updates)) {
-                updates.forEach(update => {
-                    const leaveDay = leave.leaves.find(leave => leave.leaveDate === update.date);
+            if (leave.selectionDuration === 'Multiple' && Array.isArray(leaves)) {
+                leaves.forEach(update => {
+                    const leaveDay = leave.leaves.find(leave => leave.leaveDate === update.leaveDate);
                     if (leaveDay) {
                         leaveDay.isApproved = update.isApproved
                     }
                 })
-            } else {
+            } else if(leave.selectionDuration !== 'Multiple') {
                 if (leave.leaves.length > 0) {
                     leave.leaves[0].isApproved = true
                 }
@@ -949,7 +953,7 @@ exports.approveLeaveRequest = async (req, res) => {
             let notifiedId = []
             let readBy = []
 
-            const existingUser = await User.findOne({ _id: leave.userId, isDeleted: { $ne: true } })
+            const existingUser = await User.findOne({ _id: leave.userId.toString(), isDeleted: { $ne: true } })
             if(!existingUser){
                 return res.send({ status: 404, message: 'User not found.' })
             }
@@ -960,22 +964,22 @@ exports.approveLeaveRequest = async (req, res) => {
                 role: existingUser?.role
             })
 
-            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            superAdmin.map((sa) => {
-                notifiedId.push(sa?._id)
-                readBy.push({
-                    userId: sa?._id,
-                    role: sa?.role
-                })
-            })
+            // superAdmin.map((sa) => {
+            //     notifiedId.push(sa?._id)
+            //     readBy.push({
+            //         userId: sa?._id,
+            //         role: sa?.role
+            //     })
+            // })
 
             const notification = new Notification({
                 userId: req.user._id,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request approveral',
-                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.`,
+                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.${ approvalReason ? `( Reason: ${approvalReason} )` : '' }`,
                 readBy
             })
             // console.log('notification/..', notification)
@@ -1002,6 +1006,16 @@ exports.rejectLeaveRequest = async (req, res) => {
                 return res.send({ status: 404, message: 'Leave request not found.' })
             }
 
+            if (leave.selectionDuration === 'Multiple') {
+                leave?.leaves.forEach(leave => {
+                    leave.isApproved = false
+                })
+            } else if(leave.selectionDuration !== 'Multiple') {
+                if (leave.leaves.length > 0) {
+                    leave.leaves[0].isApproved = false
+                }
+            }
+
             leave.status = 'Rejected'
             leave.numberOfApproveLeaves = 0
             leave.rejectionReason = rejectionReason
@@ -1016,7 +1030,7 @@ exports.rejectLeaveRequest = async (req, res) => {
             let notifiedId = []
             let readBy = []
 
-            const existingUser = await User.findOne({ _id: leave.userId, isDeleted: { $ne: true } })
+            const existingUser = await User.findOne({ _id: leave?.userId.toString(), isDeleted: { $ne: true } })
             if(!existingUser){
                 return res.send({ status: 404, message: 'User not found.' })
             }
@@ -1027,22 +1041,22 @@ exports.rejectLeaveRequest = async (req, res) => {
                 role: existingUser?.role
             })
 
-            const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            superAdmin.map((sa) => {
-                notifiedId.push(sa?._id)
-                readBy.push({
-                    userId: sa?._id,
-                    role: sa?.role
-                })
-            })
+            // superAdmin.map((sa) => {
+            //     notifiedId.push(sa?._id)
+            //     readBy.push({
+            //         userId: sa?._id,
+            //         role: sa?.role
+            //     })
+            // })
 
             const notification = new Notification({
                 userId: req.user._id,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave request reject',
-                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request.`,
+                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ( Reason: ${rejectionReason} )`,
                 readBy
             })
             // console.log('notification/..', notification)

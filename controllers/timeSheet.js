@@ -105,12 +105,12 @@ exports.clockInFunc = async (req, res) => {
             let readBy = []
             if (existUser.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
                     // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
                     readBy.push({
                         userId: jobDetail.assignManager,
-                        role: assignManager[0].role
+                        role: assignManager?.role
                     })
                     // console.log('readBy1/..', readBy)
                 }
@@ -125,19 +125,19 @@ exports.clockInFunc = async (req, res) => {
                 //     })
                 // }
             } else if (existUser.role === 'Manager') {
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
+                    notifiedId.push(administrator?._id);
                     readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
+                        userId: administrator?._id,
+                        role: administrator?.role
                     })
                 }
             } else if (existUser.role === 'Administrator') {
                 notifiedId.push(existUser.creatorId)
                 readBy.push({
-                    userId: existUser.creatorId,
-                    role: existUser.createdBy
+                    userId: existUser?.creatorId,
+                    role: existUser?.createdBy
                 })
             }
 
@@ -353,12 +353,12 @@ exports.clockOutFunc = async (req, res) => {
             let readBy = []
             if (existUser.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
                     // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
                     readBy.push({
                         userId: jobDetail.assignManager,
-                        role: assignManager[0].role
+                        role: assignManager?.role
                     })
                     // console.log('readBy1/..', readBy)
                 }
@@ -373,19 +373,19 @@ exports.clockOutFunc = async (req, res) => {
                 //     })
                 // }
             } else if (existUser.role === 'Manager') {
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
+                    notifiedId.push(administrator?._id);
                     readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
+                        userId: administrator?._id,
+                        role: administrator?.role
                     })
                 }
             } else if (existUser.role === 'Administrator') {
-                notifiedId.push(existUser.creatorId)
+                notifiedId.push(existUser?.creatorId)
                 readBy.push({
-                    userId: existUser.creatorId,
-                    role: existUser.createdBy
+                    userId: existUser?.creatorId,
+                    role: existUser?.createdBy
                 })
             }
 

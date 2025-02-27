@@ -122,6 +122,14 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  isOTPVerified: {
+    type: Boolean,
+    default: false
+  },
   isActive: Boolean,
   usedBrowser: String,
   userIPAddess: String,
