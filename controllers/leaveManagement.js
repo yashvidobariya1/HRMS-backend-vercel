@@ -492,7 +492,7 @@ exports.leaveRequest = async (req, res) => {
                 userId,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'Leave request',
+                type: 'Leave Request',
                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
                 readBy
             });
@@ -974,12 +974,17 @@ exports.approveLeaveRequest = async (req, res) => {
             //     })
             // })
 
+            let notificationMessage = `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.${ approvalReason ? `( Reason: ${approvalReason} )` : '' }`
+            if (approvedLeavesCount < leave?.totalLeaveDays) {
+                notificationMessage = `${firstName} ${lastName} has partially approved your ${leave.leaveType} leave request [ Approved : ${approvedLeavesCount} and Rejected : ${leave?.totalLeaveDays - approvedLeavesCount} ]. ${ approvalReason ? ` ( Reason: ${approvalReason} )` : '' }`
+            }
+
             const notification = new Notification({
                 userId: req.user._id,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'Leave request approveral',
-                message: `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.${ approvalReason ? `( Reason: ${approvalReason} )` : '' }`,
+                type: 'Leave Request Approveral',
+                message: notificationMessage,
                 readBy
             })
             // console.log('notification/..', notification)
@@ -1055,7 +1060,7 @@ exports.rejectLeaveRequest = async (req, res) => {
                 userId: req.user._id,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'Leave request reject',
+                type: 'Leave Request Reject',
                 message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ( Reason: ${rejectionReason} )`,
                 readBy
             })

@@ -18,12 +18,14 @@ const superAdminRoute = require('./routes/superAdminRoute');
 const administratorRoute = require('./routes/administratorRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const commonRoute = require('./routes/commonRoute');
+const clientRoute = require('./routes/clientRoute');
 
 app.use(managerRoute)
 app.use(superAdminRoute)
 app.use(administratorRoute)
 app.use(employeeRoute)
 app.use(commonRoute)
+app.use(clientRoute)
 
 app.listen(port, () => {
   console.log("Server is listening at port:", port)

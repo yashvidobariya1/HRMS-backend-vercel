@@ -9,7 +9,6 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
         }
 
         .main-container {
@@ -109,9 +108,17 @@
             font-size: 14px;
         }
 
-        .clock-entry {
+        .timesheet-data-entry {
             padding: 5px 10px;
             background-color: #f7f7f7;
+            margin-bottom: 5px;
+            font-size: 14px;
+            width: auto;
+        }
+
+        .clock-entry {
+            padding: 5px 10px;
+            background-color: #ffffff;
             margin-bottom: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -159,8 +166,8 @@
                 <% reportData.forEach(entry => { 
                     %>
                         <tr>
-                            <td class="clock-entry"><%= moment(entry.date).format('DD-MM-YYYY') %></td>
-                            <td>
+                            <td class="timesheet-data-entry"><%= moment(entry.date).format('DD-MM-YYYY') %></td>
+                            <td class="timesheet-data-entry">
                                 <% 
                                     if (entry.clockinTime && entry.clockoutTime) { 
                                         let clockinTimes = entry.clockinTime.split('||').map(time => time.trim()); 
@@ -176,21 +183,21 @@
                                             }
                                         } else { 
                                             %>
-                                                <p class="clock-entry">-</p>
+                                                <p>-</p>
                                             <% 
                                         } 
                                     } else { 
                                         %>
-                                            <p class="clock-entry">-</p>
+                                            <p>-</p>
                                         <% 
                                     } 
                                 %>
                             </td>
-                            <td class="clock-entry"><%= entry.totalHours ? entry.totalHours : '-' %></td>
-                            <td class="clock-entry"><%= entry.overTime ? entry.overTime : '-' %></td>
-                            <td class="clock-entry"><%= entry.status %></td>
-                            <td class="leave-entry"><%= entry.leaveType ? entry.leaveType : '-' %></td>
-                            <!-- <td class="clock-entry"><%= entry.holidayOccasion ? entry.holidayOccasion : '-' %></td> -->
+                            <td class="timesheet-data-entry"><%= entry.totalHours ? entry.totalHours : '-' %></td>
+                            <td class="timesheet-data-entry"><%= entry.overTime ? entry.overTime : '-' %></td>
+                            <td class="timesheet-data-entry"><%= entry.status %></td>
+                            <td class="timesheet-data-entry"><%= entry.leaveType ? entry.leaveType : '-' %></td>
+                            <!-- <td class="timesheet-data-entry"><%= entry.holidayOccasion ? entry.holidayOccasion : '-' %></td> -->
                         </tr>
                     <% 
                 }); %>

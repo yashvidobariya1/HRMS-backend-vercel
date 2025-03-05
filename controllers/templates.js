@@ -8,13 +8,19 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const streamifier = require('streamifier')
 // const ImageModule = require('open-docxtemplater-image-module')
-// // const { PDFDocument, rgb } = require('pdf-lib');
-// const { Document, Packer, Paragraph, ImageRun } = require("docx");
-// const docx4js = require("docx4js");
-// const { PassThrough } = require("stream");
-// const { imageSize } = require("image-size");
-// const fs = require("fs");
-// const mammoth = require("mammoth");
+const ImageModule = require("docxtemplater-image-module-free")
+// const { PDFDocument, rgb } = require('pdf-lib');
+const { Document, Packer, Paragraph, TextRun, ImageRun } = require("docx");
+const docx4js = require("docx4js");
+const { PassThrough } = require("stream");
+const { imageSize } = require("image-size");
+const fs = require("fs");
+const mammoth = require("mammoth");
+const util = require('util');
+const path = require('path');
+const puppeteer = require('puppeteer')
+const { PDFDocument, rgb } = require('pdf-lib');
+const { name } = require('ejs');
 
 exports.addTemplate = async (req, res) => {
     try {
@@ -54,6 +60,7 @@ exports.addTemplate = async (req, res) => {
                     let element = await cloudinary.uploader.upload(document, {
                         resource_type: "auto",
                         folder: "Templates",
+                        format: "docx"
                     });
                     // console.log('Cloudinary response:', element);
                     template = element.secure_url
@@ -507,19 +514,18 @@ exports.generateEmployeeTemplate = async (req, res) => {
                 EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
                 EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
                 EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
-                JOB_START_DATE: 'START_DATE',
-                EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
-                WEEKLY_HOURS: 'WEEKLY_HOURS',
-                ANNUAL_SALARY: 'ANNUAL_SALARY',
+                JOB_START_DATE: jobDetail?.joiningDate,
+                EMPLOYEE_JOB_TITLE: jobDetail?.jobTitle,
+                EMPLOYEE_ROLE: jobDetail?.role,
+                WEEKLY_HOURS: jobDetail?.weeklyWorkingHours,
+                ANNUAL_SALARY: jobDetail?.annualSalary,
                 COMPANY_NAME: company?.companyDetails?.businessName,
-                SIGNATURE: '{%SIGNATURE}'
+                SIGNATURE: '{SIGNATURE}'
             }
 
             const generatedTemp = await generateTemplateForUser(userData, templateId)
 
-            const docxBuffer = Buffer.from(generatedTemp, 'base64');
-
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            const pdfBuffer = Buffer.from(generatedTemp, 'base64');
 
             const uploadDocx = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
@@ -529,7 +535,7 @@ exports.generateEmployeeTemplate = async (req, res) => {
                         resolve(result);
                     }
                 );
-                streamifier.createReadStream(docxBuffer).pipe(uploadStream);
+                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
             });
 
             return res.send({ status: 200, message: 'URL generated success', URL: uploadDocx.secure_url})
@@ -1193,99 +1199,849 @@ exports.generateEmployeeTemplate = async (req, res) => {
 //     }
 // };
 
-exports.saveTemplateWithSignature = async (req, res) => {
-    // try {
-    //     const allowedRoles = ["Administrator", "Manager", "Employee"];
-    //     if (!allowedRoles.includes(req.user.role)) {
-    //         return res.status(403).json({ message: "Access denied" });
-    //     }
 
-    //     const { image, jobId } = req.body;
-    //     const userId = req.user._id;
+// async function generatePDF(userData, templateId, res) {
+//     try {
+//         console.log("Generating DOCX...");
 
-    //     const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } });
-    //     if (!existUser) return res.status(404).json({ message: "User not found" });
+//         // Step 1: Generate DOCX
+//         const generatedTemp = await generateTemplateForUser(userData, templateId);
+//         const docxBuffer = Buffer.from(generatedTemp, 'base64'); 
+//         const docxPath = path.join(__dirname, 'temp.docx');
 
-    //     const company = await Company.findOne({ _id: existUser?.companyId, isDeleted: { $ne: true } });
-    //     if (!company) return res.status(404).json({ message: "Company not found" });
+//         // ✅ Write file using fs.promises
+//         await fs.promises.writeFile(docxPath, docxBuffer);
+//         console.log("DOCX file saved.");
 
-    //     const jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId);
-    //     if (!jobDetail) return res.status(404).json({ message: "JobTitle not found" });
+//         // Step 2: Convert DOCX to HTML
+//         const { value: htmlContent } = await mammoth.convertToHtml({ path: docxPath });
+//         console.log("DOCX converted to HTML.");
 
-    //     const templateId = jobDetail?.templateId;
-    //     const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } });
+//         // Step 3: Convert HTML to PDF using Puppeteer
+//         const browser = await puppeteer.launch();
+//         const page = await browser.newPage();
+//         await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
 
-    //     if (!template) return res.status(404).json({ message: "Template not found" });
+//         // ✅ Generate PDF
+//         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+//         await browser.close();
+//         console.log("PDF generated.");
 
-    //     console.log("🔗 Template URL:", template?.template);
+//         // Step 4: Upload PDF to Cloudinary
+//         console.log("Uploading to Cloudinary...");
 
-    //     // Convert Base64 Image to Buffer
-    //     const base64Image = image.replace(/^data:image\/\w+;base64,/, "");
-    //     const imageBuffer = Buffer.from(base64Image, "base64");
+//         const uploadPdf = await new Promise((resolve, reject) => {
+//             const uploadStream = cloudinary.uploader.upload_stream(
+//                 { resource_type: 'raw', format: 'pdf', folder: 'documents' },
+//                 (error, result) => {
+//                     if (error) {
+//                         console.error("Cloudinary Upload Error:", error);
+//                         return reject(error);
+//                     }
+//                     resolve(result);
+//                 }
+//             );
 
-    //     // Initialize Image Module
-    //     const imageModule = new ImageModule({
-    //         centered: true,
-    //         getImage(tag) {
-    //             console.log('checking tag name')
-    //             if (tag === "SIGNATURE") {
-    //                 return imageBuffer;
-    //             }
-    //             throw new Error(`Unknown image tag: ${tag}`);
-    //         },
-    //         getSize() {
-    //             return [200, 100];
-    //         }
-    //     });
+//             streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+//         });
 
-    //     const userData = {
-    //         EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
-    //         EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
-    //         EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
-    //         JOB_START_DATE: "START_DATE",
-    //         EMPLOYEE_JOB_TITLE: "JOB_TITLE",
-    //         WEEKLY_HOURS: "WEEKLY_HOURS",
-    //         ANNUAL_SALARY: "ANNUAL_SALARY",
-    //         COMPANY_NAME: company?.companyDetails?.businessName,
-    //         SIGNATURE: "SIGNATURE" // The tag should match the one inside the DOCX template
-    //     };
+//         console.log("PDF uploaded to Cloudinary:", uploadPdf.secure_url);
 
-    //     // Load Template
-    //     const generatedTemp = await generateTemplateForUser(userData, templateId);
-    //     const docxBuffer = Buffer.from(generatedTemp, "base64");
+//         // Cleanup: Remove temporary DOCX file
+//         await fs.promises.unlink(docxPath);
+//         console.log("Temporary DOCX file deleted.");
 
-    //     const zip = new PizZip(docxBuffer);
-    //     const doc = new Docxtemplater(zip, {
-    //         modules: [imageModule] // Register Image Module
-    //     }, { paragraphLoop: true, linebreaks: true });
-    //     doc.compile();
+//         res.json({ success: true, pdfUrl: uploadPdf.secure_url });
 
-    //     // Populate Template Data
+//     } catch (error) {
+//         console.error('Error generating PDF:', error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// }
+
+async function generatePDF(userData, templateId, res) {
+    try {
+        console.log("Generating DOCX...");
+
+        // Step 1: Generate DOCX
+        const generatedTemp = await generateTemplateForUser(userData, templateId);
+        const docxBuffer = Buffer.from(generatedTemp, 'base64'); 
+        const docxPath = path.join(__dirname, 'temp.docx');
+
+        // ✅ Write file using fs.promises
+        await fs.promises.writeFile(docxPath, docxBuffer);
+        console.log("DOCX file saved.");
+
+        // Step 2: Convert DOCX to HTML
+        const { value: htmlContent } = await mammoth.convertToHtml({ path: docxPath });
+        console.log("DOCX converted to HTML.");
+
+        // Step 3: Convert HTML to PDF using Puppeteer
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+
+        // ✅ Generate PDF
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+        await browser.close();
+        console.log("PDF generated.");
+
+        // Step 4: Upload PDF to Cloudinary
+        console.log("Uploading to Cloudinary...");
+
+        const uploadPdf = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                { resource_type: 'raw', format: 'pdf', folder: 'documents' },
+                (error, result) => {
+                    if (error) {
+                        console.error("Cloudinary Upload Error:", error);
+                        return reject(error);
+                    }
+                    resolve(result);
+                }
+            );
+
+            streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+        });
+
+        console.log("PDF uploaded to Cloudinary:", uploadPdf.secure_url);
+
+        // Cleanup: Remove temporary DOCX file
+        await fs.promises.unlink(docxPath);
+        console.log("Temporary DOCX file deleted.");
+
+        res.json({ success: true, pdfUrl: uploadPdf.secure_url });
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+// exports.saveTemplateWithSignature = async (req, res) => {
+//     try {
+//         const allowedRoles = ["Administrator", "Manager", "Employee"];
+//         if (!allowedRoles.includes(req.user.role)) {
+//             return res.status(403).json({ message: "Access denied" });
+//         }
+
+//         console.log('method')
+//         // ==============================================================================================================================
+
+//         // const { jobId } = req.body;
+//         // const userId = req.user._id;
+
+//         // const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } });
+//         // if (!existUser) return res.status(404).json({ message: "User not found" });
+
+//         // const company = await Company.findOne({ _id: existUser?.companyId, isDeleted: { $ne: true } });
+//         // if (!company) return res.status(404).json({ message: "Company not found" });
+
+//         // const jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId);
+//         // if (!jobDetail) return res.status(404).json({ message: "JobTitle not found" });
+
+//         // const templateId = jobDetail?.templateId;
+//         // const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } });
+
+//         // if (!template) return res.status(404).json({ message: "Template not found" });
+
+//         // console.log("🔗 Template URL:", template?.template);
+
+//         // const userData = {
+//         //     EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+//         //     EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+//         //     EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+//         //     JOB_START_DATE: "START_DATE",
+//         //     EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+//         //     WEEKLY_HOURS: "WEEKLY_HOURS",
+//         //     ANNUAL_SALARY: "ANNUAL_SALARY",
+//         //     COMPANY_NAME: company?.companyDetails?.businessName,
+//         //     SIGNATURE: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`
+//         // };
+
+//         // // userData.SIGNATURE = `<w:r><w:rPr><w:rFonts w:ascii="Lucida Handwriting" w:hAnsi="Lucida Handwriting"/></w:rPr><w:t>${userData.SIGNATURE}</w:t></w:r>`
+
+//         // // Load Template
+//         // const generatedTemp = await generateTemplateForUser2(userData, templateId);
+//         // const docxBuffer = Buffer.from(generatedTemp, "base64");
+
+//         // res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+//         // const uploadDocx = await new Promise((resolve, reject) => {
+//         //     const uploadStream = cloudinary.uploader.upload_stream(
+//         //         { resource_type: 'raw', format: 'docx', folder: 'documents' },
+//         //         (error, result) => {
+//         //             if (error) return reject(error);
+//         //             resolve(result);
+//         //         }
+//         //     );
+//         //     streamifier.createReadStream(docxBuffer).pipe(uploadStream);
+//         // });
+
+//         // return res.send({ status: 200, message: 'URL generated success', URL: uploadDocx.secure_url})
+
+
+//         console.log('method')
+//         // ==============================================================================================================================
+
+//         // const { jobId, signature } = req.body;
+//         // const userId = req.user._id;
+
+//         // // Fetch User, Company, and Template
+//         // const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } });
+//         // if (!existUser) return res.status(404).json({ message: "User not found" });
+
+//         // const company = await Company.findOne({ _id: existUser?.companyId, isDeleted: { $ne: true } });
+//         // if (!company) return res.status(404).json({ message: "Company not found" });
+
+//         // const jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId);
+//         // if (!jobDetail) return res.status(404).json({ message: "JobTitle not found" });
+
+//         // const templateId = jobDetail?.templateId;
+//         // const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } });
+//         // if (!template) return res.status(404).json({ message: "Template not found" });
+
+//         // console.log("🔗 Template URL:", template?.template);
+
+//         // const HTMLforSignature = `
+//         //     <p class="signature">${signature}</p>
+//         // `;
+
+//         // const userData = {
+//         //     EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+//         //     EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+//         //     EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+//         //     JOB_START_DATE: "START_DATE",
+//         //     EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+//         //     WEEKLY_HOURS: "WEEKLY_HOURS",
+//         //     ANNUAL_SALARY: "ANNUAL_SALARY",
+//         //     COMPANY_NAME: company?.companyDetails?.businessName,
+//         //     SIGNATURE: ""
+//         // };
+
+//         // const generatePDF = async (userData, templateId, res) => {
+//         //     try {
+//         //         console.log("Generating DOCX...");
+                
+//         //         // Step 1: Generate DOCX
+//         //         const generatedTemp = await generateTemplateForUser(userData, templateId);
+//         //         const docxBuffer = Buffer.from(generatedTemp, 'base64'); 
+//         //         const docxPath = path.join(__dirname, 'temp.docx');
+                
+//         //         await fs.promises.writeFile(docxPath, docxBuffer);
+//         //         console.log("DOCX file saved.");
+                
+//         //         // Step 2: Convert DOCX to HTML
+//         //         const { value: htmlContent } = await mammoth.convertToHtml({ path: docxPath });
+//         //         console.log("DOCX converted to HTML.");
+                
+//         //         // Step 3: Convert HTML to PDF using Puppeteer
+//         //         const browser = await puppeteer.launch();
+//         //         const page = await browser.newPage();
+//         //         await page.setContent(`
+//         //             <html>
+//         //             <head>
+//         //                 <style>
+//         //                     body { font-family: Arial, sans-serif; }
+//         //                     .signature { font-family: 'Lucida Handwriting', cursive; font-size: 20px; }
+//         //                 </style>
+//         //             </head>
+//         //             <body>
+//         //                 ${htmlContent.replace("{{SIGNATURE}}", HTMLforSignature)}
+//         //             </body>
+//         //             </html>
+//         //         `, { waitUntil: 'domcontentloaded' });
+                
+//         //         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+//         //         await browser.close();
+//         //         console.log("PDF generated.");
+                
+//         //         // Step 4: Upload PDF to Cloudinary
+//         //         console.log("Uploading to Cloudinary...");
+                
+//         //         const uploadPdf = await new Promise((resolve, reject) => {
+//         //             const uploadStream = cloudinary.uploader.upload_stream(
+//         //                 { resource_type: 'raw', format: 'pdf', folder: 'documents' },
+//         //                 (error, result) => {
+//         //                     if (error) {
+//         //                         console.error("Cloudinary Upload Error:", error);
+//         //                         return reject(error);
+//         //                     }
+//         //                     resolve(result);
+//         //                 }
+//         //             );
+                    
+//         //             streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+//         //         });
+                
+//         //         console.log("PDF uploaded to Cloudinary:", uploadPdf.secure_url);
+                
+//         //         // Cleanup: Remove temporary DOCX file
+//         //         await fs.promises.unlink(docxPath);
+//         //         console.log("Temporary DOCX file deleted.");
+                
+//         //         res.json({ success: true, pdfUrl: uploadPdf.secure_url });
+            
+//         //     } catch (error) {
+//         //         console.error('Error generating PDF:', error);
+//         //         res.status(500).json({ success: false, error: error.message });
+//         //     }
+//         // };
+
+//         // const pdfURL = await generatePDF(userData, templateId, res);
+//         // return res.send(pdfURL);
+
+
+//         console.log('method')
+//         // ==============================================================================================================================
+
+
+//         const { jobId, signature } = req.body;
+//         const userId = req.user._id;
+
+//         // Fetch User, Company, and Template
+//         const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } });
+//         if (!existUser) return res.status(404).json({ message: "User not found" });
+
+//         const company = await Company.findOne({ _id: existUser?.companyId, isDeleted: { $ne: true } });
+//         if (!company) return res.status(404).json({ message: "Company not found" });
+
+//         const jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId);
+//         if (!jobDetail) return res.status(404).json({ message: "JobTitle not found" });
+
+//         const templateId = jobDetail?.templateId;
+//         const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } });
+//         if (!template) return res.status(404).json({ message: "Template not found" });
+
+//         console.log("🔗 Template URL:", template?.template);
+
+
+//         console.log('method.............')
+
+//         // const HTMLforSignature = `<h1>
+//         //         <p style="font-family: 'Lucida Handwriting', cursive; font-size: 20px;">${signature}</p>
+//         //     </h1>`
+//         // const userData = {
+//         //     EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+//         //     EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+//         //     EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+//         //     JOB_START_DATE: "START_DATE",
+//         //     EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+//         //     WEEKLY_HOURS: "WEEKLY_HOURS",
+//         //     ANNUAL_SALARY: "ANNUAL_SALARY",
+//         //     COMPANY_NAME: company?.companyDetails?.businessName,
+//         //     // SIGNATURE: `${signature}`
+//         //     SIGNATURE: HTMLforSignature
+//         // };
+
+//         // // const generatedTemp = await generateTemplateForUser(userData, templateId)
+
+//         // // const docxBuffer = Buffer.from(generatedTemp, 'base64');
+
         
+//         // const generatePDF = async (userData, templateId, res) => {
+//         //     try {
+//         //         console.log("Generating DOCX...");
+        
+//         //         // Step 1: Generate DOCX
+//         //         const generatedTemp = await generateTemplateForUser(userData, templateId);
+//         //         const docxBuffer = Buffer.from(generatedTemp, 'base64'); 
+//         //         const docxPath = path.join(__dirname, 'temp.docx');
+        
+//         //         // ✅ Write file using fs.promises
+//         //         await fs.promises.writeFile(docxPath, docxBuffer);
+//         //         console.log("DOCX file saved.");
+        
+//         //         // Step 2: Convert DOCX to HTML
+//         //         const { value: htmlContent } = await mammoth.convertToHtml({ path: docxPath });
+//         //         console.log("DOCX converted to HTML.");
+        
+//         //         // Step 3: Convert HTML to PDF using Puppeteer
+//         //         const browser = await puppeteer.launch();
+//         //         const page = await browser.newPage();
+//         //         await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+        
+//         //         // ✅ Generate PDF
+//         //         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+//         //         await browser.close();
+//         //         console.log("PDF generated.");
+        
+//         //         // Step 4: Upload PDF to Cloudinary
+//         //         console.log("Uploading to Cloudinary...");
+        
+//         //         const uploadPdf = await new Promise((resolve, reject) => {
+//         //             const uploadStream = cloudinary.uploader.upload_stream(
+//         //                 { resource_type: 'raw', format: 'pdf', folder: 'documents' },
+//         //                 (error, result) => {
+//         //                     if (error) {
+//         //                         console.error("Cloudinary Upload Error:", error);
+//         //                         return reject(error);
+//         //                     }
+//         //                     resolve(result);
+//         //                 }
+//         //             );
+        
+//         //             streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+//         //         });
+        
+//         //         console.log("PDF uploaded to Cloudinary:", uploadPdf.secure_url);
+        
+//         //         // Cleanup: Remove temporary DOCX file
+//         //         await fs.promises.unlink(docxPath);
+//         //         console.log("Temporary DOCX file deleted.");
+        
+//         //         res.json({ success: true, pdfUrl: uploadPdf.secure_url });
+        
+//         //     } catch (error) {
+//         //         console.error('Error generating PDF:', error);
+//         //         res.status(500).json({ success: false, error: error.message });
+//         //     }
+//         // }
 
-    //     console.log("📄 Replacing placeholders in template...");
-    //     doc.render({ SIGNATURE: image });
+//         // const pdfURL = await generatePDF(userData, templateId, res)
 
-    //     // Generate the final DOCX buffer
-    //     const modifiedDocxBuffer = doc.getZip().generate({ type: "nodebuffer" });
+//         // return res.send(pdfURL)
 
-    //     // Upload to Cloudinary
-    //     const uploadDocx = await new Promise((resolve, reject) => {
-    //         const uploadStream = cloudinary.uploader.upload_stream(
-    //             { resource_type: "raw", format: "docx", folder: "documents" },
-    //             (error, result) => {
-    //                 if (error) return reject(error);
-    //                 resolve(result);
-    //             }
-    //         );
-    //         streamifier.createReadStream(modifiedDocxBuffer).pipe(uploadStream);
-    //     });
+//         console.log('method..........')
 
-    //     console.log("📄 New Document URL:", uploadDocx.secure_url);
+//         const userData = {
+//             EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+//             EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+//             EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+//             JOB_START_DATE: "START_DATE",
+//             EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+//             WEEKLY_HOURS: "WEEKLY_HOURS",
+//             ANNUAL_SALARY: "ANNUAL_SALARY",
+//             COMPANY_NAME: company?.companyDetails?.businessName,
+//             SIGNATURE: "{SIGNATURE}"
+//         };
 
-    //     return res.json({ message: "SUCCESS", url: uploadDocx.secure_url });
-    // } catch (error) {
-    //     console.error("❌ Error occurred while saving template:", error);
-    //     res.status(500).json({ message: "Error occurred while saving template!" });
-    // }
+//         const generatedTemp = await generateTemplateForUser(userData, templateId);
+//         const docxBuffer = Buffer.from(generatedTemp, 'base64'); 
+
+//         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+//         const uploadDocx = await new Promise((resolve, reject) => {
+//             const uploadStream = cloudinary.uploader.upload_stream(
+//                 { resource_type: 'raw', format: 'docx', folder: 'documents' },
+//                 (error, result) => {
+//                     if (error) return reject(error);
+//                     resolve(result);
+//                 }
+//             );
+//             streamifier.createReadStream(docxBuffer).pipe(uploadStream);
+//         });
+
+//         // 1️⃣ **Fetch DOCX file from URL**
+//         const response = await axios.get(uploadDocx.secure_url, { responseType: "arraybuffer" });
+
+//         console.log("📂 Content-Type:", response.headers["content-type"]);
+//         console.log("📦 File Size:", response.data.length, "bytes");
+//         const templateBuffer = response.data;
+
+//         // 2️⃣ **Load Template Safely**
+//         let zip;
+//         try {
+//             zip = new PizZip(Buffer.from(templateBuffer));
+//             if (!zip) {
+//                 console.error("❌ Error: Failed to load the template ZIP.");
+//                 return res.status(500).json({ message: "Invalid DOCX file!" });
+//             }
+//         } catch (error) {
+//             console.error("❌ Error loading DOCX as ZIP:", error);
+//             return res.status(500).json({ message: "Invalid DOCX template!" });
+//         }
+
+//         const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+//         // Render DOCX
+//         doc.render();
+
+//         // Convert DOCX to XML for Editing
+//         let contentXml = doc.getZip().files["word/document.xml"].asText();
+//         if (!contentXml) {
+//             console.error("❌ Error: Document XML not found in template.");
+//             return res.status(500).json({ message: "Invalid document structure!" });
+//         }
+
+//         console.log('contentXML:', contentXml)
+
+//         if (!contentXml.includes("undefined")) {
+//             console.error("❌ Error: Signature>undefined placeholder not found in document XML.");
+//             return res.status(500).json({ message: "Signature placeholder missing in template!" });
+//         }
+//         // Add Handwritten Font to Signature
+//         const styledSignature = `
+//             <w:r>
+//                 <w:rPr>
+//                     <w:rFonts w:ascii="Lucida Handwriting" w:hAnsi="Lucida Handwriting"/>
+//                 </w:rPr>
+//                 <w:t>${signature}</w:t>
+//             </w:r>
+//         `;
+//         contentXml = contentXml.replace("undefined", styledSignature);
+
+
+//         // Update the Document with New XML Content
+//         // doc.getZip().files["word/document.xml"] = new PizZip().file("word/document.xml", contentXml);
+//         zip.file("word/document.xml", contentXml);
+//         if (!doc.getZip()) {
+//             console.error("❌ Error: Document ZIP structure is not valid.");
+//             return res.status(500).json({ message: "Document ZIP is undefined!" });
+//         }
+
+//         // Generate Final DOCX
+//         const generatedDocx = doc.getZip().generate({ type: "nodebuffer", compression: "STORE" });
+
+//         // Upload to Cloudinary
+//         const uploadSignedDocx = await new Promise((resolve, reject) => {
+//             const uploadStream = cloudinary.uploader.upload_stream(
+//                 { resource_type: "raw", format: "docx", folder: "documents" },
+//                 (error, result) => {
+//                     if (error) return reject(error);
+//                     resolve(result);
+//                 }
+//             );
+//             streamifier.createReadStream(generatedDocx).pipe(uploadStream);
+//         });
+
+//         return res.status(200).json({ message: "URL generated successfully", URL: uploadSignedDocx.secure_url });
+
+
+
+//     } catch (error) {
+//         console.error("❌ Error occurred while saving template:", error);
+//         res.status(500).json({ message: "Error occurred while saving template!" });
+//     }
+// };
+
+
+const downloadDocx = async (fileUrl, outputPath) => {
+    const response = await axios({
+        url: fileUrl,
+        method: 'GET',
+        responseType: 'arraybuffer'
+    });
+
+    fs.writeFileSync(outputPath, response.data);
+};
+
+
+exports.saveTemplateWithSignature = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { jobId, signature } = req.body;
+            const userId = req.user._id;
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } });
+            if (!existUser) return res.status(404).json({ message: "User not found" });
+
+            const company = await Company.findOne({ _id: existUser?.companyId, isDeleted: { $ne: true } });
+            if (!company) return res.status(404).json({ message: "Company not found" });
+
+            const jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId);
+            if (!jobDetail) return res.status(404).json({ message: "JobTitle not found" });
+
+            const templateId = jobDetail?.templateId;
+            const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } });
+
+            if (!template) return res.status(404).json({ message: "Template not found" });
+
+            console.log("🔗 Template URL:", template?.template);
+
+            console.log('method')
+            // =====================================================================================
+
+            // const downloadDocx = async (fileUrl, outputPath) => {
+            //     const response = await axios({
+            //         url: fileUrl,
+            //         method: 'GET',
+            //         responseType: 'arraybuffer'
+            //     });
+              
+            //     fs.writeFileSync(outputPath, response.data);
+            // };
+
+            // const tempFilePath = path.resolve(__dirname, 'temp.docx')
+
+            // await downloadDocx(template?.template, tempFilePath)
+
+            // const content = fs.readFileSync(tempFilePath, 'binary');
+            // const zip = new PizZip(content);
+            // const doc = new Docxtemplater(zip);
+
+            // const styledSignature = `
+            //     <w:r>
+            //         <w:rPr>
+            //             <w:rFonts w:ascii="Lucida Handwriting" w:hAnsi="Lucida Handwriting"/>
+            //         </w:rPr>
+            //         <w:t>${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}</w:t>
+            //     </w:r>
+            // `;
+
+            // const userData = {
+            //     EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+            //     EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+            //     EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+            //     JOB_START_DATE: "START_DATE",
+            //     EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+            //     WEEKLY_HOURS: "WEEKLY_HOURS",
+            //     ANNUAL_SALARY: "ANNUAL_SALARY",
+            //     COMPANY_NAME: company?.companyDetails?.businessName,
+            //     // SIGNATURE: `${signature}`
+            //     SIGNATURE: styledSignature
+            // };
+
+            // doc.render(userData)
+
+            // const outputPath = path.resolve(__dirname, 'output.docx');
+            // fs.writeFileSync(outputPath, doc.getZip().generate({ type: 'nodebuffer' }));
+
+            // const result = await cloudinary.uploader.upload(outputPath, { resource_type: 'raw' });
+
+            // fs.unlinkSync(tempFilePath);
+            // fs.unlinkSync(outputPath);
+
+            // console.log('RESULT:', result)
+
+            // return result
+
+            console.log('method')
+            // =====================================================================================
+
+            // // Download the template DOCX file
+            // const tempFilePath = path.resolve(__dirname, 'temp.docx');
+            // await downloadDocx(template?.template, tempFilePath);
+
+            // // Load the DOCX file
+            // const content = fs.readFileSync(tempFilePath, 'binary');
+            // const zip = new PizZip(content);
+            // const doc = new Docxtemplater(zip);
+
+            // // Create the styled signature
+            // const userName = `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`;
+            // // const styledSignature = `
+            // //     <w:r>
+            // //         <w:rPr>
+            // //             <w:rFonts w:ascii="Lucida Handwriting" w:hAnsi="Lucida Handwriting"/>
+            // //             <w:b/> <!-- Bold -->
+            // //             <w:sz w:val="28"/> <!-- Font Size -->
+            // //             <w:color w:val="000000"/> <!-- Black color -->
+            // //         </w:rPr>
+            // //         <w:t>${userName}</w:t>
+            // //     </w:r>
+            // // `;
+
+            // // Replace placeholders in DOCX
+            // doc.render({
+            //     EMPLOYEE_NAME: userName,
+            //     EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+            //     EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+            //     JOB_START_DATE: "START_DATE",
+            //     EMPLOYEE_JOB_TITLE: "JOB_TITLE",
+            //     WEEKLY_HOURS: "WEEKLY_HOURS",
+            //     ANNUAL_SALARY: "ANNUAL_SALARY",
+            //     COMPANY_NAME: company?.companyDetails?.businessName,
+            //     SIGNATURE: signature 
+            // });
+
+            // // Save the modified DOCX
+            // const outputPath = path.resolve(__dirname, 'styled_output.docx');
+            // fs.writeFileSync(outputPath, doc.getZip().generate({ type: 'nodebuffer' }));
+
+            // // Upload to Cloudinary
+            // const result = await cloudinary.uploader.upload(outputPath, { resource_type: 'raw' });
+
+            // // Cleanup
+            // fs.unlinkSync(tempFilePath);
+            // fs.unlinkSync(outputPath);
+
+            // return res.json({ message: "File processed successfully", docUrl: result.secure_url });
+
+
+            console.log('method')
+            // =====================================================================================
+
+            // const fileUrl = template?.template
+            // const filePath = "./temp_file.txt"
+
+            // const response = await axios({ url: fileUrl, method: "GET", responseType: "stream" })
+            // const writer = fs.createWriteStream(filePath)
+            // response.data.pipe(writer)
+
+            // await new Promise((resolve, reject) => {
+            //     writer.on("finish", resolve)
+            //     writer.on("error", reject)
+            // })
+
+            // fs.appendFileSync(filePath, `\n\n--- ${signature} ---`)
+
+            // const uploadResponse = await cloudinary.uploader.upload(filePath, { resource_type: "raw", format: 'docx', folder: "documents" })
+
+            // // Step 4: Send back the updated file URL
+            // res.json({ url: uploadResponse.secure_url })
+
+            console.log('method')
+            // =====================================================================================
+
+            // async function addSignatureToContract(contractUrl, signatureBase64) {
+            //     const response = await fetch(contractUrl);
+            //     const buffer = await response.arrayBuffer();
+              
+            //     // Load the DOCX file
+            //     const zip = new PizZip(buffer);
+            //     const doc = new Docxtemplater(zip);
+
+            //     const extractedText = await mammoth.extractRawText({ buffer: buffer });
+              
+            //     // Insert signature as an image
+            //     const signatureBuffer = Buffer.from(signatureBase64, "base64");
+            //     // const docx = new Document({
+            //     //     sections: [{
+            //     //         children: [
+            //     //             new Paragraph({
+            //     //                 children: [
+            //     //                     new ImageRun({
+            //     //                         data: signatureBuffer,
+            //     //                         transformation: { width: 150, height: 50 },
+            //     //                     }),
+            //     //                 ],
+            //     //             }),
+            //     //         ],
+            //     //     }],
+            //     // });
+            //     const docx = new Document({
+            //         sections: [
+            //             {
+            //                 children: [
+            //                     new Paragraph(extractedText.value), // Add existing content
+            //                     new Paragraph({ text: "" }), // Spacer
+            //                     new Paragraph({
+            //                         children: [
+            //                             new ImageRun({
+            //                                 data: signatureBuffer,
+            //                                 transformation: { width: 200, height: 100 },
+            //                             }),
+            //                         ],
+            //                     }),
+            //                 ],
+            //             },
+            //         ],
+            //     });
+              
+            //     // Generate updated DOCX file
+            //     const newBuffer = await Packer.toBuffer(docx);
+            //     fs.writeFileSync("signed_contract.docx", newBuffer);
+                
+            //     // Upload to Cloudinary
+            //     const result = await cloudinary.uploader.upload("signed_contract.docx", { resource_type: "raw" });
+              
+            //     return result.secure_url;
+            // }
+
+            async function addSignatureToContract(contractUrl, signatureBase64) {
+                // Fetch the DOCX file from Cloudinary
+                const response = await axios.get(contractUrl, { responseType: "arraybuffer" });
+                const docBuffer = response.data;
+
+                const imageOpts = {
+                    centered: false, // Set to true if you want the image centered
+                    getImage: function(tagValue) {
+                        return fromBase64(tagValue);
+                    },
+                    getSize: function() {
+                        return [150, 50]; // Set width and height (in pixels)
+                    }
+                };
+            
+                // Load the DOCX file into docxtemplater
+                const zip = new PizZip(docBuffer);
+                const doc = new Docxtemplater(zip, { modules: [new ImageModule(imageOpts)] }, { paragraphLoop: true, linebreaks: true });
+
+                // Convert base64 signature to binary
+                const signatureBuffer = Buffer.from(signatureBase64, "base64");           
+                
+            
+                try {
+                    doc.render({
+                        SIGNATURE: signatureBuffer,
+                    });
+                } catch (error) {
+                    console.error("Error rendering the document:", error);
+                    return error;
+                }
+            
+                // Generate the modified DOCX file
+                const updatedBuffer = doc.getZip().generate({ type: "nodebuffer" });
+            
+                // Save locally (optional)
+                fs.writeFileSync("signed_contract.docx", updatedBuffer);
+            
+                // Upload to Cloudinary
+                const result = await cloudinary.uploader.upload("signed_contract.docx", { resource_type: "raw" });
+            
+                return result.secure_url;
+            }
+
+            const result = addSignatureToContract("https://res.cloudinary.com/dwerzoswa/raw/upload/v1740744741/Templates/fyhssfjxrk6r06qaumck.docx", signature).then(url => {
+                console.log("Signed Contract URL:", url);
+                return url
+            })
+
+            return { status: 200, message: 'SUCCESS', result }
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while saving template:', error)
+        res.send({ message: 'Error occurred while saving template!' })
+    }
+}
+
+exports.saveSignature = async (req, res) => {
+    try {
+            const { docUrl, signature } = req.body
+            let userData = {
+                SIGNATURE: signature
+            }
+
+            const generateTemplateForUser2 = async (userData, docUrl) => {
+                try {       
+                   
+                    const response = await axios.get(docUrl, { responseType: 'arraybuffer' })
+                    const content = response.data
+            
+                    const zip = new PizZip(content)
+                    const doc = new Docxtemplater(zip)
+            
+                    doc.render(userData)
+            
+                    const modifiedDoc = doc.getZip().generate({ type: 'nodebuffer' })
+            
+                    return modifiedDoc
+                } catch (error) {
+                    console.error('Error occurred while generating template:', error)
+                    return { message: 'Error occurred while generating template:' }
+                }
+            }
+
+            const generatedTemp = await generateTemplateForUser2(userData, docUrl)
+
+            const pdfBuffer = Buffer.from(generatedTemp, 'base64');
+
+            const uploadDocx = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { resource_type: 'raw', format: 'docx', folder: 'documents' },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
+            });
+
+            return res.send({ status: 200, message: 'URL generated success', URL: uploadDocx.secure_url})
+    } catch (error) {
+      console.error("Error saving signature:", error);
+      res.status(500).send({ message: "Error occurred while saving signature" });
+    }
 };

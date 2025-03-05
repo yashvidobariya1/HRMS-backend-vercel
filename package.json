@@ -21,6 +21,7 @@
     "body-parser": "^1.20.3",
     "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "crypto-js": "^4.2.0",
     "docx": "^9.2.0",
     "docx4js": "^3.3.0",

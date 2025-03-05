@@ -13,6 +13,7 @@ const ejs = require("ejs");
 const puppeteer = require("puppeteer");
 const ExcelJS = require("exceljs")
 const path = require("path");
+const mongoose = require("mongoose");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -157,7 +158,7 @@ exports.clockInFunc = async (req, res) => {
                 userId,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'ClockIn',
+                type: 'Clock In',
                 message: `${firstName} ${lastName} entered the geofence at ${currentDate}`,
                 readBy
             });
@@ -405,7 +406,7 @@ exports.clockOutFunc = async (req, res) => {
                 userId,
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'ClockOut',
+                type: 'Clock Out',
                 message: `${firstName} ${lastName} exited the geofence at ${currentDate}`,
                 readBy
             });
@@ -1189,7 +1190,9 @@ exports. downloadTimesheetReport = async (req, res) => {
                 userContactNumber: user?.personalDetails?.phone,
                 userJobTitle: jobDetail?.jobTitle,
                 userRole: jobDetail?.role
-            }          
+            }    
+            
+            const fileName = `${user?.personalDetails.firstName}${user?.personalDetails.lastName}_timesheet_${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}`
             
             if(format === 'pdf'){
                 // Render the EJS template
@@ -1202,17 +1205,22 @@ exports. downloadTimesheetReport = async (req, res) => {
                 await page.setContent(htmlContent, { waitUntil: "networkidle0" })
                 await page.waitForSelector("table")
                 await new Promise(resolve => setTimeout(resolve, 1000))
-                const pdfBuffer = await page.pdf({ format: "A4", printBackground: true   })
+                let pdfBuffer = await page.pdf({
+                    format: "A4",
+                    printBackground: true,
+                    margin: {
+                        top: "15mm",
+                        right: "10mm",
+                        bottom: "15mm",
+                        left: "10mm"
+                    }
+                })
 
                 await browser.close()
 
-                // Send PDF response
-                res.set({
-                    "Content-Type": "application/pdf",
-                    "Content-Disposition": 'inline; filename="timesheet_report.pdf"',
-                    "Content-Length": pdfBuffer.length
-                })
-                return res.end(pdfBuffer)
+                pdfBuffer = Buffer.from(pdfBuffer)
+                const pdfBase64 = pdfBuffer.toString("base64");
+                res.send({ status: 200, message: "Timesheet report generated successfully", pdfBase64, fileName });
             } else if(format === 'excel'){
                 // Generate Excel file
                 const workbook = new ExcelJS.Workbook();
@@ -1220,25 +1228,51 @@ exports. downloadTimesheetReport = async (req, res) => {
 
                 //  1. Add Title
                 const titleRow = worksheet.addRow(["Timesheet Report"]);
-                titleRow.font = { bold: true, size: 20 };
+                titleRow.font = { bold: true, size: 20, color: { argb: 'FFFFFF' } };
                 titleRow.alignment = { horizontal: "center" };
-                worksheet.mergeCells(`A${titleRow.number}:F${titleRow.number}`); // Merging across columns
+                worksheet.mergeCells(`A${titleRow.number}:F${titleRow.number}`);
+
+                titleRow.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" }, 
+                    };
+                });
+
                 worksheet.addRow([]); // Empty row for spacing
 
                 // 2. Add User Details
-                function addMergedRow(worksheet, text) {
-                    const row = worksheet.addRow([text]); // Add row with text
-                    row.font = { bold: true };
+                // function addMergedRow(worksheet, text) {
+                //     const row = worksheet.addRow([text]); // Add row with text
+                //     row.font = { bold: true };
+                //     worksheet.mergeCells(`A${row.number}:B${row.number}`);
+                // }
+                
+                // // Adding User Details with Merged Cells (First Two Columns)
+                // addMergedRow(worksheet, `Name:   ${data.userName}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Email:   ${data.userEmail}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Contact Number:   ${data.userContactNumber}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Job Title:   ${data.userJobTitle}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Role:   ${data.userRole}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Time-Duration:   ${data.startDate} to ${data.endDate}`, worksheet.lastRow.number);
+
+                function addMergedRow(worksheet, label1, value1, label2, value2) {
+                    const row = worksheet.addRow([`${label1}: ${value1}`, "", `${label2}: ${value2}`, ""]);
+                    
                     worksheet.mergeCells(`A${row.number}:B${row.number}`);
+                
+                    worksheet.mergeCells(`C${row.number}:D${row.number}`);
+                
+                    row.eachCell((cell) => {
+                        cell.font = { bold: true, size: 12 };
+                        cell.alignment = { horizontal: "left", vertical: "middle" };
+                    });
                 }
                 
-                // Adding User Details with Merged Cells (First Two Columns)
-                addMergedRow(worksheet, `Name:   ${data.userName}`, worksheet.lastRow.number);
-                addMergedRow(worksheet, `Email:   ${data.userEmail}`, worksheet.lastRow.number);
-                addMergedRow(worksheet, `Contact Number:   ${data.userContactNumber}`, worksheet.lastRow.number);
-                addMergedRow(worksheet, `Job Title:   ${data.userJobTitle}`, worksheet.lastRow.number);
-                addMergedRow(worksheet, `Role:   ${data.userRole}`, worksheet.lastRow.number);
-                addMergedRow(worksheet, `Time-Duration:   ${data.startDate} to ${data.endDate}`, worksheet.lastRow.number);
+                addMergedRow(worksheet, "Name", data.userName, "Email", data.userEmail);
+                addMergedRow(worksheet, "Contact Number", data.userContactNumber, "Job Title", data.userJobTitle);
+                addMergedRow(worksheet, "Role", data.userRole, "Time-Duration", `${data.startDate} to ${data.endDate}`);
 
                 worksheet.addRow([]); // Empty row for spacing
 
@@ -1248,7 +1282,14 @@ exports. downloadTimesheetReport = async (req, res) => {
                 weeklySummaryTitleRow.alignment = { horizontal: "center" };
                 worksheet.mergeCells(weeklySummaryTitleRow.number, 1, weeklySummaryTitleRow.number, 4);
                 const summaryHeaders = worksheet.addRow(["Week", "Time Duration", "Total Hours", "Overtime"])
-                summaryHeaders.font = { bold: true, size: 12 };
+                summaryHeaders.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" },
+                    };
+                });
+                summaryHeaders.font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
                 summaryHeaders.alignment = { horizontal: "center" };
 
                 // Add weekly summary data
@@ -1263,8 +1304,15 @@ exports. downloadTimesheetReport = async (req, res) => {
 
                 // 4. Add Detailed Timesheet Data
                 const tableHeader = worksheet.addRow(["Date", "Clock Timing", "Total Hours", "Overtime", "Status", "Leave Type"]);
-                tableHeader.font = { bold: true, size: 12 }
+                tableHeader.font = { bold: true, size: 12, color: { argb: "FFFFFF" } }
                 tableHeader.alignment = { horizontal: "center", vertical: "middle" }
+                tableHeader.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" },
+                    };
+                });
 
                 // Adding daily timesheet data
                 reportData.forEach((row) => {
@@ -1273,28 +1321,49 @@ exports. downloadTimesheetReport = async (req, res) => {
                     const clockInArray = row.clockinTime.split('||').map(time => time.trim());
                     const clockOutArray = row.clockoutTime.split('||').map(time => time.trim());
                     
-                    if (clockInArray.length === clockOutArray.length) {
-                        clockTiming = clockInArray.map((time, index) => {
-                            let formattedTime
-                            if(time !== '-'){
-                                formattedTime = `${time} || ${clockOutArray[index]}`
-                            } else {
-                                formattedTime = '-'
-                            }
-                            return formattedTime;
-                        }).join('\n');
-                    }
+                    // if (clockInArray.length === clockOutArray.length) {
+                    //     clockTiming = clockInArray.map((time, index) => {
+                    //         let formattedTime
+                    //         if(time !== '-'){
+                    //             formattedTime = `${time} || ${clockOutArray[index]}`
+                    //         } else {
+                    //             formattedTime = '-'
+                    //         }
+                    //         return formattedTime;
+                    //     }).join('\n');
+                    // }
                 
-                    const newRow = worksheet.addRow([
-                        moment(row.date).format('DD-MM-YYYY'),
-                        clockTiming,
-                        row.totalHours,
-                        row.overTime,
-                        row.status,
-                        row.leaveType
-                    ]);
+                    // const newRow = worksheet.addRow([
+                    //     moment(row.date).format('DD-MM-YYYY'),
+                    //     clockTiming,
+                    //     row.totalHours,
+                    //     row.overTime,
+                    //     row.status,
+                    //     row.leaveType
+                    // ]);
 
-                    newRow.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                    // newRow.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+
+                    const numRows = clockInArray.length; //
+                    const startRowNumber = worksheet.lastRow ? worksheet.lastRow.number + 1 : 1
+                    clockInArray.forEach((time, index) => {
+                        worksheet.addRow([
+                            moment(row.date).format('DD-MM-YYYY'),
+                            time !== '-' ? `${time} || ${clockOutArray[index]}` : '-',
+                            row.totalHours,
+                            row.overTime,
+                            row.status,
+                            row.leaveType
+                        ]).alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+                    })
+                   
+                    if (numRows > 1) {
+                        worksheet.mergeCells(`A${startRowNumber}:A${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`C${startRowNumber}:C${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`D${startRowNumber}:D${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`E${startRowNumber}:E${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`F${startRowNumber}:F${startRowNumber + numRows - 1}`)
+                    }
                 });
 
                 worksheet.columns.forEach((column) => {
@@ -1306,13 +1375,9 @@ exports. downloadTimesheetReport = async (req, res) => {
                     column.width = maxLength + 1; // Add some padding for better spacing
                 });
 
-                // Set response headers for Excel file
-                res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                res.setHeader("Content-Disposition", "attachment; filename=timesheet_report.xlsx");
-
-                // Write the workbook to the response stream
-                await workbook.xlsx.write(res);
-                res.end();
+                const buffer = await workbook.xlsx.writeBuffer();
+                const excelbase64 = buffer.toString("base64");
+                return res.send({ status: 200, message: 'Timesheet report generated successfully', excelbase64, fileName })
             } else {
                 return res.send({ status: 400, message: "Invalid format. Please specify 'pdf' or 'excel'." })
             }
