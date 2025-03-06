@@ -9,6 +9,7 @@ const moment = require('moment');
 const { default: axios } = require("axios");
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
+const useragent = require("useragent");
 
 exports.login = async (req, res) => {
     try {
@@ -23,8 +24,12 @@ exports.login = async (req, res) => {
         }
 
         const token = await isExist.generateAuthToken()
+        const browser = useragent.parse(req.headers["user-agent"]);
         isExist.token = token
         // isExist.token = token.JWTToken
+        isExist.lastTimeLoggedIn = moment().toDate()
+        isExist.isActive = true
+        isExist.usedBrowser = browser
         isExist.save()
 
         const personalDetails = isExist?.personalDetails
@@ -33,7 +38,6 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
-            isExist.lastTimeLoggedIn = moment().toDate()
             return res.send({
                 status: 200,
                 message: "User login successfully",
@@ -50,7 +54,6 @@ exports.login = async (req, res) => {
                 if (!result) {
                     return res.send({ status: 401, message: "Invalid credential" });
                 }
-                isExist.lastTimeLoggedIn = moment().toDate()
                 return res.send({
                     status: 200,
                     message: "User login successfully",
@@ -78,6 +81,7 @@ exports.logOut = async (req, res) => {
 
             existUser.token = ""
             existUser.lastTimeLoggedOut = moment().toDate()
+            existUser.isActive = false
             await existUser.save()
             return res.send({ status: 200, message: 'Logging out successfully.' })
         } else return res.send({ status: 403, message: 'Access denied' })

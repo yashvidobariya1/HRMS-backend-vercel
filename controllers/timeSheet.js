@@ -1220,7 +1220,8 @@ exports. downloadTimesheetReport = async (req, res) => {
 
                 pdfBuffer = Buffer.from(pdfBuffer)
                 const pdfBase64 = pdfBuffer.toString("base64");
-                res.send({ status: 200, message: "Timesheet report generated successfully", pdfBase64, fileName });
+                const mimeType = 'application/pdf'
+                res.send({ status: 200, message: "Timesheet report generated successfully", pdfBase64, fileName, mimeType });
             } else if(format === 'excel'){
                 // Generate Excel file
                 const workbook = new ExcelJS.Workbook();
@@ -1377,7 +1378,8 @@ exports. downloadTimesheetReport = async (req, res) => {
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const excelbase64 = buffer.toString("base64");
-                return res.send({ status: 200, message: 'Timesheet report generated successfully', excelbase64, fileName })
+                const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                return res.send({ status: 200, message: 'Timesheet report generated successfully', excelbase64, fileName, mimeType })
             } else {
                 return res.send({ status: 400, message: "Invalid format. Please specify 'pdf' or 'excel'." })
             }

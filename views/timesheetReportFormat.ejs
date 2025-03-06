@@ -92,8 +92,7 @@
         }
 
         .timesheet-report th, .timesheet-report td {
-            padding: 15px 8px;
-            
+            padding: 15px 8px;            
             border-bottom: 1px solid #EAEAEA;
         }
 
@@ -127,6 +126,10 @@
             width: auto;
             transition: all 0.3s ease;
         }
+
+        .week-number, .working-hours {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -147,7 +150,7 @@
         <div class="weekly-hours-data">
             <h3>Week-wise total hours and overtime</h3>
             <% weeklySummary.forEach((week, index) => { %>
-                <li>Week<%= index + 1 %> (<%= week.weekRange %>) Total Hours: <%= week.totalHours %> <% if (week.overTime && week.overTime > 0) { %> || Overtime: <%= week.overTime %> <% } %></li>
+                <li><span class="week-number">Week<%= index + 1 %></span> (<%= week.weekRange %>) <span class="working-hours">Total Hours :</span> <%= week.totalHours %> <% if (week.overTime && week.overTime > 0) { %> || <span class="working-hours">Overtime :</span> <%= week.overTime %> <% } %></li>
             <% }); %>
         </div>
         <table class="timesheet-report">
@@ -197,7 +200,6 @@
                             <td class="timesheet-data-entry"><%= entry.overTime ? entry.overTime : '-' %></td>
                             <td class="timesheet-data-entry"><%= entry.status %></td>
                             <td class="timesheet-data-entry"><%= entry.leaveType ? entry.leaveType : '-' %></td>
-                            <!-- <td class="timesheet-data-entry"><%= entry.holidayOccasion ? entry.holidayOccasion : '-' %></td> -->
                         </tr>
                     <% 
                 }); %>
