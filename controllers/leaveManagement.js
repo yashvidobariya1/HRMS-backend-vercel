@@ -656,8 +656,17 @@ exports.getAllLeaveRequest = async (req, res) => {
             let totalLeaveRequests
             
             if(req.user.role == 'Superadmin'){
-                allLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
-                totalLeaveRequests = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).countDocuments()
+                const allLeaveRequestsOfAdmin = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 })
+
+                let allAdminLR = []
+                for(const LR of allLeaveRequestsOfAdmin){
+                    const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
+                    if (existingUser.role === 'Administrator') {
+                        allAdminLR.push(LR)
+                    }
+                }
+                allLeaveRequests = allAdminLR.slice(skip, skip + limit)
+                totalLeaveRequests = allAdminLR?.length
             } else if(req.user.role == 'Administrator'){
                 const allLeaveRequestsOfEmployees = await Leave.find({
                     companyId: req.user.companyId,
@@ -667,29 +676,30 @@ exports.getAllLeaveRequest = async (req, res) => {
 
                 let allEmployeesLR = []
                 for (const LR of allLeaveRequestsOfEmployees) {
-                    const existingUser = await User.findOne({ _id: LR.userId })
-                    if (existingUser.role === 'Employee' || existingUser.role === 'Manager') {
+                    const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
+                    if (existingUser.role === 'Manager') {
                         allEmployeesLR.push(LR)
                     }
                 }
                 allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
                 totalLeaveRequests = allEmployeesLR?.length
             } else if(req.user.role == 'Manager'){
+                const employees = await User.find({
+                    jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
+                    isDeleted: { $ne: true }
+                }).select("_id")
+
+                const employeeIds = employees.map(emp => emp._id)
+
                 const leaveRequests = await Leave.find({
+                    userId: { $in: employeeIds },
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
-                }).sort({ createdAt: -1 })
+                }).sort({ createdAt: -1 });
 
-                let allEmployeesLR = []
-                for (const LR of leaveRequests) {
-                    const existingUser = await User.findOne({ _id: LR.userId })
-                    if (existingUser.role === 'Employee') {
-                        allEmployeesLR.push(LR)
-                    }
-                }
-                allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
-                totalLeaveRequests = allEmployeesLR?.length
+                allLeaveRequests = leaveRequests.slice(skip, skip + limit)
+                totalLeaveRequests = leaveRequests.length
             }
 
             return res.send({

@@ -1,11 +1,11 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
-const { lastAccess } = require('../middleware/lastAccess')
 const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getUserJobTitles, updateProfileDetails } = require('../controllers/common')
 const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 const { generateEmployeeTemplate, saveTemplateWithSignature, saveSignature } = require('../controllers/templates')
+const { dashboard } = require('../controllers/dashboard')
 
 const commonRoute = Router()
 
@@ -15,6 +15,8 @@ commonRoute.post('/updatePassword', updatePassword)
 commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
+// Dashboard
+commonRoute.get('/dashboard', auth, dashboard)
 // get user job title
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 // user

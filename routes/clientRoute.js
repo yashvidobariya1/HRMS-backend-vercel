@@ -1,10 +1,12 @@
 const Router = require('express')
-const { getCLientUsers, decodeLink, approveReport, rejectReport } = require('../controllers/client')
+const { auth } = require('../middleware/authenticate')
+const { decodeLink, getCLientUsers, getGeneratedReports, approveReport, rejectReport } = require('../controllers/client')
 
 const clientRoute = Router()
 
 clientRoute.post('/decodeLink', decodeLink)
 clientRoute.get('/clientUsers', getCLientUsers)
+clientRoute.get('/getAllReports', auth, getGeneratedReports)
 clientRoute.post('/appreveReport', approveReport)
 clientRoute.post('/rejectReport', rejectReport)
 

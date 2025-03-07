@@ -1,6 +1,7 @@
 require('dotenv').config({path:"config/config.env"})
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const moment = require('moment');
 
 const { JWT_SECRET } = process.env
 
@@ -8,14 +9,17 @@ const { JWT_SECRET } = process.env
 exports.auth = async (req, res, next) => {
     try {
         const token = req.headers?.authorization?.replace('Bearer ', '')
-        let user
 
         if(!token){
             return res.send({ status: 401, message: "Unauthorized: Invalid API key" });
         }
 
         const decoded = jwt.verify(token, JWT_SECRET)
-        user = await User.findOne({ _id: decoded._id, token: token })
+        const user = await User.findOneAndUpdate(
+            { _id: decoded._id, token: token }, 
+            { lastTimeAccess: moment().toDate() },
+            { new: true }
+        )
 
         if (!user) {
             throw new Error("User not found or token is invalid")

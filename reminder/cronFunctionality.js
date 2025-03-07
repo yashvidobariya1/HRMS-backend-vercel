@@ -52,9 +52,7 @@ exports.leaveActionReminder = async (tomorrow) => {
     }
 }
 
-exports.clockInOutReminder = async (type) => {
-    const today = moment().format('YYYY-MM-DD')
-
+exports.clockInOutReminder = async (type, today) => {
     const allEmployees = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).lean()
 
     for(const employee of allEmployees){
@@ -117,5 +115,31 @@ exports.clockInOutReminder = async (type) => {
                 transporter.sendMail(mailOptions)
             }
         }
+    }
+}
+
+exports.visaExpiryReminder = async (targetDate) => {
+    const employees = await User.find({
+        role: { $in: ["Administrator", "Manager", "Employee"] },
+        isDeleted: { $ne: true },
+        "immigrationDetails.visaValidTo": targetDate
+    }).lean()
+
+    for(const employee of employees){
+        const email = employee?.personalDetails?.email
+        if(!email) continue
+
+        let mailOptions = {
+            from: process.env.NODEMAILER_EMAIL,
+            to: email,
+            subject: 'Visa Expiry Reminder',
+            html: `
+                <h2>Reminder for visa expired soon</h2>
+                <p>Hello ${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName},</p>
+                <p>Your visa will expire on <b>${targetDate}</b>. Please renew it as soon as possible.</p>
+                <p>Best Regards,<br>HRMS Team</p>
+            `
+        }
+        transporter.sendMail(mailOptions)
     }
 }

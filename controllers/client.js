@@ -104,6 +104,34 @@ exports.getAllClient = async (req, res) => {
     }
 }
 
+exports.getCompanyClients = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
+            const companyId = req.user.companyId
+
+            const clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
+
+            return res.send({
+                status: 200,
+                message: "Company's clients fetched successfully",
+                clients,
+                totalClients,
+                totalPages: Math.ceil(totalClients / limit) || 1,
+                currentPage: page || 1
+            })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching clients:',error)
+        res.send({ message: 'Error occurred while fetching clients!' })
+    }
+}
+
 exports.updateClient = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
@@ -285,6 +313,22 @@ exports.generateLinkForClient = async (req, res) => {
     } catch (error) {
         console.error('Error occured while generating link:', error)
         res.send({ message: 'Error occurred while generating link!' })
+    }
+}
+
+exports.getGeneratedReports = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id
+
+            const reports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } })
+
+            return res.send({ status: 200, message: 'Reports fetched successfully', reports })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching reports:', error)
+        res.send({ message: 'Error occurred while fetching reports!' })
     }
 }
 

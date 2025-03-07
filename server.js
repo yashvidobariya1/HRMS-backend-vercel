@@ -8,8 +8,6 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 require("./db").connect();
 require("dotenv").config();
-// require('./reminder/pendingLeaveActionReminder')
-// require('./reminder/pendingClockInAndClockOutReminder')
 // require('./reminder/cron')
 
 app.set("view engine", "ejs");

@@ -612,22 +612,33 @@ exports.getAllUsers = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const timePeriod = parseInt(req.query.timePeriod)
 
             const skip = (page - 1) * limit
 
-            let users
-            let totalUsers
-
-            if(req.user.role === 'Superadmin'){
-                users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role === 'Administrator') {
-                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
-            } else {
-                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            let timeFilter = {}
+            if (timePeriod) {
+                const filteredHour = new Date()
+                filteredHour.setHours(filteredHour.getHours() - timePeriod)
+                timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
             }
+
+            let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+
+            if (req.user.role === 'Superadmin') {
+                baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
+            } else if (req.user.role === 'Administrator') {
+                baseQuery.companyId = req.user.companyId
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.role = { $in: ["Manager", "Employee"] }
+            } else {
+                baseQuery.companyId = req.user.companyId
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.role = { $in: ["Employee"] }
+            }
+
+            const users = await User.find(baseQuery).skip(skip).limit(limit)
+            const totalUsers = await User.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,
