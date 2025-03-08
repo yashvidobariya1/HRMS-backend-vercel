@@ -266,7 +266,11 @@ exports.getDetails = async (req, res) => {
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            return res.send({ status: 200, user: user?.personalDetails })
+            const userDetails = {
+                personalDetails: user?.personalDetails,
+                documentDetails: user?.documentDetails
+            }
+            return res.send({ status: 200, user: userDetails })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
@@ -290,11 +294,46 @@ exports.updateProfileDetails = async (req, res) => {
                 phone,
                 homeTelephone,
                 email,
+                documentDetails
             } = req.body
 
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
+            }
+
+            let documentDetailsFile = []
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const gettedDocument = documentDetails[i].document;
+
+                    if (!gettedDocument || typeof gettedDocument !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    try {
+                        if(gettedDocument.startsWith('data:')){
+                            let element = await cloudinary.uploader.upload(gettedDocument, {
+                                resource_type: "auto",
+                                folder: "userDocuments",
+                            });
+                            // console.log('Cloudinary response:', element);
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: element.secure_url
+                            })
+                        } else {
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: gettedDocument
+                            })
+                        }
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    }
+                }
             }
 
             const updatedUser = await User.findByIdAndUpdate(
@@ -319,7 +358,7 @@ exports.updateProfileDetails = async (req, res) => {
                         financialDetails: user?.financialDetails,
                         immigrationDetails: user?.immigrationDetails,
                         jobDetails: user?.jobDetails,
-                        documentDetails: user?.documentDetails,
+                        documentDetails: documentDetailsFile,
                         contractDetails: user?.contractDetails,
                     }
                 }, { new: true }

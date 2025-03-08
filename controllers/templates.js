@@ -1939,56 +1939,98 @@ exports.saveTemplateWithSignature = async (req, res) => {
             //     return result.secure_url;
             // }
 
-            async function addSignatureToContract(contractUrl, signatureBase64) {
-                // Fetch the DOCX file from Cloudinary
-                const response = await axios.get(contractUrl, { responseType: "arraybuffer" });
-                const docBuffer = response.data;
+            console.log('method')
+            // =====================================================================================
+            // async function addSignatureToContract(contractUrl, signatureBase64) {
+            //     // Fetch the DOCX file from Cloudinary
+            //     const response = await axios.get(contractUrl, { responseType: "arraybuffer" });
+            //     const docBuffer = response.data;
 
-                const imageOpts = {
-                    centered: false, // Set to true if you want the image centered
-                    getImage: function(tagValue) {
-                        return fromBase64(tagValue);
-                    },
-                    getSize: function() {
-                        return [150, 50]; // Set width and height (in pixels)
-                    }
-                };
+            //     const imageOpts = {
+            //         centered: false, // Set to true if you want the image centered
+            //         getImage: function(tagValue) {
+            //             return fromBase64(tagValue);
+            //         },
+            //         getSize: function() {
+            //             return [150, 50]; // Set width and height (in pixels)
+            //         }
+            //     };
             
-                // Load the DOCX file into docxtemplater
-                const zip = new PizZip(docBuffer);
-                const doc = new Docxtemplater(zip, { modules: [new ImageModule(imageOpts)] }, { paragraphLoop: true, linebreaks: true });
+            //     // Load the DOCX file into docxtemplater
+            //     const zip = new PizZip(docBuffer);
+            //     const doc = new Docxtemplater(zip, { modules: [new ImageModule(imageOpts)] }, { paragraphLoop: true, linebreaks: true });
 
-                // Convert base64 signature to binary
-                const signatureBuffer = Buffer.from(signatureBase64, "base64");           
+            //     // Convert base64 signature to binary
+            //     const signatureBuffer = Buffer.from(signatureBase64, "base64");           
                 
             
-                try {
-                    doc.render({
-                        SIGNATURE: signatureBuffer,
-                    });
-                } catch (error) {
-                    console.error("Error rendering the document:", error);
-                    return error;
-                }
+            //     try {
+            //         doc.render({
+            //             SIGNATURE: signatureBuffer,
+            //         });
+            //     } catch (error) {
+            //         console.error("Error rendering the document:", error);
+            //         return error;
+            //     }
             
-                // Generate the modified DOCX file
-                const updatedBuffer = doc.getZip().generate({ type: "nodebuffer" });
+            //     // Generate the modified DOCX file
+            //     const updatedBuffer = doc.getZip().generate({ type: "nodebuffer" });
             
-                // Save locally (optional)
-                fs.writeFileSync("signed_contract.docx", updatedBuffer);
+            //     // Save locally (optional)
+            //     fs.writeFileSync("signed_contract.docx", updatedBuffer);
             
-                // Upload to Cloudinary
-                const result = await cloudinary.uploader.upload("signed_contract.docx", { resource_type: "raw" });
+            //     // Upload to Cloudinary
+            //     const result = await cloudinary.uploader.upload("signed_contract.docx", { resource_type: "raw" });
             
-                return result.secure_url;
+            //     return result.secure_url;
+            // }
+
+            // const result = addSignatureToContract("https://res.cloudinary.com/dwerzoswa/raw/upload/v1740744741/Templates/fyhssfjxrk6r06qaumck.docx", signature).then(url => {
+            //     console.log("Signed Contract URL:", url);
+            //     return url
+            // })
+
+            // return { status: 200, message: 'SUCCESS', result }
+
+
+            const response = await axios.get(template?.template, { responseType: "arraybuffer" })
+            const docBuffer = Buffer.from(response.data)
+
+            const signatureBuffer = Buffer.from(signature, "base64")
+
+            const doc = new Document()
+
+            let userData = {
+                EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+                EMPLOYEE_EMAIL: existUser?.personalDetails?.email,
+                EMPLOYEE_CONTACT_NUMBER: existUser?.personalDetails?.phone,
+                JOB_START_DATE: jobDetail?.joiningDate,
+                EMPLOYEE_JOB_TITLE: jobDetail?.jobTitle,
+                EMPLOYEE_ROLE: jobDetail?.role,
+                WEEKLY_HOURS: jobDetail?.weeklyWorkingHours,
+                ANNUAL_SALARY: jobDetail?.annualSalary,
+                COMPANY_NAME: company?.companyDetails?.businessName,
+                SIGNATURE: '{SIGNATURE}'
             }
 
-            const result = addSignatureToContract("https://res.cloudinary.com/dwerzoswa/raw/upload/v1740744741/Templates/fyhssfjxrk6r06qaumck.docx", signature).then(url => {
-                console.log("Signed Contract URL:", url);
-                return url
+            const existingParagraph = new Paragraph(userData)
+
+            const signatureParagraph = new Paragraph("").addRun(
+                new ImageRun({
+                    data: signatureBuffer,
+                    transformation: { width: 150, height: 50 }, // Adjust size
+                })
+            )
+
+            doc.addSection({
+                children: [existingParagraph, signatureParagraph],
             })
 
-            return { status: 200, message: 'SUCCESS', result }
+            const newFileBuffer = await Packer.toBuffer(doc)
+
+            fs.writeFileSync("signed_document.docx", newFileBuffer)
+
+            return res.send('SUCCESS')
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

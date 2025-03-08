@@ -320,15 +320,75 @@ exports.getGeneratedReports = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 10
+
+            const skip = (page - 1) * limit
             const userId = req.user._id
 
-            const reports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } })
+            const reports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const totalReports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).countDocuments()
 
-            return res.send({ status: 200, message: 'Reports fetched successfully', reports })
+            let filteredReports = []
+            reports.map(report => {
+                filteredReports.push({
+                    startDate: report?.startDate,
+                    endDate: report?.endDate,
+                    reportId: report._id,
+                    createdAt: report?.createdAt
+                })
+            })
+
+            return res.send({
+                status: 200,
+                message: 'Reports fetched successfully',
+                reports: filteredReports,
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit) || 1,
+                currentPage: page || 1
+            })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching reports:', error)
         res.send({ message: 'Error occurred while fetching reports!' })
+    }
+}
+
+exports.getReport = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if (allowedRoles.includes(req.user.role)) {
+            const reportId = req.params.id
+
+            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).populate('employees.userId', 'personalDetails.firstName personalDetails.lastName')
+
+            if (!report) {
+                return res.send({ status: 404, message: 'Report not found' })
+            }
+
+            const formattedEmployees = report.employees.map(emp => ({
+                userName: `${emp.userId?.personalDetails?.firstName} ${emp.userId?.personalDetails?.lastName}`,
+                userId: emp.userId?._id || null,
+                jobId: emp.jobId,
+                jobTitle: emp.jobTitle,
+                jobRole: emp.jobRole,
+                status: emp.status
+            }))
+
+            return res.send({
+                status: 200,
+                message: 'Report fetched successfully',
+                report: {
+                    ...report.toObject(),
+                    employees: formattedEmployees
+                }
+            })
+        } else {
+            return res.send({ status: 403, message: 'Access denied' })
+        }
+    } catch (error) {
+        console.error('Error occurred while fetching report:', error)
+        res.send({ message: 'Error occurred while fetching report!' })
     }
 }
 
