@@ -15,24 +15,21 @@ exports.auth = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, JWT_SECRET)
-        const user = await User.findOneAndUpdate(
-            { _id: decoded._id, token: token }, 
-            { lastTimeAccess: moment().toDate() },
-            { new: true }
-        )
-
-        if (!user) {
-            throw new Error("User not found or token is invalid")
+        if (decoded.role !== "Client") {
+            const user = await User.findOne({ _id: decoded._id, token: token })
+    
+            if (!user) {
+                throw new Error("User not found or token is invalid")
+            }
+            req.user = user
         }
-        req.token = token
-        req.user = user
+        req.token = decoded
         next()                  
     } catch (error) {
         console.error("Error occurred while authenticate:", error);
         res.send({ message: "Invalid or expiry token!" })
     }
 }
-
 // exports.auth = (allowedRoles) => {
 //     return (req, res, next) => {
 //         const apiKey = req.headers["x-api-key"];

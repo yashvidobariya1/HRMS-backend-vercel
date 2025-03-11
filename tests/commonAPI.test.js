@@ -2462,9 +2462,7 @@ describe('Update user their profile details=====================================
         .post('/updateProfileDetails')
         .set('Authorization', `Bearer ${token}`)
         .send({
-            personalDetails: {
-                email: 'manager1@example.com',
-            },
+            email: 'manager1@example.com',
         })
         expect(JSON.parse(res.text).status).toBe(200);
         expect(JSON.parse(res.text).message).toBe('Profile updated successfully.');

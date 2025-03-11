@@ -10,6 +10,7 @@ const { default: axios } = require("axios");
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const useragent = require("useragent");
+const streamifier = require('streamifier');
 
 exports.login = async (req, res) => {
     try {
@@ -374,6 +375,7 @@ exports.updateProfileDetails = async (req, res) => {
                 phone: updatedUser?.personalDetails?.phone,
                 homeTelephone: updatedUser?.personalDetails?.homeTelephone,
                 email: updatedUser?.personalDetails?.email,
+                documentDetails: updatedUser?.documentDetails
             }
 
             return res.send({ status:200, message: 'Profile updated successfully.', updatedUser: uUser })
@@ -384,11 +386,9 @@ exports.updateProfileDetails = async (req, res) => {
     }
 }
 
-const generateContractForUser = async (userData, contractId) => {
+const generateContractForUser = async (userData, contractURL) => {
     try {       
-        const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-       
-        const response = await axios.get(contract?.contract, { responseType: 'arraybuffer' })
+        const response = await axios.get(contractURL, { responseType: 'arraybuffer' })
         const content = response.data
 
         const zip = new PizZip(content)
@@ -403,6 +403,19 @@ const generateContractForUser = async (userData, contractId) => {
         console.error('Error occurred while generating contract:', error)
         return { message: 'Error occurred while generating contract:' }
     }
+}
+
+const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { resource_type: 'raw', folder },
+            (error, result) => {
+                if (error) return reject(error)
+                resolve(result)
+            }
+        )
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+    })
 }
 
 exports.addUser = async (req, res) => {
@@ -555,15 +568,15 @@ exports.addUser = async (req, res) => {
 
             const contractId = contractDetails?.contractType
             let generatedContract
-            if(contractId){
-                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-                if(!contract){
-                    return res.send({ status: 404, message: 'Contract not found' })
-                }
-                generatedContract = await generateContractForUser(userData, contractId)
-            } else {
+
+            const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+            if(!contract){
                 return res.send({ status: 404, message: 'Contract not found' })
             }
+            generatedContract = await generateContractForUser(userData, contract?.contract)
+
+            const contractURL = await uploadBufferToCloudinary(generatedContract)
+            // console.log('contractURL?.secure_url:', contractURL?.secure_url)
 
             if (personalDetails.sendRegistrationLink == true) {
                 try {
@@ -608,7 +621,10 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
-            const user = await User.create(newUser)
+            const user = await User.create({
+                ...newUser,
+                userContractURL: contractURL?.secure_url
+            })
 
             return res.send({ status: 200, message: `${newUser.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
@@ -930,5 +946,39 @@ exports.getUserJobTitles = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while finding user job type:', error)
         res.send({ message: 'Error occurred while finding user role job type!' })
+    }
+}
+
+exports.sendMailToEmployee = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { EmployeeId, subject, message } = req.body
+
+            const existEmployee = await User.findOne({ _id: EmployeeId, isDeleted: { $ne: true } })
+            if(!existEmployee){
+                return res.send({ status: 404, message: 'Employee not found' })
+            }
+
+            const employeeEmail = existEmployee?.personalDetails?.email
+
+            const mailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: employeeEmail,
+                subject: subject,
+                html: `
+                    <p><b>Hello ${existEmployee?.personalDetails?.firstName} ${existEmployee?.personalDetails?.lastName},</b></p>
+                    <p>${message}</p>
+                    <p>Best regards,<br>HRMS Team</p>
+                `
+            }
+
+            transporter.sendMail(mailOptions)
+
+            return res.send({ status: 200, message: 'Mail sent successfully' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while sending mail:', error)
+        res.send({ message: 'Error occurred while sending mail!' })
     }
 }
