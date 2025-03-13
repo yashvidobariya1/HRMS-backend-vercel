@@ -253,7 +253,7 @@ exports.previewTemplate = async (req, res) => {
             }
 
             const templateId = jobDetail?.templateId
-            const template = await Template.findOne({ _id: templateId, isdelete: { $ne: true } })
+            const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
             if(!template){
                 return res.send({ status: 404, message: 'Template not found' })
             }
@@ -287,7 +287,7 @@ exports.saveTemplateWithSignature = async (req, res) => {
             const userId = req.user._id
 
             if(!base64OfTemplate){
-                return res.send({ status: 400, message: 'Please upload template!' })
+                return res.send({ status: 400, message: 'Please upload the template!' })
             }
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -295,7 +295,7 @@ exports.saveTemplateWithSignature = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            const jobDetail = existUser?.jobDetails.map(job => job._id.toString() === jobId)
+            const jobDetail = existUser.jobDetails.find(job => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }

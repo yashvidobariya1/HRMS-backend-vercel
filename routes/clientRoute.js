@@ -8,7 +8,7 @@ clientRoute.get('/getReport/:id', auth, getReport)
 clientRoute.get('/getReportForClient', auth, getReport)
 clientRoute.get('/getAllReports', auth, getGeneratedReports)
 // clientRoute.get('/clientUsers', getClientUsers)
-clientRoute.post('/appreveReport', approveReport)
-clientRoute.post('/rejectReport', rejectReport)
+clientRoute.post('/appreveReport', auth, approveReport)
+clientRoute.post('/rejectReport', auth, rejectReport)
 
 module.exports = clientRoute

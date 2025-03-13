@@ -7,6 +7,7 @@ const Location = require('../models/location')
 const bcrypt = require('bcrypt');
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const Client = require('../models/client')
 
 jest.mock('nodemailer', () => ({
     createTransport: jest.fn().mockReturnValue({
@@ -1825,6 +1826,65 @@ describe('**Crud Template Test ( Superadmin )**', () => {
             expect(JSON.parse(res.text).message).toBe('Access denied')
         })
     })
-
-
 });
+
+describe('Superadmin and Administrator can generate employee reports link for client', () => {
+    let token
+    let clientId
+    let companyId
+    test('Should return 401 for Unauthorization: Invalid API key', async () => {
+        await User.create({
+            personalDetails: {
+                email: 'testingforgeneratelink@gmail.com'
+            },
+            password: 'Superadmin@Administrator',
+            role: 'Superadmin'
+        })
+        const company = await Company.create({
+            companyDetails: {
+                businessName: 'testing Company for generate link'
+            }
+        })
+        companyId = company._id
+        const client = await Client.create({
+            clientName: 'testing client',
+            email: ['client1@example.com', 'client2@example.com', 'client3@example.com'],
+            companyId: company._id
+        })
+        clientId = client._id
+        const login = await request(app).post('/login').send({ email: 'testingforgeneratelink@gmail.com', password: 'Superadmin@Administrator' })
+        expect(JSON.parse(login.text).status).toBe(200)
+        token = JSON.parse(login.text).user.token
+        const res = await request(app).post('/generateLink')
+        expect(JSON.parse(res.text).status).toBe(401)
+        expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+    })
+    test('Should return 400 for start and end date is not passed', async () => {
+        const res = await request(app).post('/generateLink').set('Authorization', `Bearer ${token}`).send({ clientId })
+        expect(JSON.parse(res.text).status).toBe(400)
+        expect(JSON.parse(res.text).message).toBe('start and end date is required!')
+    })
+    test('Should return 404 for client not found', async () => {
+        const res = await request(app).post('/generateLink').set('Authorization', `Bearer ${token}`).send({ startDate: "2025-02-13", endDate: "2025-03-12" })
+        expect(JSON.parse(res.text).status).toBe(404)
+        expect(JSON.parse(res.text).message).toBe('Client not found')
+    })
+    test('Should return 404 for company not found', async () => {
+        await Company.findOneAndUpdate({ _id: companyId }, { isDeleted: true })
+        const res = await request(app).post('/generateLink').set('Authorization', `Bearer ${token}`).send({ clientId, startDate: "2025-02-13", endDate: "2025-03-12" })
+        expect(JSON.parse(res.text).status).toBe(404)
+        expect(JSON.parse(res.text).message).toBe('Company not found')
+    })
+    test('Should return 200 for link generate successfully', async () => {
+        await Company.findOneAndUpdate({ _id: companyId }, { isDeleted: false })
+        const res = await request(app).post('/generateLink').set('Authorization', `Bearer ${token}`).send({ clientId, startDate: "2025-02-13", endDate: "2025-03-12" })
+        expect(JSON.parse(res.text).status).toBe(200)
+        expect(JSON.parse(res.text).message).toBe('Link generated successfully')
+    })
+    test('should return 403 for, access denied', async () => {
+        await User.findOneAndUpdate({token}, { $set: { role: 'superadmin' } })
+        const res = await request(app).post(`/generateLink`).set('Authorization', `Bearer ${token}`)
+        expect(JSON.parse(res.text).status).toBe(403)
+        expect(JSON.parse(res.text).message).toBe('Access denied')
+    })
+})

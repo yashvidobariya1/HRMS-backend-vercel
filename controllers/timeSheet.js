@@ -560,20 +560,22 @@ exports.getAllTimeSheets = async (req, res) => {
 exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
+        if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 30
 
             const skip = (page - 1) * limit
 
-            const userId = req.body.userId || req.user._id
-            const { month, year, week } = req.query
             const { jobId } = req.body
 
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            // const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
+
+            const userId = req.body?.userId || req.user?._id || user?._id
+            const { month, year, week } = req.query
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
@@ -585,56 +587,61 @@ exports.getTimesheetReport = async (req, res) => {
 
             let startDate, endDate
 
-            if (year && month && month !== "All") {
-                startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                if(year === joiningYear && month === joiningDate.format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                }
-            } else if (year && month === "All") {
-                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                if(year === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (year && week) {
-                startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
-                endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
-            } else if (year) {
-                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                if(year === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (month && month !== "All") {
-                const currentYear = moment().year();
-                startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                if(currentYear === joiningYear && month === joiningDate.format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                }
-            } else if (month === "All") {
-                const currentYear = moment().year();
-                startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
-                if(currentYear === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (week) {
-                const currentYear = moment().year();
-                startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
-                endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+            if(req.body?.startDate && req.body?.endDate){
+                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
+                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
             } else {
-                startDate = moment().startOf('month').format('YYYY-MM-DD');
-                endDate = moment().endOf('month').format('YYYY-MM-DD');
-                if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment().endOf('month').format('YYYY-MM-DD')
+                if (year && month && month !== "All") {
+                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(year === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (year && month === "All") {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (year && week) {
+                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
+                } else if (year) {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (month && month !== "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (month === "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (week) {
+                    const currentYear = moment().year();
+                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+                } else {
+                    startDate = moment().startOf('month').format('YYYY-MM-DD');
+                    endDate = moment().endOf('month').format('YYYY-MM-DD');
+                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment().endOf('month').format('YYYY-MM-DD')
+                    }
                 }
             }
         
@@ -1034,14 +1041,15 @@ const formatTimeFromSeconds = (totalSeconds) => {
 exports. downloadTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const userId = req.body.userId || req.user._id
+        if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
             const { jobId, startDate, endDate, format } = req.body
-
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            // const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
+            const userId = req.body?.userId || req.user?._id || user?._id
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){

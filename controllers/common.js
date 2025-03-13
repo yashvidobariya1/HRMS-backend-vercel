@@ -71,21 +71,18 @@ exports.login = async (req, res) => {
 
 exports.logOut = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const userId = req.user._id
+        const userId = req.query.userId
 
-            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-            if(!existUser){
-                return res.send({ status: 404, message: 'User not found' })
-            }
+        const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+        if(!existUser){
+            return res.send({ status: 404, message: 'User not found' })
+        }
 
-            existUser.token = ""
-            existUser.lastTimeLoggedOut = moment().toDate()
-            existUser.isActive = false
-            await existUser.save()
-            return res.send({ status: 200, message: 'Logging out successfully.' })
-        } else return res.send({ status: 403, message: 'Access denied' })
+        existUser.token = ""
+        existUser.lastTimeLoggedOut = moment().toDate()
+        existUser.isActive = false
+        await existUser.save()
+        return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
         console.error('Error occurred while logging out:', error)
         res.send({ message: 'Error occurred while logging out!' })
@@ -157,19 +154,20 @@ exports.otpVerification = async (req, res) => {
     try {
         const { email, otp } = req.body
         const findUser = await User.findOne({ "personalDetails.email": email, isDeleted: false })
+
+        if(!findUser){
+            return res.send({ status: 404, message: "User not found." })
+        }
+
         if(findUser?.isEmailVerified !== true){
             return res.send({ status: 400, message: 'Email is not verified, please verify your email!' })
         } 
-        if (findUser) {
-            if (findUser.otp === otp) {
-                findUser.isOTPVerified = true
-                await findUser.save()
-                return res.send({ status: 200, message: "OTP verified successfully." })
-            } else {
-                return res.send({ status: 409, message: "Invalid OTP." })
-            }
+        if (findUser.otp === otp) {
+            findUser.isOTPVerified = true
+            await findUser.save()
+            return res.send({ status: 200, message: "OTP verified successfully." })
         } else {
-            return res.send({ status: 404, message: "User not found." })
+            return res.send({ status: 409, message: "Invalid OTP." })
         }
     } catch (error) {
         console.error("Error occurred while OTP verification:", error);
@@ -386,9 +384,11 @@ exports.updateProfileDetails = async (req, res) => {
     }
 }
 
-const generateContractForUser = async (userData, contractURL) => {
-    try {       
-        const response = await axios.get(contractURL, { responseType: 'arraybuffer' })
+const generateContractForUser = async (userData, contractId) => {
+    try {      
+        const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+        
+        const response = await axios.get(contract?.contract , { responseType: 'arraybuffer' })
         const content = response.data
 
         const zip = new PizZip(content)
@@ -573,7 +573,7 @@ exports.addUser = async (req, res) => {
             if(!contract){
                 return res.send({ status: 404, message: 'Contract not found' })
             }
-            generatedContract = await generateContractForUser(userData, contract?.contract)
+            generatedContract = await generateContractForUser(userData, contractId)
 
             const contractURL = await uploadBufferToCloudinary(generatedContract)
             // console.log('contractURL?.secure_url:', contractURL?.secure_url)
@@ -961,13 +961,16 @@ exports.sendMailToEmployee = async (req, res) => {
             }
 
             const employeeEmail = existEmployee?.personalDetails?.email
+            if(!employeeEmail){
+                return res.send({ status: 404, message: 'Employee email not found' })
+            }
 
             const mailOptions = {
                 from: process.env.NODEMAILER_EMAIL,
                 to: employeeEmail,
                 subject: subject,
                 html: `
-                    <p><b>Hello ${existEmployee?.personalDetails?.firstName} ${existEmployee?.personalDetails?.lastName},</b></p>
+                    <p>Hello ${existEmployee?.personalDetails?.firstName} ${existEmployee?.personalDetails?.lastName},</p>
                     <p>${message}</p>
                     <p>Best regards,<br>HRMS Team</p>
                 `

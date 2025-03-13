@@ -16,7 +16,11 @@ exports.auth = async (req, res, next) => {
 
         const decoded = jwt.verify(token, JWT_SECRET)
         if (decoded.role !== "Client") {
-            const user = await User.findOne({ _id: decoded._id, token: token })
+            const user = await User.findOneAndUpdate(
+                { _id: decoded._id, token: token }, 
+                { lastTimeAccess: moment().toDate() },
+                { new: true }
+            )
     
             if (!user) {
                 throw new Error("User not found or token is invalid")

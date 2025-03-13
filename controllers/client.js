@@ -486,7 +486,7 @@ exports.approveReport = async (req, res) => {
     try {
         const {
             reportId,
-            userId,
+            // userId,
             jobId
         } = req.body
 
@@ -496,7 +496,8 @@ exports.approveReport = async (req, res) => {
         }
 
         report?.employees.map(user => {
-            if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            if(user?.jobId?.toString() == jobId){
                 user.status = "Approved"
             }
         })
@@ -514,7 +515,7 @@ exports.rejectReport = async (req, res) => {
     try {
         const {
             reportId,
-            userId,
+            // userId,
             jobId
         } = req.body
 
@@ -524,7 +525,8 @@ exports.rejectReport = async (req, res) => {
         }
 
         report?.employees.map(user => {
-            if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            if(user?.jobId?.toString() == jobId){
                 user.status = "Reject"
             }
         })
