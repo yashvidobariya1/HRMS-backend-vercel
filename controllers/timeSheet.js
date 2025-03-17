@@ -14,6 +14,7 @@ const puppeteer = require("puppeteer");
 const ExcelJS = require("exceljs")
 const path = require("path");
 const mongoose = require("mongoose");
+const EmployeeReport = require("../models/employeeReport");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -568,6 +569,22 @@ exports.getTimesheetReport = async (req, res) => {
 
             const { jobId } = req.body
 
+            let employeeReportStatus
+            if(req.token?.role === 'Client'){
+                const { reportId } = req.body
+
+                const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
+                if(!report){
+                    return res.send({ status: 404, message: 'Report not found' })
+                }
+
+                report?.employees.map(emp => {
+                    if(emp?.jobId.toString() == jobId){
+                        employeeReportStatus = emp.status
+                    }
+                })
+            }
+
             const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
             // const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
@@ -803,7 +820,7 @@ exports.getTimesheetReport = async (req, res) => {
             const totalReports = allReports ? allReports.length : 0
 
             return res.send({
-                status: 200,
+                status: employeeReportStatus ? employeeReportStatus : 200,
                 message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,

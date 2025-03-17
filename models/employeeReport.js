@@ -34,6 +34,7 @@ const EmployeeReportSchema = new mongoose.Schema(
                 enum: ['Pending', 'Approved', 'Rejected'],
                 default: 'Pending'
             },
+            rejectionReason: String
         }],
         // token: String,
         creatorBy: String,

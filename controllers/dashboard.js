@@ -5,9 +5,56 @@ const Holiday = require("../models/holiday")
 const Leave = require("../models/leaveRequest")
 const Location = require("../models/location")
 const Template = require("../models/template")
+const Timesheet = require('../models/timeSheet')
 const User = require("../models/user")
 const moment = require('moment')
 
+// find Absences users for Superadmin, Administrator and Manager
+const findAbsentUsers = async (requestedUser) => {
+    const todayDate = moment().format("YYYY-MM-DD")
+
+    let matchStage = { isActive: true, isDeleted: { $ne: true } }
+
+    if(requestedUser.role === "Superadmin"){
+        matchStage.role = { $in: ['Administrator', 'Manager', 'Employee'] }
+    } else if(requestedUser.role === "Administrator"){
+        matchStage.role = { $in: ['Manager', 'Employee'] }
+        matchStage.companyId = requestedUser.companyId
+        matchStage.locationId = { $in: requestedUser.locationId }
+    } else if(requestedUser.role === "Manager"){
+        matchStage.role = "Employee"
+        matchStage["jobDetails.assignManager"] = requestedUser._id
+    }
+
+    const absentUsers = await User.aggregate([
+        { $match: matchStage },
+        {
+            $lookup: {
+                from: "Timesheet",
+                localField: "_id",
+                foreignField: "userId",
+                as: "Timesheet"
+            }
+        },
+        { $match: { "Timesheet.date": { $ne: todayDate } } },
+        {
+            $project: {
+                _id: 1,
+                name: {
+                    $cond: {
+                        if: { $ne: ["$personalDetails.lastName", ""] },
+                        then: { $concat: ["$personalDetails.firstName", " ", "$personalDetails.lastName"] },
+                        else: "$personalDetails.firstName"
+                    }
+                },
+                role: 1
+            }
+        }
+    ])
+
+    // console.log("Absent Users:", absentUsers)
+    return absentUsers
+}
 
 exports.dashboard = async (req, res) => {
     try {
@@ -27,6 +74,8 @@ exports.dashboard = async (req, res) => {
                 if (previous === 0) return current > 0 ? 100 : 0
                 return ((current - previous) / previous) * 100
             }
+
+            const absentUsers = await findAbsentUsers(req.user)
 
             let responseData = {}
 
@@ -75,31 +124,33 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     totalCompanies,
-                    // companyGrowth: calculatePercentageGrowth(totalCompanies, previousTotalCompanies),
+                    companyGrowth: calculatePercentageGrowth(totalCompanies, previousTotalCompanies),
 
                     totalClients,
-                    // clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
+                    clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
 
                     totalContracts,
-                    // contractGrowth: calculatePercentageGrowth(totalContracts, previousTotalContracts),
+                    contractGrowth: calculatePercentageGrowth(totalContracts, previousTotalContracts),
 
                     totalLocations,
-                    // locationGrowth: calculatePercentageGrowth(totalLocations, previousTotalLocations),
+                    locationGrowth: calculatePercentageGrowth(totalLocations, previousTotalLocations),
 
                     totalTemplates,
-                    // templateGrowth: calculatePercentageGrowth(totalTemplates, previousTotalTemplates),
+                    templateGrowth: calculatePercentageGrowth(totalTemplates, previousTotalTemplates),
 
                     totalEmployees,
-                    // employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
 
                     totalActiveUsers,
-                    // activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
 
                     totalLeaveRequests,
-                    // leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
 
                     totalPendingLR,
-                    // pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+
+                    absentUsers,
                 }
             } else if(req.user.role === 'Administrator'){
 
@@ -135,22 +186,24 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     totalEmployees,
-                    // employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
 
                     totalClients,
-                    // clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
+                    clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
 
                     totalActiveUsers,
-                    // activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
 
                     totalLeaveRequests,
-                    // leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
 
                     totalPendingLR,
-                    // pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
 
                     totalHolidays,
-                    // holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+
+                    absentUsers,
                 }
             } else if(req.user.role === 'Manager'){
 
@@ -182,19 +235,21 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     totalEmployees,
-                    // employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
 
                     totalActiveUsers,
-                    // activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
 
                     totalLeaveRequests,
-                    // leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
 
                     totalPendingLR,
-                    // pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
 
                     totalHolidays,
-                    // holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+
+                    absentUsers,
                 }
             } else if(req.user.role === 'Employee'){
                 const [
@@ -210,10 +265,10 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     totalLeaveRequests,
-                    // leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
                     
                     totalHolidays,
-                    // holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays)
+                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays)
                 }
             }
             return res.send({ status: 200, responseData})

@@ -504,7 +504,14 @@ exports.approveReport = async (req, res) => {
 
         await report.save()
 
-        return res.send({ status: 200, message: 'Report approved successfully', report })
+        let employeeData
+        report?.employees.map((emp) => {
+            if(emp?.jobId?.toString() == jobId){
+                employeeData = emp
+            }
+        })
+
+        return res.send({ status: 200, message: 'Employee report approved successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing approval')
         res.send({ message: 'Error occurred while processing approval!' })
@@ -516,7 +523,8 @@ exports.rejectReport = async (req, res) => {
         const {
             reportId,
             // userId,
-            jobId
+            jobId,
+            reason
         } = req.body
 
         const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
@@ -524,16 +532,28 @@ exports.rejectReport = async (req, res) => {
             return res.send({ status: 404, message: 'Report not found' })
         }
 
+        if(!reason){
+            return res.send({ status: 400, message: 'Rejection reason is required!' })
+        }
+
         report?.employees.map(user => {
             // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
             if(user?.jobId?.toString() == jobId){
-                user.status = "Reject"
+                user.status = "Rejected"
+                user.rejectionReason = reason
             }
         })
 
         await report.save()
 
-        return res.send({ status: 200, message: 'Report rejected successfully', report })
+        let employeeData
+        report?.employees.map((emp) => {
+            if(emp?.jobId?.toString() == jobId){
+                employeeData = emp
+            }
+        })
+
+        return res.send({ status: 200, message: 'Employee report rejected successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing rejection')
         res.send({ message: 'Error occurred while processing rejection!' })
