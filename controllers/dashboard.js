@@ -9,6 +9,14 @@ const Timesheet = require('../models/timeSheet')
 const User = require("../models/user")
 const moment = require('moment')
 
+exports.isTemplateSigned = async (req, res) => {
+    try {
+        
+    } catch (error) {
+        console.error('Error while checking if the template is signed')
+    }
+}
+
 // find Absences users for Superadmin, Administrator and Manager
 const findAbsentUsers = async (requestedUser) => {
     const todayDate = moment().format("YYYY-MM-DD")
@@ -56,6 +64,56 @@ const findAbsentUsers = async (requestedUser) => {
     return absentUsers
 }
 
+// const userGrowth = async (req, res) => {
+//     try {
+        
+
+//         res.json({ success: true, data: userGrowth });
+//     } catch (error) {
+//         res.status(500).json({ success: false, message: error.message });
+//     }
+// }
+
+const userGrowth = async () => {
+    const gorwth = await User.aggregate([
+        {
+            $group: {
+                _id: { $month: "$createdAt" }, // Group by month
+                totalUsers: { $sum: 1 } // Count users per month
+            }
+        },
+        { $sort: { _id: 1 } }, // Sort by month
+        {
+            $project: {
+                _id: 0,
+                month: {
+                    $switch: {
+                        branches: [
+                            { case: { $eq: ["$_id", 1] }, then: "Jan" },
+                            { case: { $eq: ["$_id", 2] }, then: "Feb" },
+                            { case: { $eq: ["$_id", 3] }, then: "Mar" },
+                            { case: { $eq: ["$_id", 4] }, then: "Apr" },
+                            { case: { $eq: ["$_id", 5] }, then: "May" },
+                            { case: { $eq: ["$_id", 6] }, then: "Jun" },
+                            { case: { $eq: ["$_id", 7] }, then: "Jul" },
+                            { case: { $eq: ["$_id", 8] }, then: "Aug" },
+                            { case: { $eq: ["$_id", 9] }, then: "Sep" },
+                            { case: { $eq: ["$_id", 10] }, then: "Oct" },
+                            { case: { $eq: ["$_id", 11] }, then: "Nov" },
+                            { case: { $eq: ["$_id", 12] }, then: "Dec" }
+                        ],
+                        default: "Unknown"
+                    }
+                },
+                totalUsers: 1
+            }
+        }
+    ]);
+    return gorwth
+}
+// const gorwth = await userGrowth()
+// console.log('userGrowth:', gorwth)
+
 exports.dashboard = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
@@ -69,6 +127,9 @@ exports.dashboard = async (req, res) => {
 
             const previousMonthStart = moment([previousYear, previousMonth, 1])
             const previousMonthEnd = moment([previousYear, previousMonth + 1, 1])
+
+            const currentMonthStart = moment().startOf('month').toDate()
+            const currentMonthEnd = moment().endOf('month').toDate()
 
             const calculatePercentageGrowth = (current, previous) => {
                 if (previous === 0) return current > 0 ? 100 : 0
@@ -84,71 +145,80 @@ exports.dashboard = async (req, res) => {
                 const adminUserIds = adminUsers.map(user => user._id)
 
                 const [
-                    totalCompanies, previousTotalCompanies,
-                    totalClients, previousTotalClients,
-                    totalContracts, previousTotalContracts,
-                    totalLocations, previousTotalLocations,
-                    totalTemplates, previousTotalTemplates,
-                    totalEmployees, previousTotalEmployees,
-                    totalActiveUsers, previousTotalActiveUsers,
-                    totalLeaveRequests, previousTotalLeaveRequests,
-                    totalPendingLR, previousTotalPendingLR
+                    totalCompanies, previousMonthTotalCompanies, currentMonthTotalCompanies,
+                    totalClients, previousMonthTotalClients, currentMonthTotalClients,
+                    totalContracts, previousMonthTotalContracts, currentMonthTotalContracts,
+                    totalLocations, previousMonthTotalLocations, currentMonthTotalLocations,
+                    totalTemplates, previousMonthTotalTemplates, currentMonthTotalTemplates,
+                    totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
+                    totalActiveUsers, previousMonthTotalActiveUsers, currentMonthTotalActiveUsers,
+                    totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
+                    totalPendingLR, previousMonthTotalPendingLR, currentMonthTotalPendingLR,
                 ] = await Promise.all([
                     Company.countDocuments({ isDeleted: { $ne: true } }),
                     Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Client.countDocuments({ isDeleted: { $ne: true } }),
                     Client.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Client.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Contract.countDocuments({ isDeleted: { $ne: true } }),
                     Contract.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Contract.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Location.countDocuments({ isDeleted: { $ne: true } }),
                     Location.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Location.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Template.countDocuments({ isDeleted: { $ne: true } }),
                     Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true } }),
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } })
+                    Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
                     totalCompanies,
-                    companyGrowth: calculatePercentageGrowth(totalCompanies, previousTotalCompanies),
+                    companyGrowth: calculatePercentageGrowth(currentMonthTotalCompanies, previousMonthTotalCompanies),
 
                     totalClients,
-                    clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
+                    clientGrowth: calculatePercentageGrowth(currentMonthTotalClients, previousMonthTotalClients),
 
                     totalContracts,
-                    contractGrowth: calculatePercentageGrowth(totalContracts, previousTotalContracts),
+                    contractGrowth: calculatePercentageGrowth(currentMonthTotalContracts, previousMonthTotalContracts),
 
                     totalLocations,
-                    locationGrowth: calculatePercentageGrowth(totalLocations, previousTotalLocations),
+                    locationGrowth: calculatePercentageGrowth(currentMonthTotalLocations, previousMonthTotalLocations),
 
                     totalTemplates,
-                    templateGrowth: calculatePercentageGrowth(totalTemplates, previousTotalTemplates),
+                    templateGrowth: calculatePercentageGrowth(currentMonthTotalTemplates, previousMonthTotalTemplates),
 
                     totalEmployees,
-                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
-                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
-                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
                     totalPendingLR,
-                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(currentMonthTotalPendingLR, previousMonthTotalPendingLR),
 
                     absentUsers,
                 }
@@ -158,117 +228,153 @@ exports.dashboard = async (req, res) => {
                 const managerUsersIds = managerUsers.map(user => user._id)
 
                 const [
-                    totalEmployees, previousTotalEmployees,
-                    totalClients, previousTotalClients,
-                    totalActiveUsers, previousTotalActiveUsers,
-                    totalLeaveRequests, previousTotalLeaveRequests,
-                    totalPendingLR, previousTotalPendingLR,
-                    totalHolidays, previousTotalHolidays
+                    totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
+                    totalClients, previousMonthTotalClients, currentMonthTotalClients,
+                    totalActiveUsers, previousMonthTotalActiveUsers, currentMonthTotalActiveUsers,
+                    totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
+                    totalPendingLR, previousMonthTotalPendingLR, currentMonthTotalPendingLR,
+                    totalHolidays, previousMonthTotalHolidays, currentMonthTotalHolidays,
                 ] = await Promise.all([
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Client.countDocuments({ companyId: req.user.companyId, isDeleted: { $ne: true } }),
                     Client.countDocuments({ companyId: req.user.companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Client.countDocuments({ companyId: req.user.companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isActive: true, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId: req.user.companyId, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: managerUsersIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, status: 'Pending', isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: managerUsersIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }),
                     Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
                     totalEmployees,
-                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalClients,
-                    clientGrowth: calculatePercentageGrowth(totalClients, previousTotalClients),
+                    clientGrowth: calculatePercentageGrowth(currentMonthTotalClients, previousMonthTotalClients),
 
                     totalActiveUsers,
-                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
-                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
                     totalPendingLR,
-                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(currentMonthTotalPendingLR, previousMonthTotalPendingLR),
 
                     totalHolidays,
-                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+                    holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
                 }
             } else if(req.user.role === 'Manager'){
 
+                const { jobId } = req.body
+
+                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                if(!existUser){
+                    return res.send({ status: 404, message: 'User not found' })
+                }
+
+                const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+                const isTemplateSigned = jobDetail?.isTemplateSigned
+
                 const managerEmployees = await User.find({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true } }).select("_id")
                 const managerEmployeeIds = managerEmployees.map(user => user._id)
 
                 const [
-                    totalEmployees, previousTotalEmployees,
-                    totalActiveUsers, previousTotalActiveUsers,
-                    totalLeaveRequests, previousTotalLeaveRequests,
-                    totalPendingLR, previousTotalPendingLR,
-                    totalHolidays, previousTotalHolidays
+                    totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
+                    totalActiveUsers, previousMonthTotalActiveUsers, currentMonthTotalActiveUsers,
+                    totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
+                    totalPendingLR, previousMonthTotalPendingLR, currentMonthTotalPendingLR,
+                    totalHolidays, previousMonthTotalHolidays, currentMonthTotalHolidays,
                 ] = await Promise.all([
                     User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: 'Employee', companyId: req.user.companyId, locationId: { $elemMatch: { $in: req.user.locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: managerEmployeeIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, status: 'Pending', isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: { $in: managerEmployeeIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }),
                     Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
                     totalEmployees,
-                    employeeGrowth: calculatePercentageGrowth(totalEmployees, previousTotalEmployees),
+                    employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
-                    activeUsersGrowth: calculatePercentageGrowth(totalActiveUsers, previousTotalActiveUsers),
+                    activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
-                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
                     totalPendingLR,
-                    pendingLRGrowth: calculatePercentageGrowth(totalPendingLR, previousTotalPendingLR),
+                    pendingLRGrowth: calculatePercentageGrowth(currentMonthTotalPendingLR, previousMonthTotalPendingLR),
 
                     totalHolidays,
-                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays),
+                    holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
                 }
             } else if(req.user.role === 'Employee'){
+
+                const { jobId } = req.body
+
+                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                if(!existUser){
+                    return res.send({ status: 404, message: 'User not found' })
+                }
+
+                const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+                const isTemplateSigned = jobDetail?.isTemplateSigned
+
                 const [
-                    totalLeaveRequests, previousTotalLeaveRequests,
-                    totalHolidays, previousTotalHolidays
+                    totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
+                    totalHolidays, previousMonthTotalHolidays, currentMonthTotalHolidays,
                 ] = await Promise.all([
                     Leave.countDocuments({ userId: req.user._id, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: req.user._id, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ userId: req.user._id, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }),
-                    Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } })
+                    Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Holiday.countDocuments({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
+                    isTemplateSigned,
+
                     totalLeaveRequests,
-                    leaveRequestGrowth: calculatePercentageGrowth(totalLeaveRequests, previousTotalLeaveRequests),
+                    leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
                     
                     totalHolidays,
-                    holidayGrowth: calculatePercentageGrowth(totalHolidays, previousTotalHolidays)
+                    holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
                 }
             }
             return res.send({ status: 200, responseData})

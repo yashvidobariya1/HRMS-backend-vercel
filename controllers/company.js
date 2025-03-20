@@ -96,16 +96,26 @@ exports.getCompany = async (req, res) => {
 
 exports.getAllCompany = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin'];
+        const allowedRoles = ['Superadmin', 'Administrator'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
 
-            const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            // const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            // const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
 
-            const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+            let companies
+            let totalCompanies
+
+            if(req.user.role == 'Superadmin'){
+                companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+            } else if(req.user.role == 'Administrator'){
+                companies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalCompanies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            }
 
             return res.send({
                 status: 200,

@@ -217,7 +217,7 @@ exports.deleteTemplate = async (req, res) => {
                 { 
                     $set: { 
                         isDeleted: true,
-                        cancelAt: moment().toDate()
+                        canceledAt: moment().toDate()
                     }
                 }
             )
@@ -308,6 +308,7 @@ exports.saveTemplateWithSignature = async (req, res) => {
 
             existUser?.jobDetails.map(job => {
                 if(job._id.toString() === jobId){
+                    job.isTemplateSigned = true
                     job.signedTemplateURL = result?.secure_url
                 }
             })

@@ -13,7 +13,6 @@ const ejs = require("ejs");
 const puppeteer = require("puppeteer");
 const ExcelJS = require("exceljs")
 const path = require("path");
-const mongoose = require("mongoose");
 const EmployeeReport = require("../models/employeeReport");
 
 exports.clockInFunc = async (req, res) => {
@@ -128,7 +127,7 @@ exports.clockInFunc = async (req, res) => {
                 // }
             } else if (existUser.role === 'Manager') {
                 const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator.length > 0) {
+                if (administrator) {
                     notifiedId.push(administrator?._id);
                     readBy.push({
                         userId: administrator?._id,
@@ -160,7 +159,7 @@ exports.clockInFunc = async (req, res) => {
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Clock In',
-                message: `${firstName} ${lastName} entered the geofence at ${currentDate}`,
+                message: `${firstName} ${lastName} clocked in successfully at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -376,7 +375,7 @@ exports.clockOutFunc = async (req, res) => {
                 // }
             } else if (existUser.role === 'Manager') {
                 const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator.length > 0) {
+                if (administrator) {
                     notifiedId.push(administrator?._id);
                     readBy.push({
                         userId: administrator?._id,
@@ -408,7 +407,7 @@ exports.clockOutFunc = async (req, res) => {
                 userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Clock Out',
-                message: `${firstName} ${lastName} exited the geofence at ${currentDate}`,
+                message: `${firstName} ${lastName} clocked out successfully at ${currentDate}`,
                 readBy
             });
             await notification.save();

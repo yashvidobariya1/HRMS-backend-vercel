@@ -6,6 +6,8 @@ const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, d
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 const { saveTemplateWithSignature, previewTemplate } = require('../controllers/templates')
 const { dashboard } = require('../controllers/dashboard')
+const { createTask, updateTask, deleteTask, getTask, getAllTasks } = require('../controllers/task')
+const { assignTask, getAssignedTask, getAllAssignedTasks, updateAssignedTask, completeAssignedTask, cancelAssignedTask } = require('../controllers/taskSchedule')
 
 const commonRoute = Router()
 
@@ -59,5 +61,18 @@ commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
 // generate template
 commonRoute.post('/previewTemplate', auth, previewTemplate)
 commonRoute.post('/signedTemplate', auth, saveTemplateWithSignature)
+// task
+commonRoute.post('/createTask', auth, createTask)
+commonRoute.get('/getTask/:id', auth, getTask)
+commonRoute.get('/getAllTasks', auth, getAllTasks)
+commonRoute.post('/updateTask/:id', auth, updateTask)
+commonRoute.post('/deleteTask/:id', auth, deleteTask)
+// assign task
+commonRoute.post('/assignTask', auth, assignTask)
+commonRoute.get('/getAssignedTask/:id', auth, getAssignedTask)
+commonRoute.get('/getAllAssignedTasks', auth, getAllAssignedTasks)
+commonRoute.post('/updateAssignedTask/:id', auth, updateAssignedTask)
+commonRoute.post('/completeAssignedTask/:id', auth, completeAssignedTask)
+commonRoute.post('/cancelAssignedTask/:id', auth, cancelAssignedTask)
 
 module.exports = commonRoute

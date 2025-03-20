@@ -258,7 +258,7 @@ exports.deleteContract = async (req, res) => {
                 { 
                     $set: { 
                         isDeleted: true,
-                        cancelAt: moment().toDate()
+                        canceledAt: moment().toDate()
                     }
                 }
             )

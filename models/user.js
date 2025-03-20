@@ -58,6 +58,10 @@ const userSchema = new mongoose.Schema({
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     assignClient: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
+    isTemplateSigned: {
+      type: Boolean,
+      default: false
+    },
     signedTemplateURL: String,
     role: String
   }],

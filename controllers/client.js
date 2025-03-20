@@ -231,8 +231,9 @@ exports.generateLinkForClient = async (req, res) => {
                     }
                 ]
             })
+            const allReports = await EmployeeReport.find({ clientId, companyId, isDeleted: { $ne: true } })
             if(report){
-                return res.send({ status: 400, message: 'Report link already generated' })
+                return res.send({ status: 400, message: `A report link has already been generated. You should create a new report link starting from ${moment(allReports[allReports.length - 1].endDate).add(1, 'days').format('DD-MM-YYYY')}.` })
             }
 
             const users = await User.find({ companyId, isDeleted: { $ne: true } })
@@ -328,15 +329,17 @@ exports.getGeneratedReports = async (req, res) => {
 
             let filteredReports = []
             reports.map(report => {
+                const hasStatusPending = report?.employees.some(emp => emp.status == 'Pending')
                 filteredReports.push({
                     startDate: report?.startDate,
                     endDate: report?.endDate,
                     _id: report._id,
-                    createdAt: report?.createdAt
+                    createdAt: report?.createdAt,
+                    status: hasStatusPending ? 'Pending' : 'Reviewed'
                 })
             })
 
-            const startDate = moment(filteredReports[filteredReports.length - 1].endDate).add(1, 'days').format('YYYY-MM-DD');
+            const startDate = moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD');
 
             return res.send({
                 status: 200,

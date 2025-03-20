@@ -10,33 +10,33 @@ const { leaveActionReminder, clockInOutReminder, visaExpiryReminder } = require(
 // │ │ │ │ │
 // 0 9 * * *  command-to-run
 
-// cron.schedule('0 9 * * *', async () => {
-//     const tomorrow = moment().add(1, 'days').format('YYYY-MM-DD')
-//     await leaveActionReminder(tomorrow)
-//     console.log(`✅ Reminder sent for action required on pending Leave Request.`)
-// }, {
-//     // timezone: "Asia/Dubai" // Adjust timezone as needed
-// })
+cron.schedule('0 9 * * *', async () => {
+    const tomorrow = moment().add(1, 'days').format('YYYY-MM-DD')
+    await leaveActionReminder(tomorrow)
+    console.log(`✅ Reminder sent for action required on pending Leave Request.`)
+}, {
+    // timezone: "Asia/Dubai" // Adjust timezone as needed
+})
 
-// // Clock-In Reminder (9:10 AM)
-// cron.schedule('10 9 * * *', async () => {
-//     const today = moment().format('YYYY-MM-DD')
-//     await clockInOutReminder('clock-in', today)
-//     console.log("✅ Reminder sent for missing clock-in.")
-// }, {
-//     // timezone: "Asia/Dubai" // Adjust timezone as needed
-// })
+// Clock-In Reminder (9:10 AM)
+cron.schedule('10 9 * * *', async () => {
+    const today = moment().format('YYYY-MM-DD')
+    await clockInOutReminder('clock-in', today)
+    console.log("✅ Reminder sent for missing clock-in.")
+}, {
+    // timezone: "Asia/Dubai" // Adjust timezone as needed
+})
 
-// // Clock-Out Reminder (6:10 PM)
-// cron.schedule('10 18 * * *', async () => {
-//     const today = moment().format('YYYY-MM-DD')
-//     await clockInOutReminder('clock-out', today)
-//     console.log("✅ Reminder sent for missing clock-out.")
-// }, {
-//     // timezone: "Asia/Dubai" // Adjust timezone as needed
-// })
+// Clock-Out Reminder (6:10 PM)
+cron.schedule('10 18 * * *', async () => {
+    const today = moment().format('YYYY-MM-DD')
+    await clockInOutReminder('clock-out', today)
+    console.log("✅ Reminder sent for missing clock-out.")
+}, {
+    // timezone: "Asia/Dubai" // Adjust timezone as needed
+})
 
-cron.schedule('* * * * * *', async () => {
+cron.schedule('* 9 * * *', async () => {
     const targetDate = moment().add(10, 'days').startOf('day').format('YYYY-MM-DD')
     await visaExpiryReminder(targetDate)
     console.log("✅ Reminder sent for visa expired in next 10 days.")

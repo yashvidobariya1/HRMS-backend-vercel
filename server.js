@@ -16,14 +16,12 @@ let port = process.env.PORT || 3001;
 
 const managerRoute = require('./routes/managerRoute');
 const superAdminRoute = require('./routes/superAdminRoute');
-const administratorRoute = require('./routes/administratorRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const commonRoute = require('./routes/commonRoute');
 const clientRoute = require('./routes/clientRoute');
 
 app.use(managerRoute)
 app.use(superAdminRoute)
-app.use(administratorRoute)
 app.use(employeeRoute)
 app.use(commonRoute)
 app.use(clientRoute)
