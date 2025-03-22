@@ -115,6 +115,24 @@
             width: auto;
         }
 
+        .timesheet-data-entry {
+            position: relative;
+        }
+
+        .timesheet-data-entry::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 1px;
+            background-color: #ccc;
+        }
+
+        .timesheet-data-entry:last-child::after {
+            display: none;
+        }
+
         .clock-entry {
             padding: 5px 10px;
             background-color: #ffffff;

@@ -7,7 +7,7 @@ const { getNotifications, getUnreadNotificationsCount, readNotification, getNoti
 const { saveTemplateWithSignature, previewTemplate } = require('../controllers/templates')
 const { dashboard } = require('../controllers/dashboard')
 const { createTask, updateTask, deleteTask, getTask, getAllTasks } = require('../controllers/task')
-const { assignTask, getAssignedTask, getAllAssignedTasks, updateAssignedTask, completeAssignedTask, cancelAssignedTask } = require('../controllers/taskSchedule')
+const { assignTask, getAssignedTask, getAllAssignedTasks, updateAssignedTask, completeAssignedTask, cancelAssignedTask, deleteAssignedTask } = require('../controllers/taskSchedule')
 
 const commonRoute = Router()
 
@@ -18,7 +18,7 @@ commonRoute.post('/emailVerification', emailVerification)
 commonRoute.post('/otpVerification', otpVerification)
 commonRoute.post('/forgotPassword', forgotPassword)
 // Dashboard
-commonRoute.get('/dashboard', auth, dashboard)
+commonRoute.post('/dashboard', auth, dashboard)
 // get user job title
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
 // user
@@ -74,5 +74,6 @@ commonRoute.get('/getAllAssignedTasks', auth, getAllAssignedTasks)
 commonRoute.post('/updateAssignedTask/:id', auth, updateAssignedTask)
 commonRoute.post('/completeAssignedTask/:id', auth, completeAssignedTask)
 commonRoute.post('/cancelAssignedTask/:id', auth, cancelAssignedTask)
+commonRoute.post('/deleteAssignedTask/:id', auth, deleteAssignedTask)
 
 module.exports = commonRoute

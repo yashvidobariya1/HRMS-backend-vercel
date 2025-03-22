@@ -1,5 +1,6 @@
 const Task = require('../models/task')
 const TaskSchedule = require('../models/taskSchedule')
+const moment = require('moment')
 
 exports.assignTask = async (req, res) => {
     try {
@@ -28,7 +29,7 @@ exports.assignTask = async (req, res) => {
 
             const taskSchedule = await TaskSchedule.create(newTask)
 
-            return res.send({ status: 200, message: 'Task schedule assign successfully', taskSchedule })
+            return res.send({ status: 200, message: 'Task assign successfully', taskSchedule })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while assigning the task:', error)
@@ -50,14 +51,14 @@ exports.getAssignedTask = async (req, res) => {
             return res.send({ status: 200, message: 'Assigned task fetched successfully', assignedTask })            
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occured while fetching the scheduled task:', error)
-        res.send({ message: 'Error occurred while fetching the scheduled task!' })
+        console.error('Error occured while fetching the task:', error)
+        res.send({ message: 'Error occurred while fetching the task!' })
     }
 }
 
 exports.getAllAssignedTasks = async (req, res) => {
     try {
-        const allowedRoles = ['Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
@@ -69,7 +70,7 @@ exports.getAllAssignedTasks = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'All tasks fetched successfully',
+                message: 'All assigned tasks fetched successfully',
                 tasks,
                 totalTasks,
                 totalPages: Math.ceil(totalTasks / limit) || 1,
@@ -77,28 +78,28 @@ exports.getAllAssignedTasks = async (req, res) => {
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while fetching scheduled tasks:', error)
-        res.send({ message: 'Error occurred while fetching scheduled tasks!' })
+        console.error('Error occurred while fetching tasks:', error)
+        res.send({ message: 'Error occurred while fetching tasks!' })
     }
 }
 
-// test pending
+// test pending work
 exports.updateAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
-            const taskId = req.params.id
+            const assignedTaskId = req.params.id
             const {
                 users
             } = req.body
 
-            const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+            const task = await TaskSchedule.findOne({ _id: assignedTaskId, isDeleted: { $ne: true } })
             if(!task){
-                return res.send({ status: 404, message: 'Task not found' })
+                return res.send({ status: 404, message: 'Assigned task not found' })
             }
 
-            const updatedAssignedTask = await Task.findOneAndUpdate(
-                { _id: taskId, isDeleted: { $ne: true } },
+            const updatedAssignedTask = await TaskSchedule.findOneAndUpdate(
+                { _id: assignedTaskId, isDeleted: { $ne: true } },
                 {
                     $set: {
                         users
@@ -106,36 +107,105 @@ exports.updateAssignedTask = async (req, res) => {
                 }, { new: true }
             )
 
-            return res.send({ status: 200, message: 'Task updated successfully', updatedAssignedTask })
+            return res.send({ status: 200, message: 'Assigned task updated successfully', updatedAssignedTask })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while updating the scheduled task:', error)
-        res.send({ message: 'Error occurred while updating the scheduled task!' })
+        console.error('Error occurred while updating the task:', error)
+        res.send({ message: 'Error occurred while updating the task!' })
     }
 }
 
-// pending
+// pending work
 exports.completeAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            
+            const assignedTaskId = req.params.id
+
+            const assignedTask = await TaskSchedule.findOne({ _id: assignedTaskId, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: 'Assigned task not found' })
+            }
+
+            const isAssigned = assignedTask.users.find(user => user.userId == req.user._id.toString())
+            if(!isAssigned){
+                return res.send({ status: 400, message: 'You are not assigned to this task' })
+            }
+
+            assignedTask.users.map(user => {
+                if(user.userId == req.user._id.toString() && user.taskStatus == 'Pending'){
+                    user.taskStatus = 'Completed'
+                }
+            })
+
+            await assignedTask.save()
+
+            return res.send({ status: 200, message: 'Assigned task completed successfully', assignedTask })
+
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while completing the schedule:', error)
-        res.send({ message: 'Error occurred while completing the schedule!' })
+        console.error('Error occurred while completing the task:', error)
+        res.send({ message: 'Error occurred while completing the task!' })
     }
 }
 
-// pending
+// pending work
 exports.cancelAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
-            
+            const { users } = req.body
+            const assignedTaskId = req.params.id
+
+            const assignedTask = await TaskSchedule.findOne({ _id: assignedTaskId, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: 'Assigned task not found' })
+            }
+
+            if (!users || users.length === 0) {
+                return res.send({ status: 400, message: 'At least select one employee to cancel' })
+            }
+
+            assignedTask.users = assignedTask.users.filter(taskUser =>
+                !users.some(reqUser => reqUser.userId === taskUser.userId.toString() && reqUser.jobId === taskUser.jobId.toString())
+            )
+
+            await assignedTask.save()
+
+            return res.send({ status: 200, message: 'Selected users removed from assigned task', assignedTask })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while canceling the schedule:', error)
         res.send({ message: 'Error occurred while canceling the schedule!' })
+    }
+}
+
+exports.deleteAssignedTask = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const assignedTaskId = req.params.id
+
+            const assignedTask = await TaskSchedule.findOne({ _id: assignedTaskId, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: 'Assigned task not found' })
+            }
+
+            const deletedAssignedTask = await TaskSchedule.findOneAndUpdate(
+                { _id: assignedTaskId, isDeleted: { $ne: true } },
+                {
+                    $set: {
+                        status: 'Cancelled',
+                        isDeleted: true,
+                        canceledAt: moment().toDate()
+                    }
+                }, { new: true }
+            )
+
+            return res.send({ status: 200, message: 'Assigned task deleted successfully', deletedAssignedTask })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deleting assigned task:', error)
+        res.send({ message: 'Error occurred while deleting assigned task!' })
     }
 }

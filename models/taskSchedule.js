@@ -11,7 +11,12 @@ const TaskScheduleSchema = new mongoose.Schema(
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'User'
             },
-            jobId: mongoose.Schema.Types.ObjectId
+            jobId: mongoose.Schema.Types.ObjectId,
+            taskStatus: {
+                type: String,
+                enum: ['Pending', 'Completed'],
+                default: 'Pending'
+            }
         }],
         assignedTask: {
             type: mongoose.Schema.Types.ObjectId,
@@ -30,7 +35,8 @@ const TaskScheduleSchema = new mongoose.Schema(
             type: String,
             enum: ["Assigned", "Completed", "Cancelled"],
             default: "Assigned"
-        }
+        },
+        canceledAt: Date,
     }, { timestamps: true }
 )
 

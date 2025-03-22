@@ -13,6 +13,7 @@ const leaveRequest = require('../models/leaveRequest');
 const moment = require('moment');
 const Contract = require('../models/contract');
 const Template = require('../models/template');
+const Task = require('../models/task');
 
 jest.mock('nodemailer', () => ({
     createTransport: jest.fn().mockReturnValue({
@@ -104,7 +105,7 @@ describe('Login API==================================================', () => {
 });
 
 describe('Logout API==================================================', () => {
-    test('Should return 200 for logout successfully', async () => {
+    test('Should return 404 for user not found', async () => {
         const hashedPassword = await bcrypt.hash('Password@123', 10);
         await User.create({
             personalDetails: {
@@ -119,8 +120,27 @@ describe('Logout API==================================================', () => {
         expect(JSON.parse(res.text).status).toBe(200)
         expect(JSON.parse(res.text).message).toBe('User login successfully')
         expect(JSON.parse(res.text).user).toHaveProperty('token')
-        usertoken = JSON.parse(res.text).user.token
-        const res2 = await request(app).post('/logOut').set('Authorization', `Bearer ${usertoken}`)
+        const usertoken = JSON.parse(res.text).user.token
+        const res2 = await request(app).post('/logOut').set('Authorization', `Bearer ${usertoken}cx`)
+        expect(JSON.parse(res2.text).status).toBe(404)
+        expect(JSON.parse(res2.text).message).toBe('User not found')
+    })
+    test('Should return 200 for logout successfully', async () => {
+        const hashedPassword = await bcrypt.hash('Password@123', 10);
+        await User.create({
+            personalDetails: {
+                email: 'testforlogout@example.com',
+            },
+            password: hashedPassword,
+            isDeleted: false,
+            role: 'Superadmin'
+        });
+
+        const res = await request(app).post('/login').send({ email: 'testforlogout@example.com', password: 'Password@123' })
+        expect(JSON.parse(res.text).status).toBe(200)
+        expect(JSON.parse(res.text).message).toBe('User login successfully')
+        expect(JSON.parse(res.text).user).toHaveProperty('token')
+        const res2 = await request(app).post(`/logOut?userId=${JSON.parse(res.text).user._id}`)
         expect(JSON.parse(res2.text).status).toBe(200)
         expect(JSON.parse(res2.text).message).toBe('Logging out successfully.')
     })
@@ -356,12 +376,12 @@ describe('dashboard==================================================', () => {
         expect(JSON.parse(login.text).user).toHaveProperty('token');
         token = await JSON.parse(login.text).user.token
         const res = await request(app)
-            .get('/dashboard')
+            .post('/dashboard')
         expect(JSON.parse(res.text).status).toBe(401);
         expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
     })
     test('should return 200 for fetched dashboard data', async () => {
-        const res = await request(app).get('/dashboard').set('Authorization', `Bearer ${token}`)
+        const res = await request(app).post('/dashboard').set('Authorization', `Bearer ${token}`)
         expect(JSON.parse(res.text).status).toBe(200)
     })
     test('should return 403 for Access denied', async () => {
@@ -384,7 +404,7 @@ describe('dashboard==================================================', () => {
         expect(JSON.parse(res.text).status).toBe(200);
         expect(JSON.parse(res.text).message).toBe('User login successfully');
         expect(JSON.parse(res.text).user).toHaveProperty('token');
-        const res1 = await request(app).get('/dashboard').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+        const res1 = await request(app).post('/dashboard').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
         expect(JSON.parse(res1.text).status).toBe(403);
         expect(JSON.parse(res1.text).message).toBe('Access denied');
     })
@@ -4592,6 +4612,606 @@ describe('~ Preview template and signed template for users======================
         test('Should return 403 for Access denied', async () => {
             await User.findOneAndUpdate({ _id: userId }, { role: 'manager' })
             const res = await request(app).post('/signedTemplate').set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+})
+
+describe('Task===================================================', () => {
+    describe('superadmin, administrator and manager can create task', () => {
+        let companyId
+        let locationId
+        let token
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingfortask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            })
+
+            const company = await Company.create({
+                companyDetails: {
+                    businessName: 'testingCompanyfortask'
+                }
+            })
+            companyId = company._id
+            const location = await Location.create({
+                companyId,
+                latitude: "12.121212",
+                longitude: "21.212121",
+                radius: "1000",
+                locationName: "second location for task",
+                ukviApproved: true
+            })
+            locationId = location._id
+            const login = await request(app).post('/login').send({ email: 'testingfortask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post('/createTask')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 200 for task created successfully', async () => {
+            const res = await request(app).post('/createTask').set('Authorization', `Bearer ${token}`).send({
+                "taskName": "second test task",
+                "taskType": "second task",
+                "taskDescription": "do task",
+                "startDate": "2025-04-01",
+                "startTime": "12:00",
+                "endDate": "2025-04-03",
+                "endTime": "12:00",
+                "companyId": companyId,
+                "locationId": locationId
+            })
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Task created successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post('/createTask').set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('superadmin, administrator and manager can get single task', () => {
+        let userId
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingforgettask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            })
+            userId = user._id
+
+            const task = await Task.create({
+                taskName: "second test task",
+                taskType: "second task",
+                taskDescription: "do task",
+                startDate: "2025-04-01",
+                startTime: "12:00",
+                endDate: "2025-04-03",
+                endTime: "12:00"
+            })
+            taskId = task._id
+            const login = await request(app).post('/login').send({ email: 'testingforgettask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).get(`/getTask/${taskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for task not found', async () => {
+            const res = await request(app).get(`/getTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Task not found')
+        })
+        test('should return 200 for task fetched successsfully', async () => {
+            const res = await request(app).get(`/getTask/${taskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Task fetched successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getTask/${taskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('superadmin, administrator and manager can get all tasks', () => {
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingforgetalltask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            })
+
+            const task = await Task.create({
+                taskName: "second test task",
+                taskType: "second task",
+                taskDescription: "do task",
+                startDate: "2025-04-01",
+                startTime: "12:00",
+                endDate: "2025-04-03",
+                endTime: "12:00"
+            })
+            taskId = task._id
+            const login = await request(app).post('/login').send({ email: 'testingforgetalltask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).get(`/getTask/${taskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 200 for task fetched successsfully', async () => {
+            const res = await request(app).get(`/getAllTasks`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('All tasks fetched successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getAllTasks`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('superadmin, administrator and manager can update task', () => {
+        let userId
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingforupdatetask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            })
+            userId = user._id
+
+            const task = await Task.create({
+                taskName: "second test task",
+                taskType: "second task",
+                taskDescription: "do task",
+                startDate: "2025-04-01",
+                startTime: "12:00",
+                endDate: "2025-04-03",
+                endTime: "12:00"
+            })
+            taskId = task._id
+            const login = await request(app).post('/login').send({ email: 'testingforupdatetask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/updateTask/${taskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for task not found', async () => {
+            const res = await request(app).post(`/updateTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Task not found')
+        })
+        test('should return 200 for task fetched successsfully', async () => {
+            const res = await request(app).post(`/updateTask/${taskId}`).set('Authorization', `Bearer ${token}`).send({
+                "taskName": "second test task",
+                "taskType": "update second task task type",
+                "taskDescription": "do task",
+                "startDate": "2025-04-01",
+                "startTime": "12:00",
+                "endDate": "2025-04-03",
+                "endTime": "12:00"
+            })
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Task updated successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateTask/${taskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('superadmin, administrator and manager can delete task', () => {
+        let userId
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingfordeletetask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            })
+            userId = user._id
+
+            const task = await Task.create({
+                taskName: "second test task",
+                taskType: "second task",
+                taskDescription: "do task",
+                startDate: "2025-04-01",
+                startTime: "12:00",
+                endDate: "2025-04-03",
+                endTime: "12:00"
+            })
+            taskId = task._id
+            const login = await request(app).post('/login').send({ email: 'testingfordeletetask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/deleteTask/${taskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for task not found', async () => {
+            const res = await request(app).post(`/deleteTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Task not found')
+        })
+        test('should return 200 for task fetched successsfully', async () => {
+            const res = await request(app).post(`/deleteTask/${taskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Task deleted successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteTask/${taskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+})
+
+describe('Assign Task===================================================', () => {
+    let assignedTaskId
+    let employeeId
+    let jobRoleId
+    describe('administrator and manager can assign task', () => {
+        let companyId
+        let locationId
+        let token
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const admin = await User.create({
+                personalDetails: {
+                    email: 'testingforassigntask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Administrator'
+            })
+
+            const employee = await User.create({
+                personalDetails: {
+                    email: 'assignedtaskemployeeormanager@gmail.com'
+                },
+                jobDetails: [{
+                    jobTitle: 'Developer',
+                    assigneManager: admin._id
+                }],
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Manager'
+            })
+            employeeId = employee._id
+            jobRoleId = employee.jobDetails[0]._id
+
+            const company = await Company.create({
+                companyDetails: {
+                    businessName: 'testingCompanyfortask'
+                }
+            })
+            companyId = company._id
+            const location = await Location.create({
+                companyId,
+                latitude: "12.121212",
+                longitude: "21.212121",
+                radius: "1000",
+                locationName: "second location for task",
+                ukviApproved: true
+            })
+            locationId = location._id
+            const login = await request(app).post('/login').send({ email: 'testingforassigntask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post('/assignTask')
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('Should return 404 for task not found', async () => {
+            const task = await Task.create({
+                taskName: "second test task",
+                taskType: "second task",
+                taskDescription: "do task",
+                startDate: "2025-04-01",
+                startTime: "12:00",
+                endDate: "2025-04-03",
+                endTime: "12:00"
+            })
+            taskId = task._id
+            const res = await request(app).post('/assignTask').set('Authorization', `Bearer ${token}`).send({
+                users: [
+                    {
+                        userId: employeeId,
+                        jobId: jobRoleId
+                    }
+                ],
+                assignedTask: locationId.toString()
+            })
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Task not found')
+        })
+        test('Should return 200 for task assign successfully', async () => {
+            const res = await request(app).post('/assignTask').set('Authorization', `Bearer ${token}`).send({
+                users: [
+                    {
+                        userId: employeeId,
+                        jobId: jobRoleId
+                    }
+                ],
+                assignedTask: taskId.toString()
+            })
+            assignedTaskId = JSON.parse(res.text).taskSchedule._id
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Task assign successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post('/assignTask').set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('administrator and manager can get single assign task', () => {
+        let token
+        let userId
+        let taskId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingforgetassignedtask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Administrator'
+            })
+            userId = user._id
+
+            const login = await request(app).post('/login').send({ email: 'testingforgetassignedtask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).get(`/getAssignedTask/${assignedTaskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for assign task not found', async () => {
+            const res = await request(app).get(`/getAssignedTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Assigned task not found')
+        })
+        test('should return 200 for assign task fetched successsfully', async () => {
+            const res = await request(app).get(`/getAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Assigned task fetched successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('administrator and manager can get all asigned tasks', () => {
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingforgetallassignedtask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Manager'
+            })
+            const login = await request(app).post('/login').send({ email: 'testingforgetallassignedtask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).get(`/getAllAssignedTasks`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 200 for task fetched successsfully', async () => {
+            const res = await request(app).get(`/getAllAssignedTasks`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('All assigned tasks fetched successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).get(`/getAllTasks`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('administrator and manager can update assigned task', () => {
+        let token
+        let userId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingforupdateassignedtask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Administrator'
+            })
+            userId = user._id
+
+            const login = await request(app).post('/login').send({ email: 'testingforupdateassignedtask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/updateAssignedTask/${assignedTaskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for assigned task not found', async () => {
+            const res = await request(app).post(`/updateAssignedTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Assigned task not found')
+        })
+        test('Sould return 200 for assigned task update successfully', async () => {
+            const res = await request(app).post(`/updateAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`).send({
+                users: [
+                    {
+                        userId: employeeId,
+                        jobId: jobRoleId
+                    }
+                ]
+            })
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Assigned task updated successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/updateAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('manager and employee can complete their task', () => {
+        let token
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingforcompletetask@gmail.com'
+                },
+                role: 'Employee',
+                password: 'Password@123',
+                isDeleted: false
+            })
+            const login = await request(app).post('/login').send({ email: 'assignedtaskemployeeormanager@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/completeAssignedTask/${assignedTaskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for assigned task not found', async () => {
+            const res = await request(app).post(`/completeAssignedTask/${employeeId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Assigned task not found')
+        })
+        test('should return 400 for user do not have assign this task', async () => {
+            const login = await request(app).post('/login').send({ email: 'testingforcompletetask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            const notAssignTaskToken = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/completeAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${notAssignTaskToken}`)
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe('You are not assigned to this task')
+        })
+        test('Sould return 200 for assigned task update successfully', async () => {
+            const res = await request(app).post(`/completeAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Assigned task completed successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/completeAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('administrator and manager can cancel assigned task', () => {
+        let token
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingforcancelassignedtask@gmail.com'
+                },
+                role: 'Administrator',
+                password: 'Password@123',
+                isDeleted: false
+            })
+            const login = await request(app).post('/login').send({ email: 'testingforcancelassignedtask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/cancelAssignedTask/${assignedTaskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for assigned task not found', async () => {
+            const res = await request(app).post(`/cancelAssignedTask/${employeeId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Assigned task not found')
+        })
+        test('should return 400 for select at least one employee to employee assign task', async () => {
+            const res = await request(app).post(`/cancelAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(400)
+            expect(JSON.parse(res.text).message).toBe('At least select one employee to cancel')
+        })
+        test('should return 200 for selected employee removed from assigned task', async () => {
+            const res = await request(app).post(`/cancelAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`).send({ users: [ { userId: employeeId, jobId: jobRoleId } ] })
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Selected users removed from assigned task')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/cancelAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(403)
+            expect(JSON.parse(res.text).message).toBe('Access denied')
+        })
+    })
+
+    describe('administrator and manager can delete assigned task', () => {
+        let token
+        let userId
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            const user = await User.create({
+                personalDetails: {
+                    email: 'testingfordeleteassignedtask@gmail.com'
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Administrator'
+            })
+            userId = user._id
+
+            const login = await request(app).post('/login').send({ email: 'testingfordeleteassignedtask@gmail.com', password: 'Password@123' })
+            expect(JSON.parse(login.text).status).toBe(200)
+            token = await JSON.parse(login.text).user.token
+            const res = await request(app).post(`/deleteAssignedTask/${assignedTaskId}`)
+            expect(JSON.parse(res.text).status).toBe(401)
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+        })
+        test('should return 404 for assigned task not found', async () => {
+            const res = await request(app).post(`/deleteAssignedTask/${userId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(404)
+            expect(JSON.parse(res.text).message).toBe('Assigned task not found')
+        })
+        test('Sould return 200 for assigned task delete successfully', async () => {
+            const res = await request(app).post(`/deleteAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
+            expect(JSON.parse(res.text).status).toBe(200)
+            expect(JSON.parse(res.text).message).toBe('Assigned task deleted successfully')
+        })
+        test('Should return 403 for Access denied', async () => {
+            await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
+            const res = await request(app).post(`/deleteAssignedTask/${assignedTaskId}`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(403)
             expect(JSON.parse(res.text).message).toBe('Access denied')
         })

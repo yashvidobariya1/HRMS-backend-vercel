@@ -222,7 +222,7 @@ describe('Client approve and reject employee report', () => {
             const generateReport = await request(app).post('/generateLink').set('Authorization', `Bearer ${token}`).send({ clientId, startDate: "2025-02-13", endDate: "2025-03-12" })
             report = JSON.parse(generateReport.text).generatedReport
             clientToken = report.links[0].token
-            const res = await request(app).post('/appreveReport').set('Authorization', `Bearer ${clientToken}`)
+            const res = await request(app).post('/approveReport').set('Authorization', `Bearer ${clientToken}`)
             expect(JSON.parse(res.text).status).toBe(404)
             expect(JSON.parse(res.text).message).toBe('Report not found')
         })
@@ -230,9 +230,9 @@ describe('Client approve and reject employee report', () => {
             reportId = report._id
             userId = report.employees[0]?.userId
             jobId = report.employees[0]?.jobId
-            const res = await request(app).post('/appreveReport').set('Authorization', `Bearer ${clientToken}`).send({ reportId, userId, jobId })
+            const res = await request(app).post('/approveReport').set('Authorization', `Bearer ${clientToken}`).send({ reportId, userId, jobId })
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Report approved successfully')
+            expect(JSON.parse(res.text).message).toBe('Employee report approved successfully')
         })
     })
 
@@ -279,9 +279,9 @@ describe('Client approve and reject employee report', () => {
             reportId = report._id
             userId = report.employees[0]?.userId
             jobId = report.employees[0]?.jobId
-            const res = await request(app).post('/appreveReport').set('Authorization', `Bearer ${clientToken}`).send({ reportId, userId, jobId })
+            const res = await request(app).post('/approveReport').set('Authorization', `Bearer ${clientToken}`).send({ reportId, userId, jobId })
             expect(JSON.parse(res.text).status).toBe(200)
-            expect(JSON.parse(res.text).message).toBe('Report approved successfully')
+            expect(JSON.parse(res.text).message).toBe('Employee report approved successfully')
         })
     })
 })
