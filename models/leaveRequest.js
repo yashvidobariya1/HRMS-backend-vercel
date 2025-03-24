@@ -11,7 +11,7 @@ const leaveRequestSchema = new mongoose.Schema({
     selectionDuration: String,
     startDate: String,
     endDate: String,
-    leaveDays: Number,
+    totalLeaveDays: Number,
     numberOfApproveLeaves: Number,
     leaves: [{
         leaveDate: String,

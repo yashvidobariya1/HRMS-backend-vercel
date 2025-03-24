@@ -17,7 +17,9 @@ const contractSchema = new mongoose.Schema({
     uploadBy: String,
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
     companyName: String,
-    cancelAt: Date
+    canceledAt: Date
 }, { timestamps: true });
 
-module.exports = mongoose.model('Contract', contractSchema);
+const Contract= mongoose.model('Contract', contractSchema);
+
+module.exports = Contract

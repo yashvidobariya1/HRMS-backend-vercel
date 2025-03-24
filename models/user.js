@@ -56,7 +56,13 @@ const userSchema = new mongoose.Schema({
     leavesAllow: Number,
     location: String,
     assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
+    assignClient: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
+    isTemplateSigned: {
+      type: Boolean,
+      default: false
+    },
+    signedTemplateURL: String,
     role: String
   }],
   immigrationDetails: {
@@ -80,12 +86,14 @@ const userSchema = new mongoose.Schema({
     document: String
   }],
   contractDetails: {
-    contractType: String,
-    contractDocument: {
-      fileName: String,
-      fileURL: String,
-    },
+    // contractType: String,
+    // contractDocument: {
+    //   fileName: String,
+    //   fileURL: String,
+    // },
+    contractId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' }
   },
+  userContractURL: String,
   password: String,
   role: {
     type: String
@@ -116,6 +124,18 @@ const userSchema = new mongoose.Schema({
   creatorId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  isOTPVerified: {
+    type: Boolean,
+    default: false
+  },
+  isActive: Boolean,
+  usedBrowser: String,
+  userIPAddess: String,
+  lastTimeAccess: Date,
   lastTimeLoggedIn: Date,
   lastTimeLoggedOut: Date,
   canceledAt: Date,

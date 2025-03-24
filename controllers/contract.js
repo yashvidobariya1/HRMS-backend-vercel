@@ -25,7 +25,7 @@ exports.addContract = async (req, res) => {
             }
 
             if (contractName) {
-                const existingContract = await Contract.findOne({ contractName, companyId });
+                const existingContract = await Contract.findOne({ contractName, companyId, isDeleted: { $ne: true } });
                 if (existingContract) {
                     return res.send({ status: 409, message: `A contract with the name ${contractName} already exists for this company.` });
                 }
@@ -95,7 +95,7 @@ exports.getAllContract = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Contracts all get successfully.',
+                message: 'Contracts fetched successfully.',
                 contracts,
                 totalContracts,
                 totalPages: Math.ceil(totalContracts / limit) || 1,
@@ -104,7 +104,7 @@ exports.getAllContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while feching contract form!" })
+        res.send({ message: "Something went wrong while fetching contract form!" })
     }
 }
 
@@ -128,7 +128,7 @@ exports.getAllContractOfCompany = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Contracts all get successfully.',
+                message: 'Contracts fetched successfully.',
                 contracts,
                 totalContracts,
                 totalPages: Math.ceil(totalContracts / limit) || 1,
@@ -137,7 +137,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while feching contract form!" })
+        res.send({ message: "Something went wrong while fetching contract form!" })
     }
 }
 
@@ -160,11 +160,11 @@ exports.getContract = async (req, res) => {
                 return res.send({ status: 404, message: 'Contract not found' })
             }
 
-            return res.send({ status: 200, message: 'Contract get successfully.', contract })
+            return res.send({ status: 200, message: 'Contract fetched successfully.', contract })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error("Error occurred while getting Contract:", error);
-        res.send({ message: "Something went wrong while getting Contract!" })
+        console.error("Error occurred while fetching Contract:", error);
+        res.send({ message: "Something went wrong while fetching Contract!" })
     }
 }
 
@@ -191,7 +191,7 @@ exports.updateContract = async (req, res) => {
             } = req.body
 
             if (contractName && isExist.contractName != contractName) {
-                const existingContract = await Contract.findOne({ contractName, companyId });
+                const existingContract = await Contract.findOne({ contractName, companyId, isDeleted: { $ne: true }  });
                 if (existingContract) {
                     return res.send({ status: 409, message: `A contract with the name "${contractName}" already exists for this company.` });
                 }
@@ -258,7 +258,7 @@ exports.deleteContract = async (req, res) => {
                 { 
                     $set: { 
                         isDeleted: true,
-                        cancelAt: moment().toDate()
+                        canceledAt: moment().toDate()
                     }
                 }
             )
