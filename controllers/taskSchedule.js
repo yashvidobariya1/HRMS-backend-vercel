@@ -83,7 +83,6 @@ exports.getAllAssignedTasks = async (req, res) => {
     }
 }
 
-// test pending work
 exports.updateAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -115,7 +114,6 @@ exports.updateAssignedTask = async (req, res) => {
     }
 }
 
-// pending work
 exports.completeAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Manager', 'Employee']
@@ -149,7 +147,6 @@ exports.completeAssignedTask = async (req, res) => {
     }
 }
 
-// pending work
 exports.cancelAssignedTask = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']

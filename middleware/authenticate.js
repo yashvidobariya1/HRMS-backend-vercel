@@ -31,7 +31,7 @@ exports.auth = async (req, res, next) => {
         next()                  
     } catch (error) {
         console.error("Error occurred while authenticate:", error);
-        res.send({ message: "Invalid or expiry token!" })
+        res.send({ message: "Your session has expired. Please log in again!" })
     }
 }
 // exports.auth = (allowedRoles) => {
