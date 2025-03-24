@@ -1,6 +1,7 @@
 require('dotenv').config({path:"config/config.env"})
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const moment = require('moment');
 
 const { JWT_SECRET } = process.env
 
@@ -8,27 +9,31 @@ const { JWT_SECRET } = process.env
 exports.auth = async (req, res, next) => {
     try {
         const token = req.headers?.authorization?.replace('Bearer ', '')
-        let user
 
         if(!token){
             return res.send({ status: 401, message: "Unauthorized: Invalid API key" });
         }
 
         const decoded = jwt.verify(token, JWT_SECRET)
-        user = await User.findOne({ _id: decoded._id, token: token })
-
-        if (!user) {
-            throw new Error("User not found or token is invalid")
+        if (decoded.role !== "Client") {
+            const user = await User.findOneAndUpdate(
+                { _id: decoded._id, token: token }, 
+                { lastTimeAccess: moment().toDate() },
+                { new: true }
+            )
+    
+            if (!user) {
+                throw new Error("User not found or token is invalid")
+            }
+            req.user = user
         }
-        req.token = token
-        req.user = user
+        req.token = decoded
         next()                  
     } catch (error) {
         console.error("Error occurred while authenticate:", error);
-        res.send({ message: "Invalid or expiry token!" })
+        res.send({ message: "Your session has expired. Please log in again!" })
     }
 }
-
 // exports.auth = (allowedRoles) => {
 //     return (req, res, next) => {
 //         const apiKey = req.headers["x-api-key"];

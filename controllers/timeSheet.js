@@ -9,12 +9,18 @@ const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 const moment = require('moment');
 const Holiday = require("../models/holiday");
+const ejs = require("ejs");
+const puppeteer = require("puppeteer");
+const ExcelJS = require("exceljs")
+const path = require("path");
+const EmployeeReport = require("../models/employeeReport");
 
 exports.clockInFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobId, isMobile, qrValue } = req.body
+            console.log('Location:', location)
 
             console.log("location",location);
             
@@ -30,7 +36,7 @@ exports.clockInFunc = async (req, res) => {
                 const qrCode = await QR.findOne({
                     qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
+                    isActive: { $ne: false },
                     locationId: { $in: existUser?.locationId },
                 })
                 
@@ -39,10 +45,12 @@ exports.clockInFunc = async (req, res) => {
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -51,18 +59,13 @@ exports.clockInFunc = async (req, res) => {
             await User.updateOne(
                 { _id: existUser._id },
                 { $set: { lastKnownLocation: location } }
-            )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 10000 // meters
+            )            
+            
+            const GEOFENCE_CENTER = {
+                latitude: companyLocation?.latitude,
+                longitude: companyLocation?.longitude
+            }
+            const GEOFENCE_RADIUS = companyLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -105,12 +108,12 @@ exports.clockInFunc = async (req, res) => {
             let readBy = []
             if (existUser.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
                     // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
                     readBy.push({
                         userId: jobDetail.assignManager,
-                        role: assignManager[0].role
+                        role: assignManager?.role
                     })
                     // console.log('readBy1/..', readBy)
                 }
@@ -125,19 +128,19 @@ exports.clockInFunc = async (req, res) => {
                 //     })
                 // }
             } else if (existUser.role === 'Manager') {
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
+                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                if (administrator) {
+                    notifiedId.push(administrator?._id);
                     readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
+                        userId: administrator?._id,
+                        role: administrator?.role
                     })
                 }
             } else if (existUser.role === 'Administrator') {
                 notifiedId.push(existUser.creatorId)
                 readBy.push({
-                    userId: existUser.creatorId,
-                    role: existUser.createdBy
+                    userId: existUser?.creatorId,
+                    role: existUser?.createdBy
                 })
             }
 
@@ -151,14 +154,14 @@ exports.clockInFunc = async (req, res) => {
             //     })
             // })
 
-            const { firstName, lastName } = existUser.personalDetails;
-            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const firstName = existUser.personalDetails?.firstName || ""
+            const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${name}`,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'ClockIn',
-                message: `${name} entered the geofence at ${currentDate}`,
+                type: 'Clock In',
+                message: `${firstName} ${lastName} clocked in successfully at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -235,6 +238,7 @@ exports.clockOutFunc = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const { userId, location, jobId, isMobile, qrValue } = req.body
+            console.log('Location:', location)
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
@@ -248,7 +252,7 @@ exports.clockOutFunc = async (req, res) => {
                 const qrCode = await QR.findOne({
                     qrValue,
                     companyId,
-                    isDeleted: { $ne: true },
+                    isActive: { $ne: false },
                     locationId: { $in: existUser?.locationId },
                 })
                 
@@ -262,6 +266,8 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
             }
@@ -271,16 +277,11 @@ exports.clockOutFunc = async (req, res) => {
                 { $set: { lastKnownLocation: location } }
             )
 
-            // const GEOFENCE_CENTER = { latitude: 21.2171, longitude: 72.8588 } // for out of geofenc area ( varachha location is)
-
-            // const GEOFENCE_CENTER = { latitude: 21.2297, longitude: 72.8385 } // for out of geofenc area ( gajera school location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2252, longitude: 72.8083 } // for out of geofenc area ( kantheriya hanuman ji temple location )
-
-            // const GEOFENCE_CENTER = { latitude: 21.2242, longitude: 72.8068 } // ( office location )
-
-            const GEOFENCE_CENTER = { latitude: 21.2337, longitude: 72.8138 } // for successfully clockin ( getted location for clockin )
-            const GEOFENCE_RADIUS = 10000 // meters
+            const GEOFENCE_CENTER = {
+                latitude: companyLocation?.latitude,
+                longitude: companyLocation?.longitude
+            }
+            const GEOFENCE_RADIUS = companyLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -355,12 +356,12 @@ exports.clockOutFunc = async (req, res) => {
             let readBy = []
             if (existUser.role === 'Employee') {
                 if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
                     // console.log('assignManager', assignManager)
                     notifiedId.push(jobDetail.assignManager);
                     readBy.push({
                         userId: jobDetail.assignManager,
-                        role: assignManager[0].role
+                        role: assignManager?.role
                     })
                     // console.log('readBy1/..', readBy)
                 }
@@ -375,19 +376,19 @@ exports.clockOutFunc = async (req, res) => {
                 //     })
                 // }
             } else if (existUser.role === 'Manager') {
-                const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator[0]._id);
+                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                if (administrator) {
+                    notifiedId.push(administrator?._id);
                     readBy.push({
-                        userId: administrator[0]._id,
-                        role: administrator[0].role
+                        userId: administrator?._id,
+                        role: administrator?.role
                     })
                 }
             } else if (existUser.role === 'Administrator') {
-                notifiedId.push(existUser.creatorId)
+                notifiedId.push(existUser?.creatorId)
                 readBy.push({
-                    userId: existUser.creatorId,
-                    role: existUser.createdBy
+                    userId: existUser?.creatorId,
+                    role: existUser?.createdBy
                 })
             }
 
@@ -401,14 +402,14 @@ exports.clockOutFunc = async (req, res) => {
             //     })
             // })
 
-            const { firstName, lastName } = existUser.personalDetails;
-            const name = [firstName, lastName].filter(Boolean).join(" ");
+            const firstName = existUser.personalDetails?.firstName || ""
+            const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${name}`,
+                userName: `${firstName} ${lastName}`,
                 notifiedId,
-                type: 'ClockOut',
-                message: `${name} exited the geofence at ${currentDate}`,
+                type: 'Clock Out',
+                message: `${firstName} ${lastName} clocked out successfully at ${currentDate}`,
                 readBy
             });
             await notification.save();
@@ -451,7 +452,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Timesheet getted successfully.',
+                message: 'Timesheet fetched successfully.',
                 timesheet: timesheet ? timesheet : {},
                 totalTimesheets,
                 totalPages: Math.ceil(totalTimesheets / limit) || 1,
@@ -459,21 +460,21 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error('Error occurred while getting timesheet:', error);
-        res.send({ message: "Something went wrong while getting the timesheet!" });
+        console.error('Error occurred while fetching timesheet:', error);
+        res.send({ message: "Something went wrong while fetching the timesheet!" });
     }
 }
 
 // for view hours frontend page
-exports.getOwnAllTimeSheets = async (req, res) => {
+exports.getAllTimeSheets = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
-            const userId = req.user._id
+            const userId = req.body.userId || req.user._id
 
             const { jobId } = req.body
             const { month, year } = req.query
@@ -544,7 +545,7 @@ exports.getOwnAllTimeSheets = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Timesheets getted successfully.',
+                message: 'Timesheets fetched successfully.',
                 timesheets: timesheets.length > 0 ? timesheets : [],
                 totalTimesheets,
                 totalPages: Math.ceil(totalTimesheets / limit) || 1,
@@ -553,57 +554,46 @@ exports.getOwnAllTimeSheets = async (req, res) => {
 
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
-        console.error('Error occurred while getting time sheet:', error)
-        res.send({ message: 'Something went wrong while getting time sheet!' })
+        console.error('Error occurred while fetching time sheet:', error)
+        res.send({ message: 'Something went wrong while fetching time sheet!' })
     }
-}
-
-// pending work
-exports.getTimesheetByMonthAndYear = async (req, res) =>{
-    // try {
-    //     const allowedRoles = ['Superadmin', 'Administrator'];
-    //     if (allowedRoles.includes(req.user.role)) {
-    //         const { month, year } = req.body;
-
-    //         if (!month || !year) {
-    //             return res.status(400).json({ message: 'Month and year are required' });
-    //         }
-
-        
-    //         const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
-    //         const endDate = new Date(startDate);
-    //         endDate.setMonth(startDate.getMonth() + 1);
-
-    //         const timesheets = await Timesheet.find({
-    //             createdAt: { $gte: startDate, $lt: endDate }
-    //         }).populate('userId', 'personalDetails jobDetails')
-
-    //         res.send({ status: 200, timesheets });
-
-    //     } else return res.send({ status: 403, message: 'Access denied' })
-    // } catch (error) {
-    //     console.error('Error osccured while getting timesheet:', error)
-    //     res.send({ message: 'Something went wrong while getting timesheet!' })
-    // }
 }
 
 exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
+        if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 30
 
             const skip = (page - 1) * limit
 
-            const userId = req.body.userId || req.user._id
-            const { month, year, week } = req.query
             const { jobId } = req.body
 
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            let employeeReportStatus
+            if(req.token?.role === 'Client'){
+                const { reportId } = req.body
+
+                const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
+                if(!report){
+                    return res.send({ status: 404, message: 'Report not found' })
+                }
+
+                report?.employees.map(emp => {
+                    if(emp?.jobId.toString() == jobId){
+                        employeeReportStatus = emp.status
+                    }
+                })
+            }
+
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            // const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
+
+            const userId = req.body?.userId || req.user?._id || user?._id
+            const { month, year, week } = req.query
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
@@ -615,56 +605,61 @@ exports.getTimesheetReport = async (req, res) => {
 
             let startDate, endDate
 
-            if (year && month && month !== "All") {
-                startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                if(year === joiningYear && month === joiningDate.format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                }
-            } else if (year && month === "All") {
-                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                if(year === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (year && week) {
-                startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
-                endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
-            } else if (year) {
-                startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                if(year === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (month && month !== "All") {
-                const currentYear = moment().year();
-                startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                if(currentYear === joiningYear && month === joiningDate.format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                }
-            } else if (month === "All") {
-                const currentYear = moment().year();
-                startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
-                endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
-                if(currentYear === joiningYear){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
-                }
-            } else if (week) {
-                const currentYear = moment().year();
-                startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
-                endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+            if(req.body?.startDate && req.body?.endDate){
+                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
+                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
             } else {
-                startDate = moment().startOf('month').format('YYYY-MM-DD');
-                endDate = moment().endOf('month').format('YYYY-MM-DD');
-                if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
-                    startDate = moment(joiningDate).format('YYYY-MM-DD')
-                    endDate = moment().endOf('month').format('YYYY-MM-DD')
+                if (year && month && month !== "All") {
+                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(year === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (year && month === "All") {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (year && week) {
+                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
+                } else if (year) {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (month && month !== "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (month === "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (week) {
+                    const currentYear = moment().year();
+                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+                } else {
+                    startDate = moment().startOf('month').format('YYYY-MM-DD');
+                    endDate = moment().endOf('month').format('YYYY-MM-DD');
+                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment().endOf('month').format('YYYY-MM-DD')
+                    }
                 }
             }
         
@@ -826,7 +821,7 @@ exports.getTimesheetReport = async (req, res) => {
             const totalReports = allReports ? allReports.length : 0
 
             return res.send({
-                status: 200,
+                status: employeeReportStatus ? employeeReportStatus : 200,
                 message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,
@@ -842,193 +837,578 @@ exports.getTimesheetReport = async (req, res) => {
     }
 }
 
-exports.downloadTimesheetReport = async (req, res) => {
+// old method
+// exports.downloadTimesheetReport = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+//         if(allowedRoles.includes(req.user.role)){
+//             const page = parseInt(req.query.page) || 1
+//             const limit = parseInt(req.query.limit) || 10
+
+//             const skip = (page - 1) * limit
+
+//             const userId = req.body.userId || req.user._id
+//             const { jobId, startDate, endDate } = req.body
+
+//             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+//             if(!user){
+//                 return res.send({ status: 404, message: 'User not found' })
+//             }
+
+//             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+//             if(!jobDetail){
+//                 return res.send({ status: 404, message: 'JobTitle not found' })
+//             }
+
+//             // 1. Fetch timesheet entries (Check-ins/outs)
+//             const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+//             // console.log('timesheet:', timesheets)
+
+//             // 2. Fetch leave requests
+//             const leaves = await Leave.find({
+//                 userId,
+//                 jobId,
+//                 $or: [
+//                     { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+//                     { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+//                 ],
+//                 status: "Approved",
+//                 isDeleted: { $ne: true }
+//             })
+//             // console.log('leaves:', leaves)
+
+//             // 3. Fetch holidays
+//             const holidays = await Holiday.find({
+//                 companyId: user.companyId,
+//                 locationId: { $in: user.locationId },
+//                 date: { $gte: startDate, $lte: endDate },
+//                 isDeleted: { $ne: true }
+//             })
+//             // console.log('holidays:', holidays)
+
+//             const dateList = [];
+//             for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+//                 dateList.push(d.clone().format('YYYY-MM-DD'))
+//             }
+//             // console.log('dateList:', dateList)
+
+//             const timesheetMap = new Map()
+//             timesheets.map(TS => {
+//                 const dateKey = TS.createdAt.toISOString().split("T")[0]
+//                 timesheetMap.set(dateKey, TS)
+//             })
+//             // console.log('timesheets:', timesheets)
+
+//             const leaveMap = new Map()
+//             leaves.forEach(leave => {
+//                 const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+//                 const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+//                 let tempDate = leaveStart.clone()
+            
+//                 while (tempDate.isSameOrBefore(leaveEnd)) {
+//                     leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+//                     tempDate.add(1, 'days')
+//                 }
+//             })
+//             // console.log('leaves:', leaves)
+
+//             const holidayMap = new Map();
+//             holidays.map(HD => {
+//                 holidayMap.set(HD.date, HD)
+//             })
+//             // console.log('holidays:', holidays)
+
+//             const today = moment().format('YYYY-MM-DD')
+
+//             const allReports = dateList.map(dateObj => {
+//                 const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+//                 const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+//                 const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+//                 if (isWeekend || isFuture) return null
+            
+//                 const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+//                 const leaveEntries = leaves.filter(leave => {
+//                     const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+//                     const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+//                     return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+//                 });
+//                 const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+            
+//                 const hasTimesheet = timesheetEntries.length > 0
+//                 const hasLeave = leaveEntries.length > 0
+//                 const hasHoliday = holidayEntries.length > 0
+//                 const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+//                 let status = "Absent"
+        
+//                 if (hasLeave) {
+//                     const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+//                     status = isHalfLeave ? "HalfLeave" : "Leave"
+//                 } else if (hasTimesheet) {
+//                     status = "Present"
+//                 } else if (hasHoliday) {
+//                     status = "Holiday"
+//                 }
+            
+//                 let data = {}
+            
+//                 if (hasTimesheet && !hasLeave && !hasHoliday) {
+//                     data.timesheetData = {
+//                         date: timesheetEntries[0]?.date,
+//                         clockinTime: timesheetEntries[0]?.clockinTime,
+//                         totalHours: timesheetEntries[0]?.totalHours,
+//                         overTime: timesheetEntries[0]?.overTime
+//                     }
+//                 } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+//                     data.leaveData = {
+//                         leaveType: leaveEntries[0]?.leaveType,
+//                         selectionDuration: leaveEntries[0]?.selectionDuration,
+//                         startDate: leaveEntries[0]?.startDate,
+//                         endDate: leaveEntries[0]?.endDate,
+//                         leaveDays: leaveEntries[0]?.leaveDays,
+//                         leaves: leaveEntries[0]?.leaveType,
+//                         reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+//                         status: leaveEntries[0]?.status,
+//                     }
+//                 } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+//                     data.holidayData = {
+//                         date: holidayEntries[0]?.date,
+//                         occasion: holidayEntries[0]?.occasion
+//                     }
+//                 } else if (hasTimesheet || hasLeave || hasHoliday) {
+//                     data = {
+//                         timesheetData: hasTimesheet ? {
+//                             date: timesheetEntries[0]?.date,
+//                             clockinTime: timesheetEntries[0]?.clockinTime,
+//                             totalHours: timesheetEntries[0]?.totalHours,
+//                             overTime: timesheetEntries[0]?.overTime
+//                         } : undefined,
+//                         leaveData: hasLeave ? {
+//                             leaveType: leaveEntries[0]?.leaveType,
+//                             selectionDuration: leaveEntries[0]?.selectionDuration,
+//                             startDate: leaveEntries[0]?.startDate,
+//                             endDate: leaveEntries[0]?.endDate,
+//                             leaveDays: leaveEntries[0]?.leaveDays,
+//                             leaves: leaveEntries[0]?.leaveType,
+//                             reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+//                             status: leaveEntries[0]?.status,
+//                         } : undefined,
+//                         holidayData: hasHoliday ? {
+//                             date: holidayEntries[0]?.date,
+//                             occasion: holidayEntries[0]?.occasion
+//                         } : undefined
+//                     }
+//                 }
+            
+//                 return {
+//                     date: dateObj,
+//                     status,
+//                     timesheet: hasTimesheet,
+//                     leave: hasLeave,
+//                     holiday: hasHoliday,
+//                     absent: isAbsent,
+//                     data
+//                 }
+//             }).filter(report => report !== null)
+
+//             const report = allReports.slice(skip, skip + limit)
+//             const totalReports = allReports ? allReports.length : 0
+
+//             return res.send({
+//                 status: 200,
+//                 message: 'Timesheet report downloaded successfully',
+//                 report: report ? report : [],
+//                 totalReports,
+//                 totalPages: Math.ceil(totalReports / limit) || 1,
+//                 currentPage: page || 1
+//             })
+
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while downloading timesheet report:', error)
+//         res.send({ message: 'Error occurred while downloading timesheet report!' })
+//     }
+// }
+
+const convertToSeconds = (timeStr) => {
+    if (!timeStr) return 0;
+
+    let totalSeconds = 0;
+    const match = timeStr.match(/(\d+)h|(\d+)m|(\d+)s/g);
+    
+    if (match) {
+        match.forEach(unit => {
+            if (unit.includes("h")) totalSeconds += parseInt(unit) * 3600;
+            if (unit.includes("m")) totalSeconds += parseInt(unit) * 60;
+            if (unit.includes("s")) totalSeconds += parseInt(unit);
+        });
+    }
+
+    return totalSeconds;
+}
+
+const formatTimeFromSeconds = (totalSeconds) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+exports. downloadTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
-
-            const skip = (page - 1) * limit
-
-            const userId = req.body.userId || req.user._id
-            const { jobId, startDate, endDate } = req.body
-
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+        if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
+            const { jobId, startDate, endDate, format } = req.body
+            
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            // const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
+            const userId = req.body?.userId || req.user?._id || user?._id
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
+            
+            const joiningDate = moment(jobDetail?.joiningDate, "YYYY-MM-DD")
+            let startMoment = moment(startDate, "YYYY-MM-DD")
+            let endMoment = moment(endDate, "YYYY-MM-DD")
 
-            // 1. Fetch timesheet entries (Check-ins/outs)
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
-            // console.log('timesheet:', timesheets)
-
-            // 2. Fetch leave requests
-            const leaves = await Leave.find({
-                userId,
-                jobId,
-                $or: [
-                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
-                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
-                ],
-                status: "Approved",
-                isDeleted: { $ne: true }
-            })
-            // console.log('leaves:', leaves)
-
-            // 3. Fetch holidays
-            const holidays = await Holiday.find({
-                companyId: user.companyId,
-                locationId: { $in: user.locationId },
-                date: { $gte: startDate, $lte: endDate },
-                isDeleted: { $ne: true }
-            })
-            // console.log('holidays:', holidays)
-
-            const dateList = [];
-            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
-                dateList.push(d.clone().format('YYYY-MM-DD'))
+            // passed startMoment as joining date
+            if (joiningDate.isBetween(startMoment, endMoment, undefined, '[]')) {
+                startMoment = joiningDate
             }
-            // console.log('dateList:', dateList)
+
+            // Generate all dates within the range
+            const allDates = []
+            for(let d = startMoment.clone(); d.isSameOrBefore(endMoment, "day"); d.add(1, "day")){
+                allDates.push(d.format("YYYY-MM-DD"))
+            }
+
+            // Fetch timesheet, leave, and holiday data
+            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+
+            const leaves = await Leave.find({ 
+                userId, jobId, 
+                status: "Approved", 
+                isDeleted: { $ne: true } 
+            })
+
+            // const holidays = await Holiday.find({ 
+            //     companyId: user.companyId, 
+            //     locationId: { $in: user.locationId } 
+            // })
 
             const timesheetMap = new Map()
-            timesheets.map(TS => {
-                const dateKey = TS.createdAt.toISOString().split("T")[0]
-                timesheetMap.set(dateKey, TS)
+            timesheets.forEach(ts => {
+                const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                timesheetMap.set(dateKey, ts)
             })
-            // console.log('timesheets:', timesheets)
 
             const leaveMap = new Map()
             leaves.forEach(leave => {
-                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
-                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                const leaveStart = moment(leave.startDate, "YYYY-MM-DD")
+                const leaveEnd = leave.endDate ? moment(leave.endDate, "YYYY-MM-DD") : leaveStart.clone()
                 
                 let tempDate = leaveStart.clone()
-            
-                while (tempDate.isSameOrBefore(leaveEnd)) {
-                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
-                    tempDate.add(1, 'days')
+                while (tempDate.isSameOrBefore(leaveEnd, "day")) {
+                    leaveMap.set(tempDate.format("YYYY-MM-DD"), leave)
+                    tempDate.add(1, "day")
                 }
             })
-            // console.log('leaves:', leaves)
 
-            const holidayMap = new Map();
-            holidays.map(HD => {
-                holidayMap.set(HD.date, HD)
-            })
-            // console.log('holidays:', holidays)
+            // const holidayMap = new Map()
+            // holidays.forEach(holiday => {
+            //     holidayMap.set(moment(holiday.date).format("YYYY-MM-DD"), holiday)
+            // })
 
-            const today = moment().format('YYYY-MM-DD')
+            const weeklyData = new Map()
 
-            const allReports = dateList.map(dateObj => {
-                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
-                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
-                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
-
-                if (isWeekend || isFuture) return null
+            // Generate the final report data
+            const reportData = allDates.map(date => {
+                const timesheetEntry = timesheetMap.get(date)
+                const leaveEntry = leaveMap.get(date)
+                // const holidayEntry = holidayMap.get(date)
             
-                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
-                const leaveEntries = leaves.filter(leave => {
-                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
-                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
-                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
-                });
-                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+                let status = ""
+                let clockinTime = "-"
+                let clockoutTime = "-"
+                let totalHours = 0
+                let overTime = 0
+                let leaveType = "-"
+                // let holidayOccasion = "-"
             
-                const hasTimesheet = timesheetEntries.length > 0
-                const hasLeave = leaveEntries.length > 0
-                const hasHoliday = holidayEntries.length > 0
-                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
-
-                let status = "Absent"
-        
-                if (hasLeave) {
-                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
-                    status = isHalfLeave ? "HalfLeave" : "Leave"
-                } else if (hasTimesheet) {
+                if (timesheetEntry) {
                     status = "Present"
-                } else if (hasHoliday) {
-                    status = "Holiday"
+                    clockinTime = timesheetEntry.clockinTime.map(t => moment(t.clockIn, "HH:mm").format("h:mm A")).join(" || ")
+                    clockoutTime = timesheetEntry.clockinTime.map(t => t.clockOut ? moment(t.clockOut, "HH:mm").format("h:mm A") : "-").join(" || ")
+                    
+                    // Convert total hours from "3h 45m 30s" to seconds
+                    totalHours = convertToSeconds(timesheetEntry.totalHours)
+                    
+                    // Convert overtime from "1h 30m 0s" to seconds
+                    overTime = convertToSeconds(timesheetEntry.overTime)
+                } else if (leaveEntry) {
+                    status = leaveEntry.selectionDuration === "First-Half" || leaveEntry.selectionDuration === "Second-Half" ? "Half Leave" : "Leave"
+                    leaveType = leaveEntry.leaveType
+                } 
+                // else if (holidayEntry) {
+                //     status = "Holiday"
+                //     holidayOccasion = holidayEntry.occasion
+                // }
+            
+                // Determine the week key
+                if (moment(date).day() === 6 || moment(date).day() === 0) {
+                    return null
+                }
+                const weekKey = moment(date).startOf("isoWeek").format("YYYY-MM-DD")
+            
+                // Accumulate weekly data
+                if (!weeklyData.has(weekKey)) {
+                    weeklyData.set(weekKey, { totalHours: 0, overTime: 0 })
                 }
             
-                let data = {}
-            
-                if (hasTimesheet && !hasLeave && !hasHoliday) {
-                    data.timesheetData = {
-                        date: timesheetEntries[0]?.date,
-                        clockinTime: timesheetEntries[0]?.clockinTime,
-                        totalHours: timesheetEntries[0]?.totalHours,
-                        overTime: timesheetEntries[0]?.overTime
-                    }
-                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
-                    data.leaveData = {
-                        leaveType: leaveEntries[0]?.leaveType,
-                        selectionDuration: leaveEntries[0]?.selectionDuration,
-                        startDate: leaveEntries[0]?.startDate,
-                        endDate: leaveEntries[0]?.endDate,
-                        leaveDays: leaveEntries[0]?.leaveDays,
-                        leaves: leaveEntries[0]?.leaveType,
-                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
-                        status: leaveEntries[0]?.status,
-                    }
-                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
-                    data.holidayData = {
-                        date: holidayEntries[0]?.date,
-                        occasion: holidayEntries[0]?.occasion
-                    }
-                } else if (hasTimesheet || hasLeave || hasHoliday) {
-                    data = {
-                        timesheetData: hasTimesheet ? {
-                            date: timesheetEntries[0]?.date,
-                            clockinTime: timesheetEntries[0]?.clockinTime,
-                            totalHours: timesheetEntries[0]?.totalHours,
-                            overTime: timesheetEntries[0]?.overTime
-                        } : undefined,
-                        leaveData: hasLeave ? {
-                            leaveType: leaveEntries[0]?.leaveType,
-                            selectionDuration: leaveEntries[0]?.selectionDuration,
-                            startDate: leaveEntries[0]?.startDate,
-                            endDate: leaveEntries[0]?.endDate,
-                            leaveDays: leaveEntries[0]?.leaveDays,
-                            leaves: leaveEntries[0]?.leaveType,
-                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
-                            status: leaveEntries[0]?.status,
-                        } : undefined,
-                        holidayData: hasHoliday ? {
-                            date: holidayEntries[0]?.date,
-                            occasion: holidayEntries[0]?.occasion
-                        } : undefined
-                    }
-                }
+                const weekEntry = weeklyData.get(weekKey)
+                weekEntry.totalHours += totalHours
+                weekEntry.overTime += overTime
+                weeklyData.set(weekKey, weekEntry)
             
                 return {
-                    date: dateObj,
+                    date,
+                    clockinTime,
+                    clockoutTime,
+                    totalHours: totalHours ? formatTimeFromSeconds(totalHours) : "-",
+                    overTime: overTime ? formatTimeFromSeconds(overTime) : "-",
                     status,
-                    timesheet: hasTimesheet,
-                    leave: hasLeave,
-                    holiday: hasHoliday,
-                    absent: isAbsent,
-                    data
+                    leaveType,
+                    // holidayOccasion,
+                    weekKey
                 }
-            }).filter(report => report !== null)
+            }).filter(Boolean).filter(entry => entry.status !== "")
+            // console.log('reportData:', reportData)
 
-            const report = allReports.slice(skip, skip + limit)
-            const totalReports = allReports ? allReports.length : 0
+            const weeklySummary = Array.from(weeklyData, ([weekKey, data]) => {
+                let startDate = moment(weekKey)
+                
+                if (startDate.day() === 6 || startDate.day() === 0) {
+                    return null
+                }
 
-            return res.send({
-                status: 200,
-                message: 'Timesheet report downloaded successfully',
-                report: report ? report : [],
-                totalReports,
-                totalPages: Math.ceil(totalReports / limit) || 1,
-                currentPage: page || 1
-            })
+                const endDate = startDate.clone().add(4, "days")
+            
+                return {
+                    weekRange: `${startDate.format("DD-MM-YYYY")} to ${endDate.format("DD-MM-YYYY")}`,
+                    totalHours: formatTimeFromSeconds(data.totalHours),
+                    overTime: formatTimeFromSeconds(data.overTime)
+                }
+            }).filter(Boolean)
+            // console.log('weeklySummary:', weeklySummary)
 
+            const data = {
+                startDate: moment(startDate).format("DD-MM-YYYY"),
+                endDate: moment(endDate).format("DD-MM-YYYY"),
+                userName: `${user?.personalDetails.firstName} ${user?.personalDetails.lastName}`,
+                userEmail: user?.personalDetails?.email,
+                userContactNumber: user?.personalDetails?.phone,
+                userJobTitle: jobDetail?.jobTitle,
+                userRole: jobDetail?.role
+            }    
+            
+            const fileName = `${user?.personalDetails.firstName}${user?.personalDetails.lastName}_timesheet_${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}`
+            
+            if(format === 'pdf'){
+                // Render the EJS template
+                const templatePath = path.join(__dirname, "../views/timesheetReportFormat.ejs")
+                const htmlContent = await ejs.renderFile(templatePath, { reportData, weeklySummary, data, moment })
+
+                // Generate PDF using Puppeteer
+                const browser = await puppeteer.launch()
+                const page = await browser.newPage()
+                await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+                await page.waitForSelector("table")
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                let pdfBuffer = await page.pdf({
+                    format: "A4",
+                    printBackground: true,
+                    margin: {
+                        top: "15mm",
+                        right: "10mm",
+                        bottom: "15mm",
+                        left: "10mm"
+                    }
+                })
+
+                await browser.close()
+
+                pdfBuffer = Buffer.from(pdfBuffer)
+                const pdfBase64 = pdfBuffer.toString("base64");
+                const mimeType = 'application/pdf'
+                res.send({ status: 200, message: "Timesheet report generated successfully", pdfBase64, fileName, mimeType });
+            } else if(format === 'excel'){
+                // Generate Excel file
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet("Timesheet Report");
+
+                //  1. Add Title
+                const titleRow = worksheet.addRow(["Timesheet Report"]);
+                titleRow.font = { bold: true, size: 20, color: { argb: 'FFFFFF' } };
+                titleRow.alignment = { horizontal: "center" };
+                worksheet.mergeCells(`A${titleRow.number}:F${titleRow.number}`);
+
+                titleRow.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" }, 
+                    };
+                });
+
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 2. Add User Details
+                // function addMergedRow(worksheet, text) {
+                //     const row = worksheet.addRow([text]); // Add row with text
+                //     row.font = { bold: true };
+                //     worksheet.mergeCells(`A${row.number}:B${row.number}`);
+                // }
+                
+                // // Adding User Details with Merged Cells (First Two Columns)
+                // addMergedRow(worksheet, `Name:   ${data.userName}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Email:   ${data.userEmail}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Contact Number:   ${data.userContactNumber}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Job Title:   ${data.userJobTitle}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Role:   ${data.userRole}`, worksheet.lastRow.number);
+                // addMergedRow(worksheet, `Time-Duration:   ${data.startDate} to ${data.endDate}`, worksheet.lastRow.number);
+
+                function addMergedRow(worksheet, label1, value1, label2, value2) {
+                    const row = worksheet.addRow([`${label1}: ${value1}`, "", `${label2}: ${value2}`, ""]);
+                    
+                    worksheet.mergeCells(`A${row.number}:B${row.number}`);
+                
+                    worksheet.mergeCells(`C${row.number}:D${row.number}`);
+                
+                    row.eachCell((cell) => {
+                        cell.font = { bold: true, size: 12 };
+                        cell.alignment = { horizontal: "left", vertical: "middle" };
+                    });
+                }
+                
+                addMergedRow(worksheet, "Name", data.userName, "Email", data.userEmail);
+                addMergedRow(worksheet, "Contact Number", data.userContactNumber, "Job Title", data.userJobTitle);
+                addMergedRow(worksheet, "Role", data.userRole, "Time-Duration", `${data.startDate} to ${data.endDate}`);
+
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 3. Add Detailed weekly summary data
+                const weeklySummaryTitleRow = worksheet.addRow(["Weekly Summary"]);
+                weeklySummaryTitleRow.font = { bold: true, size: 14 };
+                weeklySummaryTitleRow.alignment = { horizontal: "center" };
+                worksheet.mergeCells(weeklySummaryTitleRow.number, 1, weeklySummaryTitleRow.number, 4);
+                const summaryHeaders = worksheet.addRow(["Week", "Time Duration", "Total Hours", "Overtime"])
+                summaryHeaders.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" },
+                    };
+                });
+                summaryHeaders.font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+                summaryHeaders.alignment = { horizontal: "center" };
+
+                // Add weekly summary data
+                weeklySummary.forEach((week, index) => {
+                    const newRaw = worksheet.addRow([
+                        index + 1, week.weekRange, week.totalHours, week.overTime
+                    ]);
+                    newRaw.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                });
+
+                worksheet.addRow([]); // Empty row for spacing
+
+                // 4. Add Detailed Timesheet Data
+                const tableHeader = worksheet.addRow(["Date", "Clock Timing", "Total Hours", "Overtime", "Status", "Leave Type"]);
+                tableHeader.font = { bold: true, size: 12, color: { argb: "FFFFFF" } }
+                tableHeader.alignment = { horizontal: "center", vertical: "middle" }
+                tableHeader.eachCell((cell) => {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "343A40" },
+                    };
+                });
+
+                // Adding daily timesheet data
+                reportData.forEach((row) => {
+                    let clockTiming = '';
+                    
+                    const clockInArray = row.clockinTime.split('||').map(time => time.trim());
+                    const clockOutArray = row.clockoutTime.split('||').map(time => time.trim());
+                    
+                    // if (clockInArray.length === clockOutArray.length) {
+                    //     clockTiming = clockInArray.map((time, index) => {
+                    //         let formattedTime
+                    //         if(time !== '-'){
+                    //             formattedTime = `${time} || ${clockOutArray[index]}`
+                    //         } else {
+                    //             formattedTime = '-'
+                    //         }
+                    //         return formattedTime;
+                    //     }).join('\n');
+                    // }
+                
+                    // const newRow = worksheet.addRow([
+                    //     moment(row.date).format('DD-MM-YYYY'),
+                    //     clockTiming,
+                    //     row.totalHours,
+                    //     row.overTime,
+                    //     row.status,
+                    //     row.leaveType
+                    // ]);
+
+                    // newRow.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+
+                    const numRows = clockInArray.length; //
+                    const startRowNumber = worksheet.lastRow ? worksheet.lastRow.number + 1 : 1
+                    clockInArray.forEach((time, index) => {
+                        worksheet.addRow([
+                            moment(row.date).format('DD-MM-YYYY'),
+                            time !== '-' ? `${time} || ${clockOutArray[index]}` : '-',
+                            row.totalHours,
+                            row.overTime,
+                            row.status,
+                            row.leaveType
+                        ]).alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+                    })
+                   
+                    if (numRows > 1) {
+                        worksheet.mergeCells(`A${startRowNumber}:A${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`C${startRowNumber}:C${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`D${startRowNumber}:D${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`E${startRowNumber}:E${startRowNumber + numRows - 1}`)
+                        worksheet.mergeCells(`F${startRowNumber}:F${startRowNumber + numRows - 1}`)
+                    }
+                });
+
+                worksheet.columns.forEach((column) => {
+                    let maxLength = 0;
+                    column.eachCell({ includeEmpty: true }, (cell) => {
+                        const cellValue = cell.value ? cell.value.toString() : "";
+                        maxLength = Math.max(maxLength, cellValue.length);
+                    });
+                    column.width = maxLength + 1; // Add some padding for better spacing
+                });
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const excelbase64 = buffer.toString("base64");
+                const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                return res.send({ status: 200, message: 'Timesheet report generated successfully', excelbase64, fileName, mimeType })
+            } else {
+                return res.send({ status: 400, message: "Invalid format. Please specify 'pdf' or 'excel'." })
+            }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while downloading timesheet report:', error)
@@ -1073,7 +1453,7 @@ exports.generateQRcode = async (req, res) => {
                     qrType
                 })
     
-                return res.send({ status: 200, message: 'Company QR generate successfully.', QRCode })
+                return res.send({ status: 200, message: 'Company QR generated successfully.', QRCode })
             } else if(qrType == 'Location'){
                 const location = await Location.findOne({ _id: id, isDeleted: { $ne: true } })
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
@@ -1097,7 +1477,7 @@ exports.generateQRcode = async (req, res) => {
                     qrType
                 })
     
-                return res.send({ status: 200, message: 'Location QR generate successfully.', QRCode })
+                return res.send({ status: 200, message: 'Location QR generated successfully.', QRCode })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -1131,11 +1511,11 @@ exports.getAllQRCodes = async (req, res) => {
             const QRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).skip(skip).limit(limit)
             const totalQRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).countDocuments()
 
-            let qrValue = `${location?.locationName} - ${company?.companyDetails?.businessName}`
+            let qrValue = `${location?.locationName}-${company?.companyDetails?.businessName}`
 
             return res.send({
                 status: 200,
-                message: 'QR codes getted successfully.',
+                message: 'QR codes fetched successfully.',
                 qrValue,
                 QRCodes,
                 totalQRCodes,
@@ -1145,8 +1525,8 @@ exports.getAllQRCodes = async (req, res) => {
 
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while getting company QR codes:', error)
-        res.send({ message: 'Error occurred while getting QR codes!' })
+        console.error('Error occurred while fetching company QR codes:', error)
+        res.send({ message: 'Error occurred while fetching QR codes!' })
     }
 }
 

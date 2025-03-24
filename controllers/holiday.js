@@ -56,11 +56,11 @@ exports.addHoliday = async (req, res) => {
             }
             
             const holiday = await Holiday.create(newHoliday)
-            return res.send({ status: 200, message: 'Holiday added successfully.', holiday })
+            return res.send({ status: 200, message: 'Holiday created successfully.', holiday })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while adding holiday:', error)
-        res.send({ message: 'Error occurred while adding holiday!' })
+        console.error('Error occurred while creating holiday:', error)
+        res.send({ message: 'Error occurred while creating holiday!' })
     }
 }
 
@@ -130,7 +130,7 @@ exports.getAllHolidays = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'All holidays fetched successfully.',
+                message: 'Holidays fetched successfully.',
                 holidays: holidays ? holidays : [],
                 totalHolidays,
                 totalPages: Math.ceil(totalHolidays / limit) || 1,

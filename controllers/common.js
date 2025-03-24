@@ -1,10 +1,16 @@
 const User = require("../models/user");
+const Location = require("../models/location");
+const Company = require("../models/company");
+const Contract = require("../models/contract");
 const bcrypt = require("bcrypt");
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
-const Location = require("../models/location");
-const moment = require('moment')
-// const CryptoJS = require("crypto-js")
+const moment = require('moment');
+const { default: axios } = require("axios");
+const PizZip = require('pizzip');
+const Docxtemplater = require('docxtemplater');
+const useragent = require("useragent");
+const streamifier = require('streamifier');
 
 exports.login = async (req, res) => {
     try {
@@ -19,8 +25,12 @@ exports.login = async (req, res) => {
         }
 
         const token = await isExist.generateAuthToken()
+        const browser = useragent.parse(req.headers["user-agent"]);
         isExist.token = token
         // isExist.token = token.JWTToken
+        isExist.lastTimeLoggedIn = moment().toDate()
+        isExist.isActive = true
+        isExist.usedBrowser = browser
         isExist.save()
 
         const personalDetails = isExist?.personalDetails
@@ -29,7 +39,6 @@ exports.login = async (req, res) => {
         const _id = isExist?._id
 
         if (isExist.password == req.body.password) {
-            isExist.lastTimeLoggedIn = moment().toDate()
             return res.send({
                 status: 200,
                 message: "User login successfully",
@@ -46,7 +55,6 @@ exports.login = async (req, res) => {
                 if (!result) {
                     return res.send({ status: 401, message: "Invalid credential" });
                 }
-                isExist.lastTimeLoggedIn = moment().toDate()
                 return res.send({
                     status: 200,
                     message: "User login successfully",
@@ -63,41 +71,22 @@ exports.login = async (req, res) => {
 
 exports.logOut = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const userId = req.user._id
+        const userId = req.query.userId
 
-            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-            if(!existUser){
-                return res.send({ status: 404, message: 'User not found' })
-            }
+        const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+        if(!existUser){
+            return res.send({ status: 404, message: 'User not found' })
+        }
 
-            existUser.token = ""
-            existUser.lastTimeLoggedOut = moment().toDate()
-            await existUser.save()
-            return res.send({ status: 200, message: 'Logging out successfully.' })
-        } else return res.send({ status: 403, message: 'Access denied' })
+        existUser.token = ""
+        existUser.lastTimeLoggedOut = moment().toDate()
+        existUser.isActive = false
+        await existUser.save()
+        return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
         console.error('Error occurred while logging out:', error)
         res.send({ message: 'Error occurred while logging out!' })
     }
-}
-
-// Backend developer use only
-exports.decodeJWTtoken = async (req, res) => {
-    // try {
-    //     const { token } = req.body
-
-    //     const bytes = CryptoJS.AES.decrypt(token, process.env.ENCRYPTION_SECRET_KEY)
-
-    //     const decryptToken = bytes.toString(CryptoJS.enc.Utf8)
-
-    //     return res.send({ status: 200, message: 'Decode successfully', decryptToken })
-
-    // } catch (error) {
-    //     console.error('Error occurred while decoding token:', error)
-    //     res.send({ message: 'Error occurred while decoding token!' })
-    // }
 }
 
 exports.emailVerification = async (req, res) => {
@@ -148,7 +137,10 @@ exports.emailVerification = async (req, res) => {
                 }
             });
 
-            return res.send({ status: 200, message: otp })
+            findUser.isEmailVerified = true
+            await findUser.save()
+
+            return res.send({ status: 200, message: 'OTP will be send to your registered email', otp })
         } else {
             return res.send({ status: 400, message: "OTP not generated." })
         }
@@ -162,14 +154,20 @@ exports.otpVerification = async (req, res) => {
     try {
         const { email, otp } = req.body
         const findUser = await User.findOne({ "personalDetails.email": email, isDeleted: false })
-        if (findUser) {
-            if (findUser.otp === otp) {
-                return res.send({ status: 200, message: "OTP verified successfully." })
-            } else {
-                return res.send({ status: 409, message: "Invalid OTP." })
-            }
-        } else {
+
+        if(!findUser){
             return res.send({ status: 404, message: "User not found." })
+        }
+
+        if(findUser?.isEmailVerified !== true){
+            return res.send({ status: 400, message: 'Email is not verified, please verify your email!' })
+        } 
+        if (findUser.otp === otp) {
+            findUser.isOTPVerified = true
+            await findUser.save()
+            return res.send({ status: 200, message: "OTP verified successfully." })
+        } else {
+            return res.send({ status: 409, message: "Invalid OTP." })
         }
     } catch (error) {
         console.error("Error occurred while OTP verification:", error);
@@ -189,6 +187,10 @@ exports.forgotPassword = async (req, res) => {
             return res.send({ status: 404, message: "User not found" })
         }
 
+        if(user?.isEmailVerified !== true){
+            return res.send({ status: 400, message: 'Email is not verified, please verify your email!' })
+        } 
+
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/
         if (!passwordRegex.test(newPassword)) {
             return res.send({
@@ -203,6 +205,8 @@ exports.forgotPassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
         user.password = hashedPassword
+        user.isEmailVerified = false
+        user.isOTPVerified = false
         await user.save()
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
@@ -261,7 +265,11 @@ exports.getDetails = async (req, res) => {
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
-            return res.send({ status: 200, user })
+            const userDetails = {
+                personalDetails: user?.personalDetails,
+                documentDetails: user?.documentDetails
+            }
+            return res.send({ status: 200, user: userDetails })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
@@ -285,11 +293,46 @@ exports.updateProfileDetails = async (req, res) => {
                 phone,
                 homeTelephone,
                 email,
+                documentDetails
             } = req.body
 
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
+            }
+
+            let documentDetailsFile = []
+            if (documentDetails && Array.isArray(documentDetails)) {
+                for (let i = 0; i < documentDetails.length; i++) {
+                    const gettedDocument = documentDetails[i].document;
+
+                    if (!gettedDocument || typeof gettedDocument !== 'string') {
+                        console.log(`Invalid or missing document for item ${i}`)
+                    }
+                    try {
+                        if(gettedDocument.startsWith('data:')){
+                            let element = await cloudinary.uploader.upload(gettedDocument, {
+                                resource_type: "auto",
+                                folder: "userDocuments",
+                            });
+                            // console.log('Cloudinary response:', element);
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: element.secure_url
+                            })
+                        } else {
+                            documentDetailsFile.push({
+                                documentType: documentDetails[i].documentType,
+                                documentName: documentDetails[i].documentName,
+                                document: gettedDocument
+                            })
+                        }
+                    } catch (uploadError) {
+                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    }
+                }
             }
 
             const updatedUser = await User.findByIdAndUpdate(
@@ -314,7 +357,7 @@ exports.updateProfileDetails = async (req, res) => {
                         financialDetails: user?.financialDetails,
                         immigrationDetails: user?.immigrationDetails,
                         jobDetails: user?.jobDetails,
-                        documentDetails: user?.documentDetails,
+                        documentDetails: documentDetailsFile,
                         contractDetails: user?.contractDetails,
                     }
                 }, { new: true }
@@ -330,6 +373,7 @@ exports.updateProfileDetails = async (req, res) => {
                 phone: updatedUser?.personalDetails?.phone,
                 homeTelephone: updatedUser?.personalDetails?.homeTelephone,
                 email: updatedUser?.personalDetails?.email,
+                documentDetails: updatedUser?.documentDetails
             }
 
             return res.send({ status:200, message: 'Profile updated successfully.', updatedUser: uUser })
@@ -338,6 +382,40 @@ exports.updateProfileDetails = async (req, res) => {
         console.error('Error occurred while updating profile details:', error)
         res.send({ message: 'Error occurred while updating profile details!' })
     }
+}
+
+const generateContractForUser = async (userData, contractId) => {
+    try {      
+        const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+        
+        const response = await axios.get(contract?.contract , { responseType: 'arraybuffer' })
+        const content = response.data
+
+        const zip = new PizZip(content)
+        const doc = new Docxtemplater(zip)
+
+        doc.render(userData)
+
+        const modifiedDoc = doc.getZip().generate({ type: 'nodebuffer' })
+
+        return modifiedDoc
+    } catch (error) {
+        console.error('Error occurred while generating contract:', error)
+        return { message: 'Error occurred while generating contract:' }
+    }
+}
+
+const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { resource_type: 'raw', folder },
+            (error, result) => {
+                if (error) return reject(error)
+                resolve(result)
+            }
+        )
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+    })
 }
 
 exports.addUser = async (req, res) => {
@@ -357,20 +435,25 @@ exports.addUser = async (req, res) => {
                 contractDetails
             } = req.body
 
-            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            // if(!company){
-            //     return res.send({ status: 404, message: 'Company not found' })
-            // }
+            let companyId
+            const locationId = jobDetails[0]?.location
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            companyId = location?.companyId
 
-            // const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
+
+            const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
             // console.log('allCompanysEmployees:', allCompanysEmployees)
             // console.log('company?.contractDetails?.maxEmployeesAllowed:', company?.contractDetails?.maxEmployeesAllowed)
-            // if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
-            //     return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
-            // }
+            if(allCompanysEmployees > company?.contractDetails?.maxEmployeesAllowed){
+                return res.send({ status: 409, message: 'Maximum employee limit reached. Cannot add more employees.' })
+            }
 
             if (personalDetails && personalDetails.email) {
-                const user = await User.findOne({ "personalDetails.email": personalDetails.email })
+                const user = await User.findOne({ "personalDetails.email": personalDetails.email, isDeleted: { $ne: true } })
                 if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
@@ -410,27 +493,32 @@ exports.addUser = async (req, res) => {
             }
 
             let contractDetailsFile
-            if (contractDetails?.contractDocument) {
-                const document = contractDetails.contractDocument
-                if (!document || typeof document !== 'string') {
-                    console.log('Invalid or missing contract document')
-                }
-                try {
-                    let element = await cloudinary.uploader.upload(document, {
-                        resource_type: "auto",
-                        folder: "userContracts",
-                    });
-                    // console.log('Cloudinary response:', element);
-                    contractDetailsFile = {
-                        contractType: contractDetails.contractType,
-                        contractDocument: {
-                            fileURL: element.secure_url,
-                            fileName: contractDetails.fileName,
-                        }
-                    };
-                } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            // if (contractDetails?.contractDocument) {
+            //     const document = contractDetails.contractDocument
+            //     if (!document || typeof document !== 'string') {
+            //         console.log('Invalid or missing contract document')
+            //     }
+            //     try {
+            //         let element = await cloudinary.uploader.upload(document, {
+            //             resource_type: "auto",
+            //             folder: "userContracts",
+            //         });
+            //         // console.log('Cloudinary response:', element);
+            //         contractDetailsFile = {
+            //             contractType: contractDetails.contractType,
+            //             contractDocument: {
+            //                 fileURL: element.secure_url,
+            //                 fileName: contractDetails.fileName,
+            //             }
+            //         };
+            //     } catch (uploadError) {
+            //         console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+            //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //     }
+            // }
+            if(contractDetails?.contractType){
+                contractDetailsFile = {
+                    contractId: contractDetails?.contractType,
                 }
             }
 
@@ -450,11 +538,6 @@ exports.addUser = async (req, res) => {
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
 
-            let companyId
-            const locationId = jobDetails[0]?.location
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            companyId = location?.companyId
-
             const newUser = {
                 personalDetails,
                 addressDetails,
@@ -471,16 +554,41 @@ exports.addUser = async (req, res) => {
                 createdBy: req.user.role,
                 creatorId: req.user._id,
             }
+
+            let userData = {
+                EMPLOYEE_NAME: `${newUser?.personalDetails?.firstName} ${newUser?.personalDetails?.lastName}`,
+                EMPLOYEE_EMAIL: newUser?.personalDetails?.email,
+                EMPLOYEE_CONTACT_NUMBER: newUser?.personalDetails?.phone,
+                JOB_START_DATE: 'START_DATE',
+                EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
+                WEEKLY_HOURS: 'WEEKLY_HOURS',
+                ANNUAL_SALARY: 'ANNUAL_SALARY',
+                COMPANY_NAME: company?.companyDetails?.businessName
+            }
+
+            const contractId = contractDetails?.contractType
+            let generatedContract
+
+            const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+            if(!contract){
+                return res.send({ status: 404, message: 'Contract not found' })
+            }
+            generatedContract = await generateContractForUser(userData, contractId)
+
+            const contractURL = await uploadBufferToCloudinary(generatedContract)
+            // console.log('contractURL?.secure_url:', contractURL?.secure_url)
+
             if (personalDetails.sendRegistrationLink == true) {
                 try {
+                    const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
                     let mailOptions = {
                         from: process.env.NODEMAILER_EMAIL,
                         to: newUser.personalDetails.email,
-                        subject: "Welcome to [Company Name]'s HRMS Portal",
+                        subject: `Welcome to ${company?.companyDetails?.businessName}'s HRMS Portal`,
                         html: `
                             <p>Welcome to HRMS Portal!</p>
 
-                            <p>We are pleased to inform you that a new ${jobDetails.role} account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+                            <p>We are pleased to inform you that a new ${newUser.role} account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
 
                             <ul>
                                 <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
@@ -489,7 +597,7 @@ exports.addUser = async (req, res) => {
                                 <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
                             </ul>
 
-                            <p>Please ensure the ${jobDetails.role} logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                            <p>Please ensure the ${newUser.role} logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
                             <ul>
                                 <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
@@ -503,6 +611,7 @@ exports.addUser = async (req, res) => {
 
                             <p>Best regards,<br>HRMS Team</p>
                         `,
+                        attachments: [{ filename: attachedFileName, content: generatedContract }],
                     };
 
                     await transporter.sendMail(mailOptions);
@@ -512,9 +621,12 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
-            const user = await User.create(newUser)
+            const user = await User.create({
+                ...newUser,
+                userContractURL: contractURL?.secure_url
+            })
 
-            return res.send({ status: 200, message: `${user.role} created successfully.`, user })
+            return res.send({ status: 200, message: `${newUser.role} created successfully.`, user })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding user:", error);
@@ -555,22 +667,33 @@ exports.getAllUsers = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const timePeriod = parseInt(req.query.timePeriod)
 
             const skip = (page - 1) * limit
 
-            let users
-            let totalUsers
-
-            if(req.user.role === 'Superadmin'){
-                users = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role === 'Administrator') {
-                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Manager", "Employee"] }, isDeleted: { $ne: true } }).countDocuments()
-            } else {
-                users = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalUsers = await User.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, role: { $in: ["Employee"] }, isDeleted: { $ne: true } }).countDocuments()
+            let timeFilter = {}
+            if (timePeriod) {
+                const filteredHour = new Date()
+                filteredHour.setHours(filteredHour.getHours() - timePeriod)
+                timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
             }
+
+            let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+
+            if (req.user.role === 'Superadmin') {
+                baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
+            } else if (req.user.role === 'Administrator') {
+                baseQuery.companyId = req.user.companyId
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.role = { $in: ["Manager", "Employee"] }
+            } else {
+                baseQuery.companyId = req.user.companyId
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.role = { $in: ["Employee"] }
+            }
+
+            const users = await User.find(baseQuery).skip(skip).limit(limit)
+            const totalUsers = await User.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,
@@ -664,38 +787,85 @@ exports.updateUserDetails = async (req, res) => {
             }
 
             let contractDetailsFile
-            if (contractDetails) {
-                const document = contractDetails.contractDocument
-                if (!document || typeof document !== 'string') {
-                    console.log('Invalid or missing contract document')
+            // if (contractDetails) {
+            //     const document = contractDetails.contractDocument
+            //     if (!document || typeof document !== 'string') {
+            //         console.log('Invalid or missing contract document')
+            //     }
+            //     try {
+            //         if(document.startsWith('data:')){
+            //             let element = await cloudinary.uploader.upload(document, {
+            //                 resource_type: "auto",
+            //                 folder: "userContracts",
+            //             });
+            //             // console.log('Cloudinary response:', element);
+            //             contractDetailsFile = {
+            //                 contractType: contractDetails.contractType,
+            //                 contractDocument: {
+            //                     fileURL: element.secure_url,
+            //                     fileName: contractDetails.fileName,
+            //                 }
+            //             };
+            //         } else {
+            //             contractDetailsFile = {
+            //                 contractType: contractDetails.contractType,
+            //                 contractDocument: {
+            //                     fileURL: document,
+            //                     fileName: contractDetails.fileName,
+            //                 }
+            //             }
+            //         }
+            //     } catch (uploadError) {
+            //         console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+            //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //     }
+            // }
+
+            if(user?.contractDetails?.contractId == contractDetails?.contractType){
+                contractDetailsFile = {
+                    contractId: user?.contractDetails?.contractId
                 }
-                try {
-                    if(document.startsWith('data:')){
-                        let element = await cloudinary.uploader.upload(document, {
-                            resource_type: "auto",
-                            folder: "userContracts",
-                        });
-                        // console.log('Cloudinary response:', element);
-                        contractDetailsFile = {
-                            contractType: contractDetails.contractType,
-                            contractDocument: {
-                                fileURL: element.secure_url,
-                                fileName: contractDetails.fileName,
-                            }
-                        };
-                    } else {
-                        contractDetailsFile = {
-                            contractType: contractDetails.contractType,
-                            contractDocument: {
-                                fileURL: document,
-                                fileName: contractDetails.fileName,
-                            }
-                        }
-                    }
-                } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            } else {
+                contractDetailsFile = {
+                    contractId: contractDetails?.contractType,
                 }
+
+                const contract = await Contract.findOne({ _id: contractDetailsFile?.contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+
+                const company = await Company.findOne({ _id: user?.companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
+                let userData = {
+                    EMPLOYEE_NAME: `${personalDetails?.firstName} ${personalDetails?.lastName}`,
+                    EMPLOYEE_EMAIL: personalDetails?.email,
+                    EMPLOYEE_CONTACT_NUMBER: personalDetails?.phone,
+                    JOB_START_DATE: 'START_DATE',
+                    EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
+                    WEEKLY_HOURS: 'WEEKLY_HOURS',
+                    ANNUAL_SALARY: 'ANNUAL_SALARY',
+                    COMPANY_NAME: company?.companyDetails?.businessName
+                }
+
+                const generatedContract = await generateContractForUser(userData, contractDetailsFile?.contractId)
+                const attachedFileName = `${personalDetails?.firstName}${personalDetails?.lastName}-updated-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
+                
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: personalDetails?.email,
+                    subject: "Your contract will be updated",
+                    html: `
+                        <p>Dear ${personalDetails?.firstName}${personalDetails?.lastName},</p>
+                        <p>Your contract has been updated. Please find the attached updated contract.</p>
+                        <p>Best Regards,<br>${company?.companyDetails?.businessName}</p>
+                    `,
+                    attachments: [{ filename: attachedFileName, content: generatedContract }],
+                }
+                await transporter.sendMail(mailOptions)
             }
 
             let updatedUser = await User.findByIdAndUpdate(
@@ -779,727 +949,39 @@ exports.getUserJobTitles = async (req, res) => {
     }
 }
 
-
-
-
-
-
-
-// =================================================================pending work for generating the offer letter===========================================================
-
-// const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-// const axios = require("axios");
-// const pdf = require('pdf-parse');
-// const puppeteer = require('puppeteer');
-// const streamifier = require("streamifier");
-// const Contract = require("../models/contract");
-// const Company = require("../models/company");
-
-
-// first method
-// Utility: Fetch PDF from URL
-async function fetchPDF(url) {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    return response.data;
-} 
-// Utility: Extract text and replace placeholders
-// async function replacePlaceholdersInPDF(pdfBytes, data) {
-//     // Step 1: Extract text from PDF
-//     const textContent = await pdfParse(pdfBytes);
-//     console.log('textContent:', textContent);
-
-//     // Step 2: Replace placeholders in text
-//     let modifiedText = textContent.text;
-//     Object.keys(data).forEach((key) => {
-//         const placeholder = `{${key}}`; // Placeholder format: {name}, {position}, etc.
-//         modifiedText = modifiedText.replace(new RegExp(placeholder, 'g'), data[key]);
-//     });
-
-//     // Step 3: Load the PDF with pdf-lib to modify content
-//     const pdfDoc = await PDFDocument.load(pdfBytes);
-//     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-//     const pages = pdfDoc.getPages();
-
-//     // Example: Replace placeholders on the first page
-//     const page = pages[0];
-//     const { width, height } = page.getSize();
-//     page.drawText(modifiedText, {
-//         x: 50,
-//         y: height - 50,
-//         font: helveticaFont,
-//         size: 12,
-//     });
-
-//     // Serialize the updated PDF
-//     const updatedPdfBytes = await pdfDoc.save();
-//     return updatedPdfBytes;
-// }
-async function replacePlaceholdersInPDF(pdfBytes, data) {
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    const pages = pdfDoc.getPages();
-
-    pages.forEach((page) => {
-        const { width, height } = page.getSize();
-
-        // Define placeholder positions
-        const placeholders = [
-            { key: 'name', placeholder: '{name}', x: 150, y: height - 100 },
-            { key: 'email', placeholder: '{email}', x: 150, y: height - 120 },
-            { key: 'position', placeholder: '{position}', x: 150, y: height - 140 },
-            { key: 'joiningDate', placeholder: '{joiningDate}', x: 150, y: height - 160 },
-            { key: 'company', placeholder: '{company}', x: 150, y: height - 180 },
-        ];
-
-        let adjustedY = height - 100; // Starting Y position
-
-        placeholders.forEach(({ key, placeholder, x, y }) => {
-            const value = data[key]; // Get the value for the placeholder
-
-            if (value) {
-                // Draw the updated text
-                page.drawText(`${value}`, {
-                    x,
-                    y: adjustedY,
-                    size: 12,
-                    font: helveticaFont,
-                    // color: rgb(0, 0, 0), // Black color
-                });
-
-                adjustedY -= 20; // Move to the next line
-            }
-        });
-    });
-
-    const updatedPdfBytes = await pdfDoc.save();
-    return updatedPdfBytes;
-}
-
-// exports.generateOfferLetter = async (req, res) => {
-//     try {
-//         const { name, position, company, joiningDate, email, pdfUrl } = req.body;
-    
-//         if (!name || !position || !company || !joiningDate || !email || !pdfUrl) {
-//             return res.status(400).send({ error: 'All fields are required!' });
-//         }
-
-//         // Step 1: Fetch PDF from URL
-//         const pdfBytes = await fetchPDF(pdfUrl);
-
-//         // Step 2: Replace placeholders in the PDF
-//         const updatedPdfBytes = await replacePlaceholdersInPDF(pdfBytes, {
-//             name,
-//             position,
-//             company,
-//             joiningDate,
-//         });
-
-//         // Step 3: Save the updated PDF to a temporary file
-//         const filePath = path.join(__dirname, 'generated-offer-letter.pdf');
-//         fs.writeFileSync(filePath, updatedPdfBytes);
-
-//         // Step 4: Send the updated PDF via email
-//         const mailOptions = {
-//             from: 'your-email@gmail.com',
-//             to: email,
-//             subject: 'Your Offer Letter',
-//             text: `Dear ${name},\n\nPlease find your offer letter attached.`,
-//             attachments: [{ filename: 'offer-letter.pdf', path: filePath }],
-//         };
-//         await transporter.sendMail(mailOptions);
-
-//         // Cleanup: Remove the temporary file
-//         fs.unlinkSync(filePath);
-    
-//         res.status(200).send({ message: 'Offer letter sent successfully!' });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send({ error: 'Something went wrong!' });
-//     }
-// };
-
-
-
-
-
-
-
-
-// secound method
-
-
-const getContractById = async (contractId) => {
-    
-    const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-
-    return {
-        contractName: contract?.contractName,
-        companyName: contract?.companyName,
-        contractURL: contract?.contract?.fileURL,
-    };
-}
-
-
-
-// exports.generateContractLetter = async (req, res) => {
-//     try {
-//         const { name, position, company, joiningDate, email, contractId } = req.body;
-    
-//         if (!name || !position || !company || !joiningDate || !email) {
-//             return res.status(400).send({ error: 'All fields are required!' })
-//         }
-
-//         const gettedContract = await getContractById(contractId)
-//         if(!gettedContract){
-//             return res.send({ status: 404, message: 'Contract not found!' })
-//         }
-//         const cloudinaryUrl = gettedContract?.contractURL;
-//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-//         const content = response.data;
-
-//         const data = await pdf(content);
-
-//         // Generate HTML content
-//         const htmlContent = `
-//             <!DOCTYPE html>
-//             <html lang="en">
-//             <head>
-//                 <meta charset="UTF-8">
-//                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//                 <title>PDF to HTML</title>
-//             </head>
-//             <body>
-//                 <pre>${data.text}</pre>
-//             </body>
-//             </html>
-//         `;
-
-//         fs.writeFileSync('contractLetter.html', htmlContent, 'utf8')
-
-//         // const uploadToCloudinary = async (pdfBytes) => {
-//         //     return new Promise((resolve, reject) => {
-//         //         const uploadStream = cloudinary.uploader.upload_stream(
-//         //             { resource_type: "auto", folder: "employeeContract" },
-//         //             (error, result) => {
-//         //                 if (error) reject(error);
-//         //                 else resolve(result);
-//         //             }
-//         //         );
-//         //         streamifier.createReadStream(pdfBytes).pipe(uploadStream);
-//         //     });
-//         // };
-
-//         // const uploadResult = await uploadToCloudinary(pdfBytes)
-//         // const generatedUrl = uploadResult.secure_url
-
-//         return res.send({
-//             status: 200,
-//             message: 'Contract letter generated successfully for user.',
-//             // employeeContractForm: generatedUrl
-//         })
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send({ error: 'Something went wrong!' });
-//     }
-// };
-
-
-exports.generateContractLetterLLLLL = async (req, res) => {
+exports.sendMailToEmployee = async (req, res) => {
     try {
-        const { name, position, company, joiningDate, email, contractId } = req.body;
+        const allowedRoles = ['Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { EmployeeId, subject, message } = req.body
 
-        // Validate input
-        if (!name || !position || !company || !joiningDate || !email) {
-            return res.status(400).send({ error: "All fields are required!" });
-        }
+            const existEmployee = await User.findOne({ _id: EmployeeId, isDeleted: { $ne: true } })
+            if(!existEmployee){
+                return res.send({ status: 404, message: 'Employee not found' })
+            }
 
-        // Fetch contract by ID
-        const gettedContract = await getContractById(contractId);
-        if (!gettedContract) {
-            return res.status(404).send({ message: "Contract not found!" });
-        }
+            const employeeEmail = existEmployee?.personalDetails?.email
+            if(!employeeEmail){
+                return res.send({ status: 404, message: 'Employee email not found' })
+            }
 
-        // Fetch the PDF from Cloudinary
-        const cloudinaryUrl = gettedContract?.contractURL;
-        const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-        const pdfBytes = response.data;
+            const mailOptions = {
+                from: process.env.NODEMAILER_EMAIL,
+                to: employeeEmail,
+                subject: subject,
+                html: `
+                    <p>Hello ${existEmployee?.personalDetails?.firstName} ${existEmployee?.personalDetails?.lastName},</p>
+                    <p>${message}</p>
+                    <p>Best regards,<br>HRMS Team</p>
+                `
+            }
 
-        // Load the existing PDF
-        const pdfDoc = await PDFDocument.load(pdfBytes);
+            transporter.sendMail(mailOptions)
 
-        // Embed a font for adding text
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        // Get the first page of the document
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-
-        // Set the coordinates for where the new data will be placed
-        const contentX = 50; // X coordinate
-        let contentY = 700; // Starting Y coordinate
-
-        // Add dynamic content to the PDF
-        const lineHeight = 20; // Spacing between lines
-        const content = [
-            `Name: ${name}`,
-            `Position: ${position}`,
-            `Company: ${company}`,
-            `Joining Date: ${joiningDate}`,
-            `Email: ${email}`,
-        ];
-
-        // Draw each line of content
-        content.forEach((line) => {
-            firstPage.drawText(line, {
-                x: contentX,
-                y: contentY,
-                size: 12,
-                font: helveticaFont,
-                color: rgb(0, 0, 0),
-            });
-            contentY -= lineHeight;
-        });
-
-        // Serialize the PDF to bytes
-        const updatedPdfBytes = await pdfDoc.save();
-
-        // Upload the updated PDF to Cloudinary
-        const uploadToCloudinary = async (pdfBuffer) => {
-            return new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { resource_type: "auto", folder: "employeeContract" },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                );
-                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
-            });
-        };
-
-        const uploadResult = await uploadToCloudinary(updatedPdfBytes);
-        const generatedUrl = uploadResult.secure_url;
-
-        return res.send({
-            status: 200,
-            message: "Contract letter generated and uploaded successfully.",
-            employeeContractForm: generatedUrl,
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ error: "Something went wrong!" });
+            return res.send({ status: 200, message: 'Mail sent successfully' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while sending mail:', error)
+        res.send({ message: 'Error occurred while sending mail!' })
     }
 }
-
-exports.generateContractLetter = async (req, res) => {
-    try {
-        const { name, position, company, joiningDate, email, contractId } = req.body;
-
-        // Validate input
-        if (!name || !position || !company || !joiningDate || !email) {
-            return res.status(400).send({ error: "All fields are required!" });
-        }
-
-        // Fetch contract by ID
-        const gettedContract = await getContractById(contractId);
-        if (!gettedContract) {
-            return res.status(404).send({ message: "Contract not found!" });
-        }
-
-        // Fetch the PDF from Cloudinary
-        const cloudinaryUrl = gettedContract?.contractURL;
-        const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-        const pdfBytes = response.data;
-
-        // Load the existing PDF
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-
-        // Embed a font for adding text
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        // Get the first page of the document
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-
-        // Set the coordinates for where the new data will be placed
-        const contentX = 50; // X coordinate
-        let contentY = 700; // Starting Y coordinate
-        const lineHeight = 20; // Spacing between lines
-
-        // Define the content to add
-        const content = [
-            `Name: ${name}`,
-            `Position: ${position}`,
-            `Company: ${company}`,
-            `Joining Date: ${joiningDate}`,
-            `Email: ${email}`,
-        ];
-
-        // Helper function to calculate font size dynamically
-        const calculateFontSize = (text, maxWidth, font) => {
-            let fontSize = 12; // Default size
-            while (font.widthOfTextAtSize(text, fontSize) > maxWidth && fontSize > 6) {
-                fontSize -= 1; // Decrease font size until it fits
-            }
-            return fontSize;
-        };
-
-        // Clear placeholder area and add text dynamically
-        content.forEach((line) => {
-            // Calculate font size to fit text
-            const fontSize = calculateFontSize(line, 300, helveticaFont);
-
-            // Clear the placeholder area
-            firstPage.drawRectangle({
-                x: contentX - 5,
-                y: contentY - 5,
-                width: 300,
-                height: lineHeight,
-                color: rgb(1, 1, 1), // White background
-            });
-
-            // Add the text
-            firstPage.drawText(line, {
-                x: contentX,
-                y: contentY,
-                size: fontSize,
-                font: helveticaFont,
-                color: rgb(0, 0, 0), // Black text
-            });
-
-            contentY -= lineHeight; // Move down for the next line
-        });
-
-        // Serialize the PDF to bytes
-        const updatedPdfBytes = await pdfDoc.save();
-
-        // Upload the updated PDF to Cloudinary
-        const uploadToCloudinary = async (pdfBuffer) => {
-            return new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { resource_type: "auto", folder: "employeeContract" },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                );
-                streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
-            });
-        };
-
-        const uploadResult = await uploadToCloudinary(updatedPdfBytes);
-        const generatedUrl = uploadResult.secure_url;
-
-        return res.send({
-            status: 200,
-            message: "Contract letter generated and uploaded successfully.",
-            employeeContractForm: generatedUrl,
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ error: "Something went wrong!" });
-    }
-};
-
-// with using puppeteer
-// exports.generateContractLetter = async (req, res) => {
-//     try {
-//         const { name, position, company, joiningDate, email, contractId } = req.body;
-
-//         if (!name || !position || !company || !joiningDate || !email) {
-//             return res.status(400).send({ error: 'All fields are required!' });
-//         }
-
-//         const gettedContract = await getContractById(contractId);
-//         if (!gettedContract) {
-//             return res.status(404).send({ message: 'Contract not found!' });
-//         }
-
-//         const cloudinaryUrl = gettedContract?.contractURL;
-//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-//         const content = response.data;
-
-//         const pdfData = await pdf(content);
-//         console.log('pdfData:', pdfData)
-//         let pdfText = pdfData.text;
-
-//         pdfText = pdfText
-//             .replace(/{name}/g, name)
-//             .replace(/{email}/g, email)
-//             .replace(/{position}/g, position)
-//             .replace(/{joiningDate}/g, joiningDate)
-//             .replace(/{company}/g, company);
-
-//         const htmlContent = `
-//             <!DOCTYPE html>
-//             <html lang="en">
-//             <head>
-//                 <meta charset="UTF-8">
-//                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//                 <title>Contract Letter</title>
-//                 <style>
-//                     body {
-//                         font-family: Arial, sans-serif;
-//                         line-height: 1.6;
-//                         margin: 20px;
-//                         padding: 0;
-//                     }
-//                     h1 {
-//                         color: #333;
-//                     }
-//                     .content {
-//                         border: 1px solid #ccc;
-//                         padding: 20px;
-//                         border-radius: 10px;
-//                         background: #f9f9f9;
-//                     }
-//                 </style>
-//             </head>
-//             <body>
-//                 <div class="content">
-//                     <pre>${pdfText}</pre>
-//                 </div>
-//             </body>
-//             </html>
-//         `;
-
-//         const browser = await puppeteer.launch();
-//         const page = await browser.newPage();
-//         await page.setContent(htmlContent, { waitUntil: 'load' });
-
-//         const pdfBuffer = await page.pdf({ format: 'A4' });
-//         await browser.close();
-
-//         const uploadToCloudinary = async (pdfBuffer) => {
-//             return new Promise((resolve, reject) => {
-//                 const uploadStream = cloudinary.uploader.upload_stream(
-//                     { resource_type: 'auto', folder: 'employeeContract' },
-//                     (error, result) => {
-//                         if (error) reject(error);
-//                         else resolve(result);
-//                     }
-//                 );
-//                 streamifier.createReadStream(pdfBuffer).pipe(uploadStream);
-//             });
-//         };
-
-//         const uploadResult = await uploadToCloudinary(pdfBuffer);
-//         const generatedUrl = uploadResult.secure_url;
-
-//         return res.send({
-//             status: 200,
-//             message: 'Contract letter generated and uploaded successfully.',
-//             employeeContractForm: generatedUrl,
-//         });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send({ error: 'Something went wrong!' });
-//     }
-// }
-
-// this function complete worked but text was overlapping
-// exports.generateContractLetter = async (req, res) => {
-//     try {
-//         const { name, position, company, joiningDate, email, contractId } = req.body;
-    
-//         if (!name || !position || !company || !joiningDate || !email) {
-//             return res.status(400).send({ error: 'All fields are required!' })
-//         }
-
-//         const gettedContract = await getContractById(contractId)
-//         if(!gettedContract){
-//             return res.send({ status: 404, message: 'Contract not found!' })
-//         }
-//         const cloudinaryUrl = gettedContract?.contractURL;
-//         const response = await axios.get(cloudinaryUrl, { responseType: "arraybuffer" });
-//         const content = response.data;
-
-//         const pdfDoc = await PDFDocument.load(content);
-
-//         const pages = pdfDoc.getPages();
-//         const firstPage = pages[0];
-//         firstPage.drawText(`Name: ${name}`, { x: 50, y: 700, size: 12 });
-//         firstPage.drawText(`Position: ${position}`, { x: 50, y: 680, size: 12 });
-//         firstPage.drawText(`Company: ${company}`, { x: 50, y: 660, size: 12 });
-//         firstPage.drawText(`Joining Date: ${joiningDate}`, { x: 50, y: 640, size: 12 });
-//         firstPage.drawText(`Email: ${email}`, { x: 50, y: 620, size: 12 });
-
-//         const pdfBytes = await pdfDoc.save();
-
-//         const uploadToCloudinary = async (pdfBytes) => {
-//             return new Promise((resolve, reject) => {
-//                 const uploadStream = cloudinary.uploader.upload_stream(
-//                     { resource_type: "auto", folder: "employeeContract" },
-//                     (error, result) => {
-//                         if (error) reject(error);
-//                         else resolve(result);
-//                     }
-//                 );
-//                 streamifier.createReadStream(pdfBytes).pipe(uploadStream);
-//             });
-//         };
-
-//         const uploadResult = await uploadToCloudinary(pdfBytes)
-//         const generatedUrl = uploadResult.secure_url
-
-//         return res.send({
-//             status: 200,
-//             message: 'Contract letter generated successfully for user.',
-//             employeeContractForm: generatedUrl
-//         })
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send({ error: 'Something went wrong!' });
-//     }
-// };
-
-// exports.generateOfferLetter = async (req, res) => {
-//     try {
-//         const { name, position, company, joiningDate, email, pdfUrl } = req.body;
-    
-//         if (!name || !position || !company || !joiningDate || !email || !pdfUrl) {
-//             return res.status(400).send({ error: 'All fields are required!' });
-//         }
-
-//         async function fetchPDF(url) {
-//             const response = await axios.get(url, { responseType: 'arraybuffer' });
-//             return response.data;
-//         }
-
-//         // async function replacePDFPlaceholders(pdfBytes, data) {
-//         //     const pdfDoc = await PDFDocument.load(pdfBytes);
-//         //     console.log('pdfDoc/...', pdfDoc)
-//         //     const font = await pdfDoc.embedFont(PDFDocument.PDFStandardFonts.Helvetica);
-          
-//         //     const pages = pdfDoc.getPages();
-//         //     pages.forEach((page) => {
-//         //         const { width, height } = page.getSize();
-//         //         page.drawText(`Name: ${data.name}`, { x: 50, y: height - 100, size: 12, font });
-//         //         page.drawText(`Position: ${data.position}`, { x: 50, y: height - 120, size: 12, font });
-//         //         page.drawText(`Company: ${data.company}`, { x: 50, y: height - 140, size: 12, font });
-//         //         page.drawText(`Joining Date: ${data.joiningDate}`, { x: 50, y: height - 160, size: 12, font });
-//         //     });
-          
-//         //     const newPdfBytes = await pdfDoc.save();
-//         //     return newPdfBytes;
-//         // }
-//         async function replacePDFPlaceholders(pdfBytes, data) {
-//             const pdfDoc = await PDFDocument.load(pdfBytes);
-          
-//             // Embed the font
-//             const helveticaFont = await pdfDoc.embedFont(PDFDocument.PDFStandardFonts.Helvetica);
-          
-//             // Get all pages in the document
-//             const pages = pdfDoc.getPages();
-          
-//             // Modify the first page (or iterate through all pages as needed)
-//             pages.forEach((page) => {
-//               const { width, height } = page.getSize();
-//               page.drawText(`Name: ${data.name}`, {
-//                 x: 50,
-//                 y: height - 100,
-//                 size: 12,
-//                 font: helveticaFont, // Use the embedded font
-//               });
-//               page.drawText(`Position: ${data.position}`, {
-//                 x: 50,
-//                 y: height - 120,
-//                 size: 12,
-//                 font: helveticaFont,
-//               });
-//               page.drawText(`Company: ${data.company}`, {
-//                 x: 50,
-//                 y: height - 140,
-//                 size: 12,
-//                 font: helveticaFont,
-//               });
-//               page.drawText(`Joining Date: ${data.joiningDate}`, {
-//                 x: 50,
-//                 y: height - 160,
-//                 size: 12,
-//                 font: helveticaFont,
-//               });
-//             });
-          
-//             // Serialize the updated PDF to bytes
-//             const newPdfBytes = await pdfDoc.save();
-//             return newPdfBytes;
-//           }
-          
-
-//         function replaceDOCXPlaceholders(filePath, data) {
-//             const content = fs.readFileSync(filePath, 'binary');
-//             const zip = new PizZip(content);
-//             const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-          
-//             doc.render(data);
-          
-//             const buf = doc.getZip().generate({ type: 'nodebuffer' });
-//             return buf;
-//         }
-
-//         // Step 1: Fetch PDF from the provided URL
-//         const pdfBytes = await fetchPDF(pdfUrl)
-//         // Step 2: Replace placeholders in the PDF
-//         console.log('pdfBytes/...', pdfBytes)
-//         const updatedPdfBytes = await replacePDFPlaceholders(pdfBytes, { name, position, company, joiningDate })
-//         // Step 3: Save the updated PDF to a temporary file
-//         const filePath = path.join(__dirname, 'generated-offer-letter.pdf');
-//         fs.writeFileSync(filePath, updatedPdfBytes);
-//         // Step 4: Send the updated PDF via email
-//         const mailOptions = {
-//             from: process.env.NODEMAILER_EMAIL,
-//             to: email,
-//             subject: 'Your Offer Letter',
-//             text: `Dear ${name},\n\nPlease find your offer letter attached.`,
-//             attachments: [{ filename: 'offer-letter.pdf', path: filePath }],
-//         };    
-//         await transporter.sendMail(mailOptions);
-//         // Cleanup: Remove the temporary file
-//         fs.unlinkSync(filePath);
-    
-//         // const filePath = req.file.path;
-//         // const extension = path.extname(req.file.originalname).toLowerCase();
-    
-//         // let generatedFilePath;
-//         // if (extension === '.pdf') {
-//         //     // Replace placeholders in PDF
-//         //     const data = { name, position, company, joiningDate };
-//         //     const pdfBytes = await replacePDFPlaceholders(filePath, data);
-    
-//         //     generatedFilePath = path.join('generated', `${name}-offer-letter.pdf`);
-//         //     fs.writeFileSync(generatedFilePath, pdfBytes);
-//         // } else if (extension === '.docx') {
-//         //     // Replace placeholders in DOCX
-//         //     const data = { name, position, company, joiningDate };
-//         //     const docxBytes = replaceDOCXPlaceholders(filePath, data);
-    
-//         //     generatedFilePath = path.join('generated', `${name}-offer-letter.docx`);
-//         //     fs.writeFileSync(generatedFilePath, docxBytes);
-//         // } else {
-//         //     return res.status(400).send({ error: 'Unsupported file format!' });
-//         // }
-    
-//         // // Send email
-//         // const mailOptions = {
-//         //     from: process.env.NODEMAILER_EMAIL,
-//         //     to: email,
-//         //     subject: 'Your Offer Letter',
-//         //     text: `Dear ${name},\n\nPlease find your offer letter attached.`,
-//         //     attachments: [{ filename: path.basename(generatedFilePath), path: generatedFilePath }],
-//         // };
-    
-//         // await transporter.sendMail(mailOptions);
-    
-//         // // Clean up files
-//         // fs.unlinkSync(filePath); // Remove uploaded template
-//         // fs.unlinkSync(generatedFilePath); // Remove generated file after sending
-    
-//         res.status(200).send({ message: 'Offer letter sent successfully!' });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send({ error: 'Something went wrong!' });
-//     }
-// };
