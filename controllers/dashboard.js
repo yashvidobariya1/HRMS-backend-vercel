@@ -370,7 +370,7 @@ const getEmployeeStatus = async (requestedUser) => {
         const result = await User.aggregate([
             {
                 $lookup: {
-                    from: "contracts", // Your actual contract collection
+                    from: "contracts",
                     localField: "contractDetails.contractId",
                     foreignField: "_id",
                     as: "contractInfo"
