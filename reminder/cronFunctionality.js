@@ -33,7 +33,7 @@ exports.leaveActionReminder = async (tomorrow) => {
                 transporter.sendMail(mailOptions)
 
                 await Notification.create({
-                    userName: `${assignManager?.personalDetails?.firstName} ${assignManager?.personalDetails?.lastName} (You)`,
+                    // userName: `${assignManager?.personalDetails?.firstName} ${assignManager?.personalDetails?.lastName} (You)`,
                     userId: assignManager?._id,
                     notifiedId: [ assignManager?._id ],
                     type: 'Leave Request Reminder',
@@ -99,6 +99,15 @@ exports.clockInOutReminder = async (type, today) => {
                     `
                 }
                 transporter.sendMail(mailOptions)
+
+                await Notification.create({
+                    // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
+                    userId: _id,
+                    notifiedId: [_id],
+                    type: 'Clock-in Reminder',
+                    message: `You haven't clocked in today for <b>${job?.jobTitle}</b> Role.`,
+                    readBy: [{ userId: _id, role: employee?.role }]
+                })
             }
 
             if (type === 'clock-out' && hasMissingClockOut && isTimerOn) {
@@ -113,6 +122,15 @@ exports.clockInOutReminder = async (type, today) => {
                     `
                 }
                 transporter.sendMail(mailOptions)
+
+                await Notification.create({
+                    // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
+                    userId: _id,
+                    notifiedId: [_id],
+                    type: 'Clock-out Reminder',
+                    message: `You haven't clocked out yet for <b>${job?.jobTitle}</b> Role.`,
+                    readBy: [{ userId: _id, role: employee?.role }]
+                })
             }
         }
     }
@@ -141,5 +159,14 @@ exports.visaExpiryReminder = async (targetDate) => {
             `
         }
         transporter.sendMail(mailOptions)
+
+        await Notification.create({
+            // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
+            userId: _id,
+            notifiedId: [_id],
+            type: 'Visa Expiry Reminder',
+            message: `Your visa will expire on <b>${targetDate}</b>. Please renew it as soon as possible.`,
+            readBy: [{ userId: _id, role: employee?.role }]
+        })
     }
 }

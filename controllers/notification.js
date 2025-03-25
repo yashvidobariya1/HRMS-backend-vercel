@@ -184,6 +184,9 @@ exports.getNotifications = async (req, res) => {
                 { $sort: { createdAt: -1 } },
                 {
                     $addFields: {
+                        userName: {
+                            $concat: ["$user.personalDetails.firstName", " ", "$user.personalDetails.lastName"] 
+                        },
                         isRead: {
                             $max: {
                                 $map: {

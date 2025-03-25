@@ -9,6 +9,7 @@ const Timesheet = require('../models/timeSheet')
 const User = require("../models/user")
 const mongoose = require('mongoose')
 const moment = require('moment')
+const Notification = require("../models/notification")
 
 // find Absences users for Superadmin, Administrator and Manager
 const findAbsentUsers = async (requestedUser) => {
@@ -422,6 +423,48 @@ const getEmployeeStatus = async (requestedUser) => {
     }
 }
 
+// find unread notification count
+const getCountOfUnreadNotification = async (userId, role) => {
+    try {
+
+        let matchStage = {
+            "readBy": {
+                $elemMatch: {
+                    userId: new mongoose.Types.ObjectId(String(userId))
+                }
+            }
+        }
+
+        const unreadNotifications = await Notification.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            { $unwind: "$user" },
+            { 
+                $match: {
+                    ...matchStage,
+                    readBy: {
+                        $elemMatch: {
+                            userId: new mongoose.Types.ObjectId(String(userId)),
+                            isRead: false,
+                        }
+                    }
+                }
+            },
+            { $count: 'unreadNotificationsCount' }
+        ])
+
+        return unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
+    } catch (error) {
+        console.error('Error occurred while fetching unread notification count:', error)
+    }
+}
+
 exports.dashboard = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
@@ -445,6 +488,7 @@ exports.dashboard = async (req, res) => {
             }
 
             const absentUsers = await findAbsentUsers(req.user)
+            const unreadNotificationCount = await getCountOfUnreadNotification(req.user._id, req.user.role)
 
             let responseData = {}
 
@@ -503,6 +547,8 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
+                    unreadNotificationCount,
+
                     totalCompanies,
                     currentMonthTotalCompanies,
                     companyGrowth: calculatePercentageGrowth(currentMonthTotalCompanies, previousMonthTotalCompanies),
@@ -606,6 +652,8 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
+                    unreadNotificationCount,
+
                     totalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
@@ -705,6 +753,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    unreadNotificationCount,
                     
                     totalEmployees,
                     currentMonthTotalEmployees,
@@ -778,6 +827,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    unreadNotificationCount,
 
                     totalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,

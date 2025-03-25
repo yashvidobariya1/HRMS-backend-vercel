@@ -75,14 +75,15 @@ exports.getAllClient = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
             let clients
             let totalClients = 0
             if(req.user.role == 'Superadmin'){
-                clients = await Client.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ isDeleted: { $ne: true } }).countDocuments()
+                clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
             } else if(req.user.role == 'Administrator'){
                 // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
                 // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
@@ -339,7 +340,8 @@ exports.getGeneratedReports = async (req, res) => {
                 })
             })
 
-            const startDate = moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD');
+            // const startDate = moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD') || moment('2025-01-01').format('YYYY-MM-DD')
+            const startDate = filteredReports.length > 0 ? moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD') : moment('2025-01-01').format('YYYY-MM-DD')
 
             return res.send({
                 status: 200,
