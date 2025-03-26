@@ -819,7 +819,8 @@ exports.getTimesheetReport = async (req, res) => {
             const totalReports = allReports ? allReports.length : 0
 
             return res.send({
-                status: employeeReportStatus ? employeeReportStatus : 200,
+                status: 200,
+                reportStatus: employeeReportStatus,
                 message: 'Timesheet report fetched successfully',
                 report: report ? report : [],
                 totalReports,

@@ -1,6 +1,9 @@
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const cloudinary = require('../utils/cloudinary');
+const User = require("../models/user");
+const fetch = require("node-fetch");
+const PDFDocument = require("pdf-lib").PDFDocument;
 const moment = require('moment');
 
 exports.addContract = async (req, res) => {
@@ -271,3 +274,47 @@ exports.deleteContract = async (req, res) => {
     }
 }
   
+// pending work
+exports.generateContractForEmployee = async (req, res) => {
+    // try {
+    //     const { userId, contractId } = req.body;
+
+    //     const user = await User.findById(userId);
+    //     if (!user) return res.status(404).json({ message: "User not found" });
+
+    //     const contract = await Contract.findById(contractId);
+    //     if (!contract) return res.status(404).json({ message: "Contract template not found" });
+
+    //     // Fetch contract template PDF
+    //     const response = await fetch(contract.contract);
+    //     const pdfBytes = await response.arrayBuffer();
+    //     const pdfDoc = await PDFDocument.load(pdfBytes);
+    //     const form = pdfDoc.getForm();
+
+    //     // Fill in the placeholders
+    //     form.getTextField("EMPLOYEE_NAME").setText(user.personalDetails.firstName + " " + user.personalDetails.lastName);
+    //     form.getTextField("EMPLOYEE_EMAIL").setText(user.personalDetails.email);
+    //     form.getTextField("EMPLOYEE_CONTACT_NUMBER").setText(user.personalDetails.phone);
+    //     form.getTextField("JOB_TITLE").setText(user.jobDetails[0].jobTitle);
+    //     form.getTextField("JOB_ROLE").setText(user.jobDetails[0].role);
+    //     form.getTextField("WEEKLY_HOURS").setText(user.jobDetails[0].weeklyWorkingHours.toString());
+    //     form.getTextField("ANNUAL_SALARY").setText(user.jobDetails[0].annualSalary.toString());
+    //     form.getTextField("COMPANY_NAME").setText('this is company name');
+
+    //     const updatedPdfBytes = await pdfDoc.save();
+
+    //     // Upload filled contract to Cloudinary
+    //     cloudinary.uploader.upload_stream({ resource_type: "raw", folder: "employee_contracts" }, async (error, result) => {
+    //         if (error) return res.status(500).json({ error: error.message });
+
+    //         user.userContractURL = result.secure_url;
+    //         user.contractDetails.contractId = contractId;
+    //         await user.save();
+
+    //         res.status(201).json({ message: "Contract generated", contractUrl: result.secure_url });
+    //     }).end(updatedPdfBytes);
+    // } catch (error) {
+    //     console.error('Error occurred while generating employee contract:', error)
+    //     res.send({ message: 'Error occurred while generating employee contract!' })
+    // }
+}

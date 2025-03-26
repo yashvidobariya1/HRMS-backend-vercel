@@ -5217,3 +5217,176 @@ describe('Assign Task===================================================', () =>
         })
     })
 })
+
+describe('Get logged in all users', () => {
+    describe('Superadmin get all logged in users', () => {
+        let createdSAToken
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingsuperadminforgetloggedinuser@example.com',
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Superadmin'
+            });
+            const userRes = await request(app)
+                .post('/login')
+                .send({
+                    email: 'testingsuperadminforgetloggedinuser@example.com',
+                    password: 'Password@123',
+                });
+
+            expect(JSON.parse(userRes.text).status).toBe(200);
+            expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+            expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+            createdSAToken = JSON.parse(userRes.text).user.token
+            const res = await request(app)
+                .get('/getAllLoggedInOutUsers')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch all users', async () => {
+            const res = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${createdSAToken}`)
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('Users fetched successfully.');
+        })
+        test('should return 403 for Access denied', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                },
+                password: hashedPassword,
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            const res1 = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+
+    describe("~ Administrator get own company's employees", () => {
+        let createdADToken
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingadministratorforgetloggedinusers@example.com',
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Administrator'
+            });
+            const userRes = await request(app)
+                .post('/login')
+                .send({
+                    email: 'testingadministratorforgetloggedinusers@example.com',
+                    password: 'Password@123',
+                });
+
+            expect(JSON.parse(userRes.text).status).toBe(200);
+            expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+            expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+            createdADToken = JSON.parse(userRes.text).user.token
+            const res = await request(app)
+                .get('/getAllLoggedInOutUsers')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch all own companys employee', async () => {
+            const res = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${createdADToken}`)
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('Users fetched successfully.');
+        })
+        test('should return 403 for Access denied', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                },
+                password: hashedPassword,
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            const res1 = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+
+    describe("~ Manager can get their under employees", () => {
+        let createdMToken
+        test('should return 401 for Unauthorized: Invalid API key', async () => {
+            await User.create({
+                personalDetails: {
+                    email: 'testingmanagerforgetloggedinuser@example.com',
+                },
+                password: 'Password@123',
+                isDeleted: false,
+                role: 'Manager'
+            });
+            const userRes = await request(app)
+                .post('/login')
+                .send({
+                    email: 'testingmanagerforgetloggedinuser@example.com',
+                    password: 'Password@123',
+                });
+
+            expect(JSON.parse(userRes.text).status).toBe(200);
+            expect(JSON.parse(userRes.text).message).toBe('User login successfully');
+            expect(JSON.parse(userRes.text).user).toHaveProperty('token');
+            createdMToken = JSON.parse(userRes.text).user.token
+            const res = await request(app)
+                .get('/getAllLoggedInOutUsers')
+            expect(JSON.parse(res.text).status).toBe(401);
+            expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
+        })
+        test('should return 200 for fetch all their companys employee', async () => {
+            const res = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${createdMToken}`)
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('Users fetched successfully.');
+        })
+        test('should return 403 for Access denied', async () => {
+            const hashedPassword = await bcrypt.hash('Test@123', 10);
+            await User.create({
+                personalDetails: {
+                    email: 'test123@example.com',
+                },
+                password: hashedPassword,
+                isDeleted: false,
+                role: 'Employee'
+            });
+            const res = await request(app)
+                .post('/login')
+                .send({
+                    email: 'test123@example.com',
+                    password: 'Test@123',
+                });
+
+            expect(JSON.parse(res.text).status).toBe(200);
+            expect(JSON.parse(res.text).message).toBe('User login successfully');
+            const res1 = await request(app).get('/getAllLoggedInOutUsers').set('Authorization', `Bearer ${JSON.parse(res.text).user.token}`);
+            expect(JSON.parse(res1.text).status).toBe(403);
+            expect(JSON.parse(res1.text).message).toBe('Access denied');
+        });
+    })
+})

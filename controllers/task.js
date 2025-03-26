@@ -27,7 +27,8 @@ exports.createTask = async (req, res) => {
                 endTime,
                 companyId,
                 locationId,
-                creatorBy: req.user.role,
+                createdBy: req.user.role,
+                creatorName: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 creatorId: req.user._id
             }
 

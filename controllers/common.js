@@ -686,7 +686,8 @@ exports.getAllUsers = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
-            } else {
+            } else if(req.user.role === 'Manager') {
+                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
@@ -983,5 +984,33 @@ exports.sendMailToEmployee = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while sending mail:', error)
         res.send({ message: 'Error occurred while sending mail!' })
+    }
+}
+
+exports.activateDeactivateUser = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin']
+        if(allowedRoles.includes(req.user.role)){
+            const { userId } = req.query
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            if(user.isActive){
+                user.isActive = false
+                await user.save()
+                return res.send({ status: 200, message: 'User deactivate successfully' })
+            } else {
+                user.isActive = true
+                await user.save()
+                return res.send({ status: 200, message: 'User activate successfully' })
+            }
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deacting user:', error)
+        res.send({ message: 'Error occurred while deacting user!' })
     }
 }

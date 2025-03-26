@@ -132,7 +132,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isActive: Boolean,
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isLoggedIn: Boolean,
   usedBrowser: String,
   userIPAddess: String,
   lastTimeAccess: Date,

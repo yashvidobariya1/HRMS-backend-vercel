@@ -8,6 +8,8 @@ const { saveTemplateWithSignature, previewTemplate } = require('../controllers/t
 const { dashboard } = require('../controllers/dashboard')
 const { createTask, updateTask, deleteTask, getTask, getAllTasks } = require('../controllers/task')
 const { assignTask, getAssignedTask, getAllAssignedTasks, updateAssignedTask, completeAssignedTask, cancelAssignedTask, deleteAssignedTask } = require('../controllers/taskSchedule')
+const { getAllLoggedInOutUsers } = require('../controllers/loggedInUser')
+const { generateContractForEmployee } = require('../controllers/contract')
 
 const commonRoute = Router()
 
@@ -27,6 +29,8 @@ commonRoute.get('/getUser/:id', auth, getUser)
 commonRoute.get('/getAllUsers', auth, getAllUsers)
 commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
+// get logged In/out users
+commonRoute.get('/getAllLoggedInOutUsers', auth, getAllLoggedInOutUsers)
 // get own timesheet
 commonRoute.post('/getOwnTodaysTimesheet', auth, getOwnTodaysTimeSheet)
 commonRoute.post('/getAllTimesheets', auth, getAllTimeSheets)
@@ -75,5 +79,8 @@ commonRoute.post('/updateAssignedTask/:id', auth, updateAssignedTask)
 commonRoute.post('/completeAssignedTask/:id', auth, completeAssignedTask)
 commonRoute.post('/cancelAssignedTask/:id', auth, cancelAssignedTask)
 commonRoute.post('/deleteAssignedTask/:id', auth, deleteAssignedTask)
+
+
+commonRoute.post('/generateContractForEmployee', generateContractForEmployee)
 
 module.exports = commonRoute

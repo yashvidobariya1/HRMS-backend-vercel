@@ -37,7 +37,7 @@ const EmployeeReportSchema = new mongoose.Schema(
             rejectionReason: String
         }],
         // token: String,
-        creatorBy: String,
+        createdBy: String,
         creatorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
