@@ -158,7 +158,7 @@ exports.clockInFunc = async (req, res) => {
             const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${firstName} ${lastName}`,
+                // userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Clock In',
                 message: `${firstName} ${lastName} clocked in successfully at ${currentDate}`,
@@ -406,7 +406,7 @@ exports.clockOutFunc = async (req, res) => {
             const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
-                userName: `${firstName} ${lastName}`,
+                // userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Clock Out',
                 message: `${firstName} ${lastName} clocked out successfully at ${currentDate}`,

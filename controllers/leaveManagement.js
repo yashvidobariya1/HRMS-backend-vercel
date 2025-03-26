@@ -217,7 +217,7 @@ const moment = require('moment')
 
 //             const notification = new Notification({
 //                 userId,
-//                 userName: `${firstName} ${lastName}`,
+//                 // userName: `${firstName} ${lastName}`,
 //                 notifiedId,
 //                 type: 'Leave request',
 //                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
@@ -417,7 +417,7 @@ exports.leaveRequest = async (req, res) => {
             const leaveRequest = new Leave({
                 userId,
                 jobId,
-                userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
+                // userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
                 userEmail: user?.personalDetails?.email,
                 companyId: user.companyId,
                 locationId,
@@ -490,7 +490,7 @@ exports.leaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId,
-                userName: `${firstName} ${lastName}`,
+                // userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave Request',
                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
@@ -523,12 +523,17 @@ exports.getLeaveRequest = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const LRId = req.params.id
-            const leave = await Leave.findOne({ _id: LRId, isDeleted: { $ne: true } })
+            const leave = await Leave.findOne({ _id: LRId, isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName')
+            const formattedLeave = {
+                ...leave.toObject(),
+                userName: `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}`,
+                userId: leave?.userId?._id
+            }
             if(!leave){
                 return res.send({ status: 404, message: 'Leave request not found' })
             }
 
-            return res.send({ status: 200, message: 'Leave request fetched successfully.', leave })
+            return res.send({ status: 200, message: 'Leave request fetched successfully.', leave: formattedLeave })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching leave request:', error)
@@ -557,14 +562,20 @@ exports.getAllOwnLeaves = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' });
             }
 
-            const allLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip(skip).limit(limit)
+            const allLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 }).skip(skip).limit(limit)
+
+            const formattedLeaves = allLeaves.map(leave => ({
+                ...leave.toObject(),
+                userName: `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}`,
+                userId: leave?.userId?._id
+            }))
 
             const totalLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).countDocuments()
             
             return res.send({
                 status: 200,
                 message: 'All leave requests fetched successfully.',
-                allLeaves,
+                allLeaves: formattedLeaves,
                 totalLeaves,
                 totalPages: Math.ceil(totalLeaves / limit) || 1,
                 currentPage: page || 1
@@ -991,7 +1002,7 @@ exports.approveLeaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId: req.user._id,
-                userName: `${firstName} ${lastName}`,
+                // userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave Request Approveral',
                 message: notificationMessage,
@@ -1068,7 +1079,7 @@ exports.rejectLeaveRequest = async (req, res) => {
 
             const notification = new Notification({
                 userId: req.user._id,
-                userName: `${firstName} ${lastName}`,
+                // userName: `${firstName} ${lastName}`,
                 notifiedId,
                 type: 'Leave Request Reject',
                 message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ( Reason: ${rejectionReason} )`,
