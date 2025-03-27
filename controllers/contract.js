@@ -2,8 +2,14 @@ const Company = require("../models/company");
 const Contract = require("../models/contract");
 const cloudinary = require('../utils/cloudinary');
 const User = require("../models/user");
-const fetch = require("node-fetch");
-const PDFDocument = require("pdf-lib").PDFDocument;
+const axios = require('axios');
+const fs = require('fs').promises;
+// const FormData = require('form-data');
+const pdfParse = require('pdf-parse');
+const { PDFDocument, StandardFonts } = require('pdf-lib');
+
+// const pdfform = require('pdfform.js');
+// const pdffiller = require("node-pdffiller");
 const moment = require('moment');
 
 exports.addContract = async (req, res) => {
@@ -273,7 +279,195 @@ exports.deleteContract = async (req, res) => {
         res.send({ message: "Something went wrong while removing contract!" })
     }
 }
-  
+
+
+   
+
+// async function downloadPDF(pdfUrl, outputPath) {
+//     const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+//     await fs.writeFileSync(outputPath, response.data);
+//     console.log('✅ PDF downloaded:', outputPath);
+//     return outputPath;
+// }
+
+// ==================================================================================
+// async function downloadPDF(pdfUrl, outputPath) {
+//     const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+//     await fs.writeFile(outputPath, response.data);
+//     console.log('✅ PDF downloaded:', outputPath);
+//     return outputPath;
+// }
+// ==================================================================================
+
+// async function replacePlaceholders(inputPath, outputPath, replacements) {
+//     // const pdfBuffer = fs.readFileSync(inputPath);
+//     // const parsedData = await pdfParse(pdfBuffer);
+    
+//     // console.log('parsedData:', parsedData)
+    
+//     // Extract text and replace placeholders
+//     // let updatedText = parsedData.text;
+//     // for (const [key, value] of Object.entries(replacements)) {
+//     //     updatedText = updatedText.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+//     // }
+//     // console.log('updatedText:', updatedText)
+    
+//     // Load the original PDF to modify it
+//     // const pdfBuffer = fs.readFileSync(inputPath);
+//     // // const parsedData = await pdfParse(pdfBuffer);
+//     // const pdfDoc = await PDFDocument.load(pdfBuffer);
+//     // console.log('pdfDoc:', pdfDoc)
+//     // const pages = pdfDoc.getPages();
+//     // console.log('pages:', pages)
+//     // const firstPage = pages[0];
+
+//     // // Embed a standard font
+//     // const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+//     // const fontSize = 12;
+
+//     // // Clear previous text (optional) and add updated text
+//     // firstPage.drawText(updatedText, { x: 50, y: 700, font, size: fontSize });
+
+//     // // Save modified PDF
+//     // const updatedPdfBytes = await pdfDoc.save();
+//     const existingPdfBytes = fs.readFileSync(inputPath);
+//     const pdfDoc = await PDFDocument.load(existingPdfBytes);
+//     const form = pdfDoc.getForm();
+
+//     Object.entries(replacements).forEach(([key, value]) => {
+//         const field = form.getTextField(key);
+//         if (field) field.setText(value);
+//     });
+
+//     const pdfBytes = await pdfDoc.save();
+//     fs.writeFileSync(outputPath, pdfBytes);
+//     console.log('✅ PDF updated:', outputPath);
+//     return outputPath;
+// }
+
+// ==================================================================================
+// async function replacePlaceholders(inputPath, outputPath, replacements) {
+//     const existingPdfBytes = await fs.readFile(inputPath);
+//     const pdfDoc = await PDFDocument.load(existingPdfBytes);
+//     const form = pdfDoc.getForm();
+
+//     // List of all possible field names in your PDF
+//     const fieldNames = [
+//         'EMPLOYEE_NAME',
+//         'EMPLOYEE_EMAIL',
+//         'EMPLOYEE_CONTACT_NUMBER',
+//         'JOB_TITLE',
+//         'JOB_ROLE',
+//         'WEEKLY_HOURS',
+//         'ANNUAL_SALARY',
+//         'COMPANY_NAME'
+//     ];
+
+//     // Get all existing fields in the PDF
+//     const existingFields = form.getFields();
+//     const existingFieldNames = existingFields.map(field => field.getName());
+
+//     console.log('Existing fields in PDF:', existingFieldNames);
+
+//     // Process each field
+//     for (const fieldName of fieldNames) {
+//         try {
+//             if (existingFieldNames.includes(fieldName)) {
+//                 const field = form.getTextField(fieldName);
+//                 const replacementValue = replacements[fieldName] || '';
+//                 field.setText(replacementValue.toString());
+//                 console.log(`✅ Set field ${fieldName} to: ${replacementValue}`);
+//             } else {
+//                 console.warn(`⚠️ Field not found in PDF: ${fieldName}`);
+//             }
+//         } catch (error) {
+//             console.error(`❌ Error processing field ${fieldName}:`, error.message);
+//         }
+//     }
+
+//     const pdfBytes = await pdfDoc.save();
+//     await fs.writeFile(outputPath, pdfBytes);
+//     console.log('✅ PDF updated:', outputPath);
+//     return outputPath;
+// }
+// ==================================================================================
+
+// async function replacePlaceholders(inputPath, outputPath, replacements) {
+
+//     const existingPdfBytes = await fs.readFileSync(inputPath);
+//     const pdfDoc = await PDFDocument.load(existingPdfBytes);
+//     const form = pdfDoc.getForm();
+
+//     const employeeName = form.getTextField('EMPLOYEE_NAME')
+//     const employeeEmail = form.getTextField('EMPLOYEE_EMAIL')
+//     const employeeContactNumber = form.getTextField('EMPLOYEE_CONTACT_NUMBER')
+//     const jobTitle = form.getTextField('JOB_TITLE')
+//     const jobRole = form.getTextField('JOB_ROLE')
+//     const weeklyHours = form.getTextField('WEEKLY_HOURS')
+//     const annualSalary = form.getTextField('ANNUAL_SALARY')
+//     const companyName = form.getTextField('COMPANY_NAME')
+
+//     employeeName.setText(replacements.EMPLOYEE_NAME)
+//     employeeEmail.setText(replacements.EMPLOYEE_EMAIL)
+//     employeeContactNumber.setText(replacements.EMPLOYEE_CONTACT_NUMBER)
+//     jobTitle.setText(replacements.JOB_TITLE)
+//     jobRole.setText(replacements.JOB_ROLE)
+//     weeklyHours.setText(replacements.WEEKLY_HOURS)
+//     annualSalary.setText(replacements.ANNUAL_SALARY)
+//     companyName.setText(replacements.COMPANY_NAME)
+
+//     const pdfBytes = await pdfDoc.save();
+
+//     await fs.writeFileSync(outputPath, pdfBytes);
+//     console.log('✅ PDF updated:', outputPath);
+//     return outputPath;
+// }
+
+// async function processPDF(cloudinaryUrl, replacements) {
+//     // const downloadedPDF = await downloadPDF(cloudinaryUrl, 'downloaded.pdf');
+//     // const updatedPDF = await replacePlaceholders(downloadedPDF, 'updated.pdf', replacements);
+//     // // const uploadedURL = await uploadToCloudinary(updatedPDF);
+//     // console.log('✅ Final Updated PDF URL:', updatedPDF);
+//     const timestamp = Date.now();
+//     const downloadedPath = `downloaded-${timestamp}.pdf`;
+//     const updatedPath = `updated-${timestamp}.pdf`;
+    
+//     const downloadedPDF = await downloadPDF(cloudinaryUrl, downloadedPath);
+//     const updatedPDF = await replacePlaceholders(downloadedPDF, updatedPath, replacements);
+    
+//     // Clean up temporary files
+//     try {
+//         await fs.unlink(downloadedPath);
+//         await fs.unlink(updatedPath);
+//     } catch (cleanupError) {
+//         console.warn('Could not clean up temp files:', cleanupError);
+//     }
+    
+//     return updatedPDF;
+// }
+
+// ==================================================================================
+// async function processPDF(cloudinaryUrl, replacements) {
+//     const timestamp = Date.now();
+//     const downloadedPath = `downloaded-${timestamp}.pdf`;
+//     const updatedPath = `updated-${timestamp}.pdf`;
+    
+//     try {
+//         await downloadPDF(cloudinaryUrl, downloadedPath);
+//         const resultPath = await replacePlaceholders(downloadedPath, updatedPath, replacements);
+//         return resultPath;
+//     } finally {
+//         // Clean up files
+//         try {
+//             await fs.unlink(downloadedPath).catch(() => {});
+//             await fs.unlink(updatedPath).catch(() => {});
+//         } catch (cleanupError) {
+//             console.warn('Cleanup error:', cleanupError);
+//         }
+//     }
+// }
+// ==================================================================================
+
 // pending work
 exports.generateContractForEmployee = async (req, res) => {
     // try {
@@ -283,38 +477,26 @@ exports.generateContractForEmployee = async (req, res) => {
     //     if (!user) return res.status(404).json({ message: "User not found" });
 
     //     const contract = await Contract.findById(contractId);
-    //     if (!contract) return res.status(404).json({ message: "Contract template not found" });
+    //     if (!contract) return res.status(404).json({ message: "Contract template not found" });       
 
-    //     // Fetch contract template PDF
-    //     const response = await fetch(contract.contract);
-    //     const pdfBytes = await response.arrayBuffer();
-    //     const pdfDoc = await PDFDocument.load(pdfBytes);
-    //     const form = pdfDoc.getForm();
+    //     // await downloadPDF(contract?.contract, 'downloaded.pdf')
 
-    //     // Fill in the placeholders
-    //     form.getTextField("EMPLOYEE_NAME").setText(user.personalDetails.firstName + " " + user.personalDetails.lastName);
-    //     form.getTextField("EMPLOYEE_EMAIL").setText(user.personalDetails.email);
-    //     form.getTextField("EMPLOYEE_CONTACT_NUMBER").setText(user.personalDetails.phone);
-    //     form.getTextField("JOB_TITLE").setText(user.jobDetails[0].jobTitle);
-    //     form.getTextField("JOB_ROLE").setText(user.jobDetails[0].role);
-    //     form.getTextField("WEEKLY_HOURS").setText(user.jobDetails[0].weeklyWorkingHours.toString());
-    //     form.getTextField("ANNUAL_SALARY").setText(user.jobDetails[0].annualSalary.toString());
-    //     form.getTextField("COMPANY_NAME").setText('this is company name');
+    //     const userData = {
+    //         '{{EMPLOYEE_NAME}}': `${user.personalDetails.firstName + " " + user.personalDetails.lastName}`,
+    //         '{{EMPLOYEE_EMAIL}}': user.personalDetails.email,
+    //         '{{EMPLOYEE_CONTACT_NUMBER}}': user.personalDetails.phone,
+    //         '{{JOB_TITLE}}': user.jobDetails[0].jobTitle,
+    //         '{{JOB_ROLE}}': user.jobDetails[0].role,
+    //         '{{WEEKLY_HOURS}}': user.jobDetails[0].weeklyWorkingHours.toString(),
+    //         '{{ANNUAL_SALARY}}': user.jobDetails[0].annualSalary.toString(),
+    //         '{{COMPANY_NAME}}': 'this is company name',
+    //     }
 
-    //     const updatedPdfBytes = await pdfDoc.save();
+    //      await processPDF(contract?.contract, userData)
 
-    //     // Upload filled contract to Cloudinary
-    //     cloudinary.uploader.upload_stream({ resource_type: "raw", folder: "employee_contracts" }, async (error, result) => {
-    //         if (error) return res.status(500).json({ error: error.message });
-
-    //         user.userContractURL = result.secure_url;
-    //         user.contractDetails.contractId = contractId;
-    //         await user.save();
-
-    //         res.status(201).json({ message: "Contract generated", contractUrl: result.secure_url });
-    //     }).end(updatedPdfBytes);
+    //     return res.send('SUCCESS')
     // } catch (error) {
-    //     console.error('Error occurred while generating employee contract:', error)
+    //     console.error('Error occurred while generating employee contract:', error, 'MESSAGE:', error.message)
     //     res.send({ message: 'Error occurred while generating employee contract!' })
     // }
 }

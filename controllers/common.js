@@ -24,12 +24,16 @@ exports.login = async (req, res) => {
             return res.send({ status: 404, message: "User not found" });
         }
 
+        if(isExist && isExist?.isActive === false){
+            return res.send({ status: 400, message: 'You do not have permission for loogIn!' })
+        }
+
         const token = await isExist.generateAuthToken()
         const browser = useragent.parse(req.headers["user-agent"]);
         isExist.token = token
         // isExist.token = token.JWTToken
         isExist.lastTimeLoggedIn = moment().toDate()
-        isExist.isActive = true
+        isExist.isLoggedIn = true
         isExist.usedBrowser = browser
         isExist.save()
 
@@ -80,7 +84,7 @@ exports.logOut = async (req, res) => {
 
         existUser.token = ""
         existUser.lastTimeLoggedOut = moment().toDate()
-        existUser.isActive = false
+        existUser.isLoggedIn = false
         await existUser.save()
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
@@ -418,6 +422,27 @@ const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
     })
 }
 
+async function generateUserId() {
+    const lastUser = await User.findOne().sort({ unique_ID: -1 }).select("unique_ID")
+
+    let newId = lastUser ? lastUser.unique_ID + 1 : 1001
+
+    if (newId > 9999) {
+        return new Error("User ID limit exceeded. No available IDs.")
+    }
+
+    let existingUser = await User.findOne({ unique_ID: newId })
+    while (existingUser) {
+        newId++
+        if (newId > 9999) {
+            return new Error("User ID limit exceeded. No available IDs.")
+        }
+        existingUser = await User.findOne({ unique_ID: newId })
+    }
+  
+    return newId;
+}
+
 exports.addUser = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -621,8 +646,10 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
+            const unique_ID = await generateUserId()
             const user = await User.create({
                 ...newUser,
+                unique_ID,
                 userContractURL: contractURL?.secure_url
             })
 

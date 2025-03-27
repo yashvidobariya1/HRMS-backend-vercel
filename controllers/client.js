@@ -392,6 +392,7 @@ exports.getReport = async (req, res) => {
                 _id: emp.jobId,
                 jobTitle: emp.jobTitle,
                 jobRole: emp.jobRole,
+                reason: emp.rejectionReason,
                 status: emp.status
             })).slice(skip, skip + limit)
 
