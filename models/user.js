@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken')
 // const CryptoJS = require("crypto-js")
 
 const userSchema = new mongoose.Schema({
+  unique_ID: { type: Number, unique: true },
   isDeleted: {
     type: Boolean, default: false
   },
@@ -132,7 +133,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isActive: Boolean,
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isLoggedIn: Boolean,
   usedBrowser: String,
   userIPAddess: String,
   lastTimeAccess: Date,

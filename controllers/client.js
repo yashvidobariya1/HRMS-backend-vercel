@@ -259,7 +259,7 @@ exports.generateLinkForClient = async (req, res) => {
                 startDate,
                 endDate,
                 employees: filteredEmployees,
-                creatorBy: req.user.role,
+                createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 creatorId: req.user._id
             }
 
@@ -323,10 +323,19 @@ exports.getGeneratedReports = async (req, res) => {
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
-            const userId = req.user._id
+            const { clientId } = req.query
 
-            const reports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).skip(skip).limit(limit)
-            const totalReports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).countDocuments()
+            if (!clientId || clientId == 'undefined' || clientId == 'null') {
+                return res.send({ status: 400, message: 'Client ID is required' })
+            }
+
+            const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+            if(!client){
+                return res.send({ status: 404, message: 'Client not found' })
+            }
+
+            const reports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
+            const totalReports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).countDocuments()
 
             let filteredReports = []
             reports.map(report => {
@@ -334,6 +343,7 @@ exports.getGeneratedReports = async (req, res) => {
                 filteredReports.push({
                     startDate: report?.startDate,
                     endDate: report?.endDate,
+                    createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
                     _id: report._id,
                     createdAt: report?.createdAt,
                     status: hasStatusPending ? 'Pending' : 'Reviewed'
@@ -382,6 +392,7 @@ exports.getReport = async (req, res) => {
                 _id: emp.jobId,
                 jobTitle: emp.jobTitle,
                 jobRole: emp.jobRole,
+                reason: emp.rejectionReason,
                 status: emp.status
             })).slice(skip, skip + limit)
 

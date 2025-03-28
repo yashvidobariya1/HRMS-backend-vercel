@@ -24,12 +24,16 @@ exports.login = async (req, res) => {
             return res.send({ status: 404, message: "User not found" });
         }
 
+        if(isExist && isExist?.isActive === false){
+            return res.send({ status: 400, message: 'You do not have permission for loogIn!' })
+        }
+
         const token = await isExist.generateAuthToken()
         const browser = useragent.parse(req.headers["user-agent"]);
         isExist.token = token
         // isExist.token = token.JWTToken
         isExist.lastTimeLoggedIn = moment().toDate()
-        isExist.isActive = true
+        isExist.isLoggedIn = true
         isExist.usedBrowser = browser
         isExist.save()
 
@@ -80,7 +84,7 @@ exports.logOut = async (req, res) => {
 
         existUser.token = ""
         existUser.lastTimeLoggedOut = moment().toDate()
-        existUser.isActive = false
+        existUser.isLoggedIn = false
         await existUser.save()
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
@@ -418,6 +422,27 @@ const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
     })
 }
 
+async function generateUserId() {
+    const lastUser = await User.findOne().sort({ unique_ID: -1 }).select("unique_ID")
+
+    let newId = lastUser ? lastUser.unique_ID + 1 : 1001
+
+    if (newId > 9999) {
+        return new Error("User ID limit exceeded. No available IDs.")
+    }
+
+    let existingUser = await User.findOne({ unique_ID: newId })
+    while (existingUser) {
+        newId++
+        if (newId > 9999) {
+            return new Error("User ID limit exceeded. No available IDs.")
+        }
+        existingUser = await User.findOne({ unique_ID: newId })
+    }
+  
+    return newId;
+}
+
 exports.addUser = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -621,8 +646,10 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
+            const unique_ID = await generateUserId()
             const user = await User.create({
                 ...newUser,
+                unique_ID,
                 userContractURL: contractURL?.secure_url
             })
 
@@ -686,7 +713,8 @@ exports.getAllUsers = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
-            } else {
+            } else if(req.user.role === 'Manager') {
+                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
@@ -983,5 +1011,33 @@ exports.sendMailToEmployee = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while sending mail:', error)
         res.send({ message: 'Error occurred while sending mail!' })
+    }
+}
+
+exports.activateDeactivateUser = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin']
+        if(allowedRoles.includes(req.user.role)){
+            const { userId } = req.query
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            if(user.isActive){
+                user.isActive = false
+                await user.save()
+                return res.send({ status: 200, message: 'User deactivate successfully' })
+            } else {
+                user.isActive = true
+                await user.save()
+                return res.send({ status: 200, message: 'User activate successfully' })
+            }
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deacting user:', error)
+        res.send({ message: 'Error occurred while deacting user!' })
     }
 }

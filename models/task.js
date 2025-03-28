@@ -26,7 +26,8 @@ const TaskSchema = new mongoose.Schema(
             enum: ['Pending', 'Completed', 'Assigned'],
             default: 'Pending'
         },
-        creatorBy: String,
+        createdBy: String,
+        creatorName: String,
         creatorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'

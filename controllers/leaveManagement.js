@@ -524,13 +524,13 @@ exports.getLeaveRequest = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const LRId = req.params.id
             const leave = await Leave.findOne({ _id: LRId, isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName')
+            if(!leave){
+                return res.send({ status: 404, message: 'Leave request not found' })
+            }
             const formattedLeave = {
                 ...leave.toObject(),
                 userName: `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}`,
                 userId: leave?.userId?._id
-            }
-            if(!leave){
-                return res.send({ status: 404, message: 'Leave request not found' })
             }
 
             return res.send({ status: 200, message: 'Leave request fetched successfully.', leave: formattedLeave })
@@ -667,7 +667,7 @@ exports.getAllLeaveRequest = async (req, res) => {
             let totalLeaveRequests
             
             if(req.user.role == 'Superadmin'){
-                const allLeaveRequestsOfAdmin = await Leave.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 })
+                const allLeaveRequestsOfAdmin = await Leave.find({ isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
 
                 let allAdminLR = []
                 for(const LR of allLeaveRequestsOfAdmin){
@@ -683,7 +683,7 @@ exports.getAllLeaveRequest = async (req, res) => {
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
-                }).sort({ createdAt: -1 })
+                }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
 
                 let allEmployeesLR = []
                 for (const LR of allLeaveRequestsOfEmployees) {
@@ -707,16 +707,22 @@ exports.getAllLeaveRequest = async (req, res) => {
                     companyId: req.user.companyId,
                     locationId: { $in: req.user.locationId },
                     isDeleted: { $ne: true }
-                }).sort({ createdAt: -1 });
+                }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 });
 
                 allLeaveRequests = leaveRequests.slice(skip, skip + limit)
                 totalLeaveRequests = leaveRequests.length
             }
 
+            const formattedLeaves = allLeaveRequests.length > 0 ? allLeaveRequests.map(leave => ({
+                ...leave.toObject(),
+                userName: `${leave?.userId?.personalDetails?.lastName ? `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}` : `${leave?.userId?.personalDetails?.firstName}`}`,
+                userId: leave?.userId?._id
+            })) : []
+
             return res.send({
                 status: 200,
                 message: 'All leave requests fetched successfully.',
-                allLeaveRequests: allLeaveRequests ? allLeaveRequests : [],
+                allLeaveRequests: formattedLeaves.length > 0 ? formattedLeaves : [],
                 totalLeaveRequests,
                 totalPages: Math.ceil(totalLeaveRequests / limit) || 1,
                 currentPage: page || 1
