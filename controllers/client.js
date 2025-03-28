@@ -259,7 +259,7 @@ exports.generateLinkForClient = async (req, res) => {
                 startDate,
                 endDate,
                 employees: filteredEmployees,
-                createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
+                // createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 creatorId: req.user._id
             }
 

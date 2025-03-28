@@ -23,7 +23,7 @@ exports.assignTask = async (req, res) => {
                 endDate: task?.endDate,
                 endTime: task?.endTime,
                 assignedTask,
-                assignedBy: req.user.role,
+                assignedBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 assignerId: req.user._id
             }
 
@@ -65,13 +65,21 @@ exports.getAllAssignedTasks = async (req, res) => {
 
             const skip = (page - 1) * limit
 
-            const tasks = await TaskSchedule.find({ "users.userId": req.user._id, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            const tasks = await TaskSchedule.find({ "users.userId": req.user._id, isDeleted: { $ne: true } }).populate('assignerId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
             const totalTasks = await TaskSchedule.find({ "users.userId": req.user._id, isDeleted: { $ne: true } }).countDocuments()
+
+            let filteredTasks = tasks.map(task => ({
+                ...task,
+                assignedBy: task?.assignerId?.personalDetails
+                    ? `${task?.assignerId?.personalDetails?.firstName} ${task?.assignerId?.personalDetails?.lastName || ''}`.trim()
+                    : '',
+                    assignerId: task?.assignerId?._id
+            }))
 
             return res.send({
                 status: 200,
                 message: 'All assigned tasks fetched successfully',
-                tasks,
+                tasks: filteredTasks,
                 totalTasks,
                 totalPages: Math.ceil(totalTasks / limit) || 1,
                 currentPage: page || 1

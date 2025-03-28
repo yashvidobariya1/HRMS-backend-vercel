@@ -74,20 +74,28 @@ exports.getAllTasks = async (req, res) => {
             let totalTasks
 
             if(req.user.role == 'Superadmin'){
-                tasks = await Task.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                tasks = await Task.find({ isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
                 totalTasks = await Task.find({ isDeleted: { $ne: true } }).countDocuments()
             } else if(req.user.role == 'Administrator'){
-                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
                 totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
             } else if(req.user.role == 'Manager'){
-                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
                 totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).countDocuments()
             }            
+
+            let filteredTasks = tasks.map(task => ({
+                ...task,
+                createdBy: task?.creatorId?.personalDetails
+                    ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName || ''}`.trim()
+                    : '',
+                creatorId: task?.creatorId?._id
+            }))
 
             return res.send({
                 status: 200,
                 message: 'All tasks fetched successfully',
-                tasks,
+                tasks: filteredTasks,
                 totalTasks,
                 totalPages: Math.ceil(totalTasks / limit) || 1,
                 currentPage: page || 1
