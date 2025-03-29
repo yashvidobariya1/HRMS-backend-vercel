@@ -425,7 +425,7 @@ const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
 async function generateUserId() {
     const lastUser = await User.findOne().sort({ unique_ID: -1 }).select("unique_ID")
 
-    let newId = lastUser ? lastUser.unique_ID + 1 : 1001
+    let newId = (lastUser && typeof lastUser.unique_ID === "number") ? lastUser.unique_ID + 1 : 1001
 
     if (newId > 9999) {
         return new Error("User ID limit exceeded. No available IDs.")

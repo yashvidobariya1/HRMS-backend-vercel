@@ -1,35 +1,214 @@
 const Task = require('../models/task')
 const moment = require('moment')
+const User = require('../models/user')
+
+// exports.createTask = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+//         if(allowedRoles.includes(req.user.role)){
+//             const {
+//                 taskName,
+//                 taskType,
+//                 taskDescription,
+//                 startDate,
+//                 startTime,
+//                 endDate,
+//                 endTime,
+//                 companyId,
+//                 locationId
+//             } = req.body
+
+//             const newTask = {
+//                 taskName,
+//                 taskType,
+//                 taskDescription,
+//                 startDate,
+//                 startTime,
+//                 endDate,
+//                 endTime,
+//                 companyId,
+//                 locationId,
+//                 createdBy: req.user.role,
+//                 creatorName: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
+//                 creatorId: req.user._id
+//             }
+
+//             const task = await Task.create(newTask)
+
+//             return res.send({ status: 200, message: 'Task created successfully', task })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while creating the task:', error)
+//         res.send({ message: 'Error occurred while creating the task!' })
+//     }
+// }
+
+// exports.getTask = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+//         if(allowedRoles.includes(req.user.role)){
+//             const taskId = req.params.id
+
+//             const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+//             if(!task){
+//                 return res.send({ status: 404, message: 'Task not found' })
+//             }
+
+//             return res.send({ status: 200, message: 'Task fetched successfully', task })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while fetching the task:', error)
+//         res.send({ message: 'Error occurred while fetching the task!' })
+//     }
+// }
+
+// exports.getAllTasks = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+//         if(allowedRoles.includes(req.user.role)){
+//             const page = parseInt(req.query.page) || 1
+//             const limit = parseInt(req.query.limit) || 10
+
+//             const skip = (page - 1) * limit
+
+//             let tasks
+//             let totalTasks
+
+//             if(req.user.role == 'Superadmin'){
+//                 tasks = await Task.find({ isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
+//                 totalTasks = await Task.find({ isDeleted: { $ne: true } }).countDocuments()
+//             } else if(req.user.role == 'Administrator'){
+//                 tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
+//                 totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
+//             } else if(req.user.role == 'Manager'){
+//                 tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
+//                 totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).countDocuments()
+//             }            
+
+//             let filteredTasks = tasks.map(task => ({
+//                 ...task,
+//                 createdBy: task?.creatorId?.personalDetails
+//                     ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName || ''}`.trim()
+//                     : '',
+//                 creatorId: task?.creatorId?._id
+//             }))
+
+//             return res.send({
+//                 status: 200,
+//                 message: 'All tasks fetched successfully',
+//                 tasks: filteredTasks,
+//                 totalTasks,
+//                 totalPages: Math.ceil(totalTasks / limit) || 1,
+//                 currentPage: page || 1
+//             })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while fetching the task:', error)
+//         res.send({ message: 'Error occurred while fetching the task!' })
+//     }
+// }
+
+// exports.updateTask = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+//         if(allowedRoles.includes(req.user.role)){
+//             const taskId = req.params.id
+//             const {
+//                 taskName,
+//                 taskType,
+//                 taskDescription,
+//                 startDate,
+//                 endDate
+//             } = req.body
+
+//             const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+//             if(!task){
+//                 return res.send({ status: 404, message: 'Task not found' })
+//             }
+
+//             const updatedTask = await Task.findOneAndUpdate(
+//                 { _id: taskId, isDeleted: { $ne: true } },
+//                 {
+//                     $set: {
+//                         taskName,
+//                         taskType,
+//                         taskDescription,
+//                         startDate,
+//                         endDate
+//                     }
+//                 }, { new: true }
+//             )
+
+//             return res.send({ status: 200, message: 'Task updated successfully', updatedTask })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while updating the task:', error)
+//         res.send({ message: 'Error occurred while updating the task!' })
+//     }
+// }
+
+// exports.deleteTask = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+//         if(allowedRoles.includes(req.user.role)){
+//             const taskId = req.params.id
+
+//             const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+//             if(!task){
+//                 return res.send({ status: 404, message: 'Task not found' })
+//             }
+
+//             const deletedTask = await Task.findOneAndUpdate(
+//                 { _id: taskId, isDeleted: { $ne: true } },
+//                 {
+//                     $set: {
+//                         isDeleted: true,
+//                         canceledAt: moment().toDate()
+//                     }
+//                 }, { new: true }
+//             )
+
+//             return res.send({ status: 200, message: 'Task deleted successfully', deletedTask })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while deleting the task:', error)
+//         res.send({ message: 'Error occurred while deleting the task!' })
+//     }
+// }
 
 exports.createTask = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const {
                 taskName,
-                taskType,
                 taskDescription,
-                startDate,
+                taskDate,
                 startTime,
-                endDate,
                 endTime,
-                companyId,
-                locationId
+                userId,
+                jobId
             } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = user?.jobDetails.find(job => job?._id?.toString() == jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
 
             const newTask = {
                 taskName,
-                taskType,
                 taskDescription,
-                startDate,
+                taskDate,
                 startTime,
-                endDate,
                 endTime,
-                companyId,
-                locationId,
-                createdBy: req.user.role,
-                creatorName: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
-                creatorId: req.user._id
+                userId,
+                jobId,
+                creatorId: req.user._id,
             }
 
             const task = await Task.create(newTask)
@@ -47,77 +226,58 @@ exports.getTask = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const taskId = req.params.id
-
-            const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+            const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personaldetails.lastName')
             if(!task){
                 return res.send({ status: 404, message: 'Task not found' })
             }
-
-            return res.send({ status: 200, message: 'Task fetched successfully', task })
+            const formattedTask = {
+                ...task.toObject(),
+                createdBy: `${ task?.creatorId?.personalDetails?.lastName ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName}` : `${task?.creatorId?.personalDetails?.firstName}` }`,
+                creatorId: task?.creatorId?._id 
+            }
+            return res.send({ status: 200, message: 'Task fetched successfully', task: formattedTask })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching the task:', error)
-        res.send({ message: 'Error occurred while fetching the task!' })
+        return res.send({ message: 'Error occurred while fetching the task!' })
     }
 }
 
 exports.getAllTasks = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const { userId, jobId } = req.body
 
-            const skip = (page - 1) * limit
+            const tasks = await Task.find({ userId, jobId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personaldetails.lastName')
 
-            let tasks
-            let totalTasks
-
-            if(req.user.role == 'Superadmin'){
-                tasks = await Task.find({ isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
-                totalTasks = await Task.find({ isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role == 'Administrator'){
-                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
-                totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role == 'Manager'){
-                tasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
-                totalTasks = await Task.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, creatorId: req.user._id, isDeleted: { $ne: true } }).countDocuments()
-            }            
-
-            let filteredTasks = tasks.map(task => ({
-                ...task,
-                createdBy: task?.creatorId?.personalDetails
-                    ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName || ''}`.trim()
-                    : '',
-                creatorId: task?.creatorId?._id
-            }))
-
-            return res.send({
-                status: 200,
-                message: 'All tasks fetched successfully',
-                tasks: filteredTasks,
-                totalTasks,
-                totalPages: Math.ceil(totalTasks / limit) || 1,
-                currentPage: page || 1
+            const formattedTasks = tasks.map(task => {
+                return {
+                    ...task.toObject(),
+                    createdBy: `${ task?.creatorId?.personalDetails?.lastName ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName}` : `${task?.creatorId?.personalDetails?.firstName}` }`,
+                    creatorId: task?.creatorId?._id
+                }
             })
+
+            return res.send({ status: 200, message: 'All tasks fetched successfully', tasks: formattedTasks })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while fetching the task:', error)
-        res.send({ message: 'Error occurred while fetching the task!' })
+        console.error('Error occurred while fetching all tasks:', error)
+        return res.send({ message: 'Error occurred while fetching all tasks!' })
     }
 }
 
 exports.updateTask = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const taskId = req.params.id
             const {
                 taskName,
-                taskType,
                 taskDescription,
-                startDate,
-                endDate
+                taskDate,
+                startTime,
+                endTime,
             } = req.body
 
             const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
@@ -130,10 +290,10 @@ exports.updateTask = async (req, res) => {
                 {
                     $set: {
                         taskName,
-                        taskType,
                         taskDescription,
-                        startDate,
-                        endDate
+                        taskDate,
+                        startTime,
+                        endTime,
                     }
                 }, { new: true }
             )
@@ -146,9 +306,9 @@ exports.updateTask = async (req, res) => {
     }
 }
 
-exports.deleteTask = async (req, res) => {
+exports.canceledTask = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const taskId = req.params.id
 
@@ -157,20 +317,15 @@ exports.deleteTask = async (req, res) => {
                 return res.send({ status: 404, message: 'Task not found' })
             }
 
-            const deletedTask = await Task.findOneAndUpdate(
-                { _id: taskId, isDeleted: { $ne: true } },
-                {
-                    $set: {
-                        isDeleted: true,
-                        canceledAt: moment().toDate()
-                    }
-                }, { new: true }
-            )
+            task.status = 'Cancelled'
+            task.isDeleted = true
+            task.canceledAt = moment().toDate()
+            await task.save()
 
-            return res.send({ status: 200, message: 'Task deleted successfully', deletedTask })
+            return res.send({ status: 200, message: 'Task cancelled successfully', task })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while deleting the task:', error)
-        res.send({ message: 'Error occurred while deleting the task!' })
+        console.error('Error occurred while canceling the task:', error)
+        return res.send({ message: 'Error occurred while canceling the task!' })
     }
 }
