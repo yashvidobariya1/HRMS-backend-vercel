@@ -67,7 +67,7 @@ commonRoute.post('/signedTemplate', auth, saveTemplateWithSignature)
 // task
 commonRoute.post('/createTask', auth, createTask)
 commonRoute.get('/getTask/:id', auth, getTask)
-commonRoute.get('/getAllTasks', auth, getAllTasks)
+commonRoute.post('/getAllTasks', auth, getAllTasks)
 commonRoute.post('/updateTask/:id', auth, updateTask)
 commonRoute.post('/cancelTask/:id', auth, canceledTask)
 

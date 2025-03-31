@@ -1,17 +1,24 @@
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const cloudinary = require('../utils/cloudinary');
-const User = require("../models/user");
-const axios = require('axios');
-const fs = require('fs');
-// const FormData = require('form-data');
 const pdfParse = require('pdf-parse');
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const mammoth = require('mammoth');
+const moment = require('moment');
+
+// const User = require("../models/user");
+// const axios = require('axios');
+// const fs = require('fs');
+// const FormData = require('form-data');
+// const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 // const pdfform = require('pdfform.js');
 // const pdffiller = require("node-pdffiller");
-const mammoth = require('mammoth')
-const moment = require('moment');
+
+const extractPlaceholders = (text) => {
+    const placeholderRegex = /{(.*?)}/g
+    let matches = text.match(placeholderRegex)
+    return matches ? matches.map(match => match.replace(/{{|}}/g, '').trim()) : []
+};
 
 exports.addContract = async (req, res) => {
     try {
@@ -41,9 +48,63 @@ exports.addContract = async (req, res) => {
                 }
             }
 
-            if (contract) {
-                const document = contract;
+            const requiredKeys = process.env.REQUIRED_KEY_FOR_CONTRACT.split(',').map(key => key.trim())
+            let extractedKeys = []
 
+            const document = contract
+
+            if(contract.startsWith('data:')){
+                contract = contract.split(',')[1]
+            }
+
+            if (contractFileName.endsWith('.pdf')) {
+                try {
+                    const pdfBuffer = Buffer.from(contract, 'base64')
+                    const pdfData = await pdfParse(pdfBuffer)
+                    
+                    if (!pdfData || !pdfData.text) {
+                        throw new Error("PDF extraction failed: No text found.")
+                    }
+
+                    extractedKeys = extractPlaceholders(pdfData.text)
+                } catch (pdfError) {
+                    console.error("PDF Parsing Error:", pdfError)
+                    return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                }
+            } else if (contractFileName.endsWith('.docx')) {
+                try {
+                    const { value } = await mammoth.extractRawText({ buffer: Buffer.from(contract, 'base64') })
+                    
+                    if (!value) {
+                        throw new Error("DOCX extraction failed: No text found.")
+                    }
+
+                    extractedKeys = extractPlaceholders(value)
+                } catch (docxError) {
+                    console.error("DOCX Parsing Error:", docxError)
+                    return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                }
+            } else {
+                return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
+            }
+
+            // const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key));
+            // console.log('requiredKeys:', requiredKeys)
+            const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
+            // console.log('extraKeys:', extraKeys)
+
+            // if (missingKeys.length > 0 || extraKeys.length > 0) {
+            if (extraKeys.length > 0) {
+                return res.send({
+                    status: 400,
+                    message: "Contract file contains invalid placeholders.",
+                    // missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
+                    extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
+                })
+            }
+
+            let documentURL
+            if (contract) {
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing contract document');
                     return res.send({ status: 400, message: "Invalid or missing contract document." });
@@ -54,9 +115,9 @@ exports.addContract = async (req, res) => {
                         folder: "contracts",
                     });
                     // console.log('Cloudinary response:', element);
-                    contract = element.secure_url
+                    documentURL = element.secure_url
                 } catch (uploadError) {
-                    // console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
@@ -65,7 +126,7 @@ exports.addContract = async (req, res) => {
             const name = [firstName, lastName].filter(Boolean).join(" ");
             const contractForm = {
                 contractName,
-                contract,
+                contract: documentURL,
                 contractFileName,
                 createdRole: req.user.role,
                 creatorId: req.user._id,
@@ -84,138 +145,28 @@ exports.addContract = async (req, res) => {
     }
 }
 
-// pending work
-
-// const extractPlaceholders = (text) => {
-//     const placeholderRegex = /{{(.*?)}}/g; // Match placeholders like {{employeeName}}
-//     let matches = text.match(placeholderRegex);
-//     return matches ? matches.map(match => match.replace(/{{|}}/g, '').trim()) : [];
-// };
-
-// exports.addContract = async (req, res) => {
-//     try {
-//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
-//         if (!allowedRoles.includes(req.user.role)) {
-//             return res.send({ status: 403, message: "Access denied" });
-//         }
-
-//         let { contractName, contract, companyId, contractFileName } = req.body;
-
-//         const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } });
-//         if (!company) {
-//             return res.send({ status: 404, message: 'Company not found.' });
-//         }
-
-//         if (!contractName || !contract) {
-//             return res.send({ status: 400, message: "Contract name and contract are required." });
-//         }
-
-//         const existingContract = await Contract.findOne({ contractName, companyId, isDeleted: { $ne: true } });
-//         if (existingContract) {
-//             return res.send({ status: 409, message: `A contract with the name ${contractName} already exists for this company.` });
-//         }
-
-//         let documentUrl;
-//         try {
-//             let uploadResponse = await cloudinary.uploader.upload(contract, {
-//                 resource_type: "auto",
-//                 folder: "contracts",
-//             });
-//             documentUrl = uploadResponse.secure_url;
-//         } catch (uploadError) {
-//             return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
-//         }
-
-//         // Required keys in the contract file
-//         const requiredKeys = ["employeeName", "email", "contactNumber", "joiningDate", "annualSalary"];
-//         let extractedKeys = [];
-
-//         // Extract placeholders from file
-//         if (contractFileName.endsWith('.pdf')) {
-//             try {
-//                 const pdfBuffer = Buffer.from(contract, 'base64'); // Convert base64 to buffer
-//                 const pdfData = await pdfParse(pdfBuffer);
-                
-//                 if (!pdfData || !pdfData.text) {
-//                     throw new Error("PDF extraction failed: No text found.");
-//                 }
-
-//                 extractedKeys = extractPlaceholders(pdfData.text);
-//             } catch (pdfError) {
-//                 console.error("PDF Parsing Error:", pdfError);
-//                 return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." });
-//             }
-//         } else if (contractFileName.endsWith('.docx')) {
-//             try {
-//                 const { value } = await mammoth.extractRawText({ buffer: Buffer.from(contract, 'base64') });
-                
-//                 if (!value) {
-//                     throw new Error("DOCX extraction failed: No text found.");
-//                 }
-
-//                 extractedKeys = extractPlaceholders(value);
-//             } catch (docxError) {
-//                 console.error("DOCX Parsing Error:", docxError);
-//                 return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." });
-//             }
-//         } else {
-//             return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." });
-//         }
-
-//         // Validate missing and extra keys
-//         const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key));
-//         const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key));
-
-//         if (missingKeys.length > 0 || extraKeys.length > 0) {
-//             return res.send({
-//                 status: 400,
-//                 message: "Contract file contains invalid placeholders.",
-//                 missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
-//                 extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
-//             });
-//         }
-
-//         // Save contract to database
-//         const { firstName, lastName } = req.user.personalDetails;
-//         const name = [firstName, lastName].filter(Boolean).join(" ");
-
-//         let newContract = await Contract.create({
-//             contractName,
-//             contract: documentUrl,
-//             contractFileName,
-//             createdRole: req.user.role,
-//             creatorId: req.user._id,
-//             uploadBy: name,
-//             companyId,
-//             companyName: company?.companyDetails?.businessName
-//         });
-
-//         return res.send({ status: 200, message: "Contract form created successfully.", newContract });
-
-//     } catch (error) {
-//         console.error("Error occurred while adding contract form:", error);
-//         res.send({ status: 500, message: "Something went wrong while adding contract form!" });
-//     }
-// };
-
 exports.getAllContract = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            let contracts
-            let totalContracts
-            if(req.user.role === 'Superadmin'){
-                contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalContracts = await Contract.find({ isDeleted: { $ne: true } }).countDocuments()
-            } else {
-                contracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalContracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if(req.user.role === 'Administrator' || req.user.role === 'Manager'){
+                baseQuery.companyId = req.user.companyId
             }
+
+            if (searchQuery) {
+                baseQuery["contractName"] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const contracts = await Contract.find(baseQuery).skip(skip).limit(limit)
+            const totalContracts = await Contract.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,
@@ -230,6 +181,37 @@ exports.getAllContract = async (req, res) => {
         console.error("Error occurred while fetching contract form:", error);
         res.send({ message: "Something went wrong while fetching contract form!" })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+
+    //         const skip = (page - 1) * limit
+
+    //         let contracts
+    //         let totalContracts
+    //         if(req.user.role === 'Superadmin'){
+    //             contracts = await Contract.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalContracts = await Contract.find({ isDeleted: { $ne: true } }).countDocuments()
+    //         } else {
+    //             contracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalContracts = await Contract.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         }
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Contracts fetched successfully.',
+    //             contracts,
+    //             totalContracts,
+    //             totalPages: Math.ceil(totalContracts / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error("Error occurred while fetching contract form:", error);
+    //     res.send({ message: "Something went wrong while fetching contract form!" })
+    // }
 }
 
 exports.getAllContractOfCompany = async (req, res) => {
@@ -238,6 +220,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
             const companyId = req.body.companyId || req.user.companyId
@@ -246,9 +229,15 @@ exports.getAllContractOfCompany = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            const contracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            let baseQuery = { companyId, isDeleted: { $ne: true } }
 
-            const totalContracts = await Contract.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
+            if (searchQuery) {
+                baseQuery["contractName"] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const contracts = await Contract.find(baseQuery).skip(skip).limit(limit)
+
+            const totalContracts = await Contract.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,

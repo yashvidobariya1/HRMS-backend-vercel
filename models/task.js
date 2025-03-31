@@ -16,6 +16,10 @@ const TaskSchema = new mongoose.Schema(
             ref: 'User'
         },
         jobId: mongoose.Schema.Types.ObjectId,
+        isLate: {
+            type: Boolean,
+            default: false
+        },
         status: {
             type: String,
             enum: ['Assigned', 'Cancelled'],

@@ -91,11 +91,9 @@ exports.getAllHolidays = async (req, res) => {
             const limit = parseInt(req.query.limit)
             const year = req.query.year || moment().format('YYYY')
             // console.log('year:', year)
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
-
-            let holidays
-            let totalHolidays
 
             let filter = { isDeleted: { $ne: true } }
 
@@ -124,9 +122,12 @@ exports.getAllHolidays = async (req, res) => {
                 filter.locationId = { $in: req.user.locationId }
             }
 
-            holidays = await Holiday.find(filter).sort({ date: 1 }).skip(skip).limit(limit)
+            if(searchQuery){
+                filter['occasion'] = { $regex: searchQuery, $options: "i" }
+            }
 
-            totalHolidays = await Holiday.countDocuments(filter)
+            const holidays = await Holiday.find(filter).sort({ date: 1 }).skip(skip).limit(limit)
+            const totalHolidays = await Holiday.countDocuments(filter)
 
             return res.send({
                 status: 200,

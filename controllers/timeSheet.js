@@ -14,6 +14,7 @@ const puppeteer = require("puppeteer");
 const ExcelJS = require("exceljs")
 const path = require("path");
 const EmployeeReport = require("../models/employeeReport");
+const Task = require("../models/task");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -76,6 +77,8 @@ exports.clockInFunc = async (req, res) => {
             const currentDate = moment().format('YYYY-MM-DD')
             let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate })
+            
             if (!timesheet) {
                 timesheet = new Timesheet({
                     userId,
@@ -84,6 +87,16 @@ exports.clockInFunc = async (req, res) => {
                     clockinTime: [],
                     totalHours: '0h 0m 0s'
                 })
+                if(assignedTask){
+                    // console.log('assignedTask.startTime', assignedTask.startTime)
+                    // console.log('time now:', moment().format('HH:mm'))
+                    const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
+                    const allowedClockInTime = moment(taskStartTime).add(process.env.GRACING_TIME, 'minutes')
+                    const currentTime = moment()
+                    if (currentTime.isAfter(allowedClockInTime)) {
+                        await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
+                    }
+                }
             }
 
             const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]

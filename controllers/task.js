@@ -248,8 +248,31 @@ exports.getAllTasks = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const { userId, jobId } = req.body
+            const { month, year } = req.query
 
-            const tasks = await Task.find({ userId, jobId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personaldetails.lastName')
+            let startDate, endDate
+            
+            if(year && month){
+                startDate = moment(`${year}-${month}-01`, 'YYYY-MM-DD').startOf('month').format('YYYY-MM-DD')
+                endDate = moment(startDate, 'YYYY-MM-DD').endOf('month').format('YYYY-MM-DD')
+            } else if(year){
+                startDate = moment(`${year}-01-01`, 'YYYY-MM-DD').startOf('year').format('YYYY-MM-DD')
+                endDate = moment(startDate, 'YYYY-MM-DD').endOf('year').format('YYYY-MM-DD')
+            } else if(month){
+                const currentYear = moment().year()
+                startDate = moment(`${currentYear}-${month}-01`, 'YYYY-MM-DD').startOf('month').format('YYYY-MM-DD')
+                endDate = moment(startDate, 'YYYY-MM-DD').endOf('month').format('YYYY-MM-DD')
+            } else {
+                startDate = moment().startOf('month').format('YYYY-MM-DD')
+                endDate = moment().endOf('month').format('YYYY-MM-DD')
+            }
+
+            const tasks = await Task.find({
+                userId,
+                jobId,
+                isDeleted: { $ne: true },
+                taskDate: { $gte: startDate, $lte: endDate }
+            }).populate('creatorId', 'personalDetails.firstName personaldetails.lastName')
 
             const formattedTasks = tasks.map(task => {
                 return {
@@ -327,5 +350,24 @@ exports.canceledTask = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while canceling the task:', error)
         return res.send({ message: 'Error occurred while canceling the task!' })
+    }
+}
+
+exports.getCountOfLateClockIn = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { userId, jobId } = req.body
+
+            const startDate = moment().startOf('month').toDate()
+            const endDate = moment().endOf('month').toDate()
+
+            const totalCountOfLateClockIn = await Task.find({ userId, jobId, isLate: true, createdAt: { $gte: startDate, $lte: endDate } }).countDocuments()
+
+            return res.send({ status: 200, message: "User's late count fetched successfully", totalCountOfLateClockIn })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching count of late clock-IN:', error)
+        res.send({ message: 'Error occurred while fetching count of late clock-IN' })
     }
 }

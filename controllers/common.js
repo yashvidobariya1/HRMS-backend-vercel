@@ -694,18 +694,20 @@ exports.getAllUsers = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
-            const timePeriod = parseInt(req.query.timePeriod)
+            // const timePeriod = parseInt(req.query.timePeriod)
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            let timeFilter = {}
-            if (timePeriod) {
-                const filteredHour = new Date()
-                filteredHour.setHours(filteredHour.getHours() - timePeriod)
-                timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
-            }
+            // let timeFilter = {}
+            // if (timePeriod) {
+            //     const filteredHour = new Date()
+            //     filteredHour.setHours(filteredHour.getHours() - timePeriod)
+            //     timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
+            // }
 
-            let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+            // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+            let baseQuery = { isDeleted: { $ne: true } }
 
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
@@ -718,6 +720,13 @@ exports.getAllUsers = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
+            }
+
+            if (searchQuery) {
+                baseQuery.$or = [
+                    { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
+                    { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
+                ];
             }
 
             const users = await User.find(baseQuery).skip(skip).limit(limit)
