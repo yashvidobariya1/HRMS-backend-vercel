@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema({
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
     isTemplateSigned: {
       type: Boolean,
-      default: false
+      default: true
     },
     signedTemplateURL: String,
     role: String

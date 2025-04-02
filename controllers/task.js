@@ -268,7 +268,7 @@ exports.getAllTasks = async (req, res) => {
             }
 
             const tasks = await Task.find({
-                userId,
+                userId: userId || req.user._id,
                 jobId,
                 isDeleted: { $ne: true },
                 taskDate: { $gte: startDate, $lte: endDate }

@@ -600,6 +600,7 @@ exports.dashboard = async (req, res) => {
 
                 const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
+                const isTemplateSigned = jobDetail?.isTemplateSigned
 
                 const managerUsers = await User.find({ role: "Manager", companyId, locationId: { $elemMatch: { $in: locationId } }, isDeleted: { $ne: true } }).select("_id")
                 const managerUsersIds = managerUsers.map(user => user._id)
@@ -652,6 +653,7 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
+                    isTemplateSigned,
                     unreadNotificationCount,
 
                     totalEmployees,

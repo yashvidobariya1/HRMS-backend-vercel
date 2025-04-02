@@ -11,6 +11,7 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const useragent = require("useragent");
 const streamifier = require('streamifier');
+const Template = require("../models/template");
 
 exports.login = async (req, res) => {
     try {
@@ -488,6 +489,16 @@ exports.addUser = async (req, res) => {
             if(jobDetails){
                 jobDetails.forEach(JD => {
                     locationIds.push(JD.location)
+                })
+                // for check template assigned or not
+                jobDetails.forEach(async JD => {
+                    if(JD?.templateId){
+                        const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
+                        if(!template){
+                            return res.send({ status: 404, message: 'Template not found' })
+                        }
+                        JD.isTemplateSigned = false
+                    }
                 })
             }
 
