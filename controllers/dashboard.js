@@ -10,6 +10,7 @@ const User = require("../models/user")
 const mongoose = require('mongoose')
 const moment = require('moment')
 const Notification = require("../models/notification")
+const Task = require("../models/task")
 
 // find Absences users for Superadmin, Administrator and Manager
 const findAbsentUsers = async (requestedUser) => {
@@ -611,6 +612,7 @@ exports.dashboard = async (req, res) => {
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
                 const employeeStatus = await getEmployeeStatus(req.user)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }).countDocuments()
 
                 const [
                     totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
@@ -654,6 +656,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    countOfLateClockIn,
                     unreadNotificationCount,
 
                     totalEmployees,
@@ -713,6 +716,7 @@ exports.dashboard = async (req, res) => {
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } })
 
                 const managerEmployees = await User.find({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true } }).select("_id")
                 const managerEmployeeIds = managerEmployees.map(user => user._id)
@@ -755,6 +759,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    countOfLateClockIn,
                     unreadNotificationCount,
                     
                     totalEmployees,
@@ -809,6 +814,7 @@ exports.dashboard = async (req, res) => {
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } })
 
                 const [
                     totalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests, currentMonthTotalOwnLeaveRequests,
@@ -829,6 +835,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    countOfLateClockIn,
                     unreadNotificationCount,
 
                     totalOwnLeaveRequests,

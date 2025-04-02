@@ -364,7 +364,7 @@ exports.getCountOfLateClockIn = async (req, res) => {
 
             const totalCountOfLateClockIn = await Task.find({ userId, jobId, isLate: true, createdAt: { $gte: startDate, $lte: endDate } }).countDocuments()
 
-            return res.send({ status: 200, message: "User's late count fetched successfully", totalCountOfLateClockIn })
+            return res.send({ status: 200, message: "User's late count fetched successfully", totalCountOfLateClockIn: totalCountOfLateClockIn > 0 ? totalCountOfLateClockIn : 0 })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching count of late clock-IN:', error)

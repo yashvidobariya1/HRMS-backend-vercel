@@ -12,6 +12,7 @@ const Docxtemplater = require('docxtemplater');
 const useragent = require("useragent");
 const streamifier = require('streamifier');
 const Template = require("../models/template");
+const Task = require("../models/task");
 
 exports.login = async (req, res) => {
     try {
@@ -699,6 +700,35 @@ exports.getUser = async (req, res) => {
     }
 }
 
+const getGracePoints = async (userId, jobId) => {
+    const startDate = moment().startOf('month').toDate()
+    const endDate = moment().endOf('month').toDate()
+    const countOfLateClockIn = await Task.find({ userId, jobId, isLate: true, createdAt: { $gte: startDate, $lte: endDate } }).countDocuments()
+    return countOfLateClockIn > 0 ? countOfLateClockIn : 0
+}
+
+const calculateUserGracePoints = async (users) => {
+    return Promise.all(users.map(async (user) => {
+        let roleWisePoints = []
+
+        await Promise.all(user.jobDetails.map(async (job) => {
+            const { _id: jobId, jobTitle } = job
+            let gracePoints = await getGracePoints(user._id, jobId)
+
+            roleWisePoints.push({
+                jobId,
+                jobTitle,
+                gracePoints
+            })
+        }))
+
+        return {
+            ...user.toObject(),
+            roleWisePoints
+        }
+    }))
+}
+
 exports.getAllUsers = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -740,8 +770,10 @@ exports.getAllUsers = async (req, res) => {
                 ];
             }
 
-            const users = await User.find(baseQuery).skip(skip).limit(limit)
-            const totalUsers = await User.find(baseQuery).countDocuments()
+            const allUsers = await User.find(baseQuery)            
+            const updateUsers = await calculateUserGracePoints(allUsers)
+            const users = updateUsers.slice(skip, skip + limit)
+            const totalUsers = updateUsers.length
 
             return res.send({
                 status: 200,

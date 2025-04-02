@@ -17,11 +17,16 @@ const RecruitmentJobSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'
     },
+    locationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Location'
+    },
     companyWebSite: String,
     companyEmail: String, // required
     companyContactNumber: Number,
     totalApplicant: Number,
     jobPostedLink: String,
+    jobUniqueKey: String,
     createdBy: String, // creator role
     creatorId: {
         type: mongoose.Schema.Types.ObjectId,
