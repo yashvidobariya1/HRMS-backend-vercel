@@ -100,26 +100,26 @@ exports.getAllCompany = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            // const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-            // const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+            let baseQuery = { isDeleted: { $ne: true } }
 
-            let companies
-            let totalCompanies
-
-            if(req.user.role == 'Superadmin'){
-                companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role == 'Administrator'){
-                companies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalCompanies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            if (req.user.role === 'Administrator') {
+                baseQuery._id = req.user.companyId
             }
+
+            if (searchQuery) {
+                baseQuery["companyDetails.businessName"] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const companies = await Company.find(baseQuery).skip(skip).limit(limit)
+            const totalCompanies = await Company.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,
-                message: 'Companines fetched successfully.',
+                message: 'Companies fetched successfully.',
                 companies,
                 totalCompanies,
                 totalPages: Math.ceil(totalCompanies / limit) || 1,
@@ -130,6 +130,41 @@ exports.getAllCompany = async (req, res) => {
         console.error("Error occurred while fetching companies:", error);
         res.send({ message: "Something went wrong while fetching companies!" })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+
+    //         const skip = (page - 1) * limit
+
+    //         // const companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //         // const totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+
+    //         let companies
+    //         let totalCompanies
+
+    //         if(req.user.role == 'Superadmin'){
+    //             companies = await Company.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalCompanies = await Company.find({ isDeleted: { $ne: true } }).countDocuments()
+    //         } else if(req.user.role == 'Administrator'){
+    //             companies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalCompanies = await Company.find({ _id: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         }
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Companies fetched successfully.',
+    //             companies,
+    //             totalCompanies,
+    //             totalPages: Math.ceil(totalCompanies / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error("Error occurred while fetching companies:", error);
+    //     res.send({ message: "Something went wrong while fetching companies!" })
+    // }
 }
 
 exports.updateCompanyDetails = async (req, res) => {

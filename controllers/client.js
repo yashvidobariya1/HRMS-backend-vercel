@@ -75,20 +75,26 @@ exports.getAllClient = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const companyId = req.query.companyId
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            let clients
-            let totalClients = 0
-            if(req.user.role == 'Superadmin'){
-                clients = await Client.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role == 'Administrator'){
-                // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
-                clients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if (req.user.role === 'Superadmin' && companyId) {
+                baseQuery.companyId = companyId
+            } else if (req.user.role === 'Administrator') {
+                baseQuery.companyId = req.user.companyId
             }
+
+            if (searchQuery) {
+                baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const clients = await Client.find(baseQuery).skip(skip).limit(limit)
+            const totalClients = await Client.find(baseQuery).countDocuments()
+
             return res.send({
                 status: 200,
                 message: 'Clients fetched successfully',
@@ -102,6 +108,40 @@ exports.getAllClient = async (req, res) => {
         console.error('Error occurred while fetching clients:', error)
         res.send({ message: 'Error occurred while fetching clients!' })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+    //         const companyId = req.query.companyId
+    //         const searchQuery = req.query.search
+
+    //         const skip = (page - 1) * limit
+
+    //         let clients
+    //         let totalClients = 0
+    //         if(req.user.role == 'Superadmin'){
+    //             clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         } else if(req.user.role == 'Administrator'){
+    //             // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
+    //             clients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalClients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         }
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Clients fetched successfully',
+    //             clients,
+    //             totalClients,
+    //             totalPages: Math.ceil(totalClients / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching clients:', error)
+    //     res.send({ message: 'Error occurred while fetching clients!' })
+    // }
 }
 
 exports.getCompanyClients = async (req, res) => {
@@ -258,7 +298,7 @@ exports.generateLinkForClient = async (req, res) => {
                 startDate,
                 endDate,
                 employees: filteredEmployees,
-                creatorBy: req.user.role,
+                // createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 creatorId: req.user._id
             }
 
@@ -322,10 +362,19 @@ exports.getGeneratedReports = async (req, res) => {
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
-            const userId = req.user._id
+            const { clientId } = req.query
 
-            const reports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).skip(skip).limit(limit)
-            const totalReports = await EmployeeReport.find({ creatorBy: req.user.role, creatorId: userId.toString(), isDeleted: { $ne: true } }).countDocuments()
+            if (!clientId || clientId == 'undefined' || clientId == 'null') {
+                return res.send({ status: 400, message: 'Client ID is required' })
+            }
+
+            const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+            if(!client){
+                return res.send({ status: 404, message: 'Client not found' })
+            }
+
+            const reports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
+            const totalReports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).countDocuments()
 
             let filteredReports = []
             reports.map(report => {
@@ -333,13 +382,15 @@ exports.getGeneratedReports = async (req, res) => {
                 filteredReports.push({
                     startDate: report?.startDate,
                     endDate: report?.endDate,
+                    createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
                     _id: report._id,
                     createdAt: report?.createdAt,
                     status: hasStatusPending ? 'Pending' : 'Reviewed'
                 })
             })
 
-            const startDate = moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD');
+            // const startDate = moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD') || moment('2025-01-01').format('YYYY-MM-DD')
+            const startDate = filteredReports.length > 0 ? moment(filteredReports[filteredReports.length - 1]?.endDate).add(1, 'days').format('YYYY-MM-DD') : moment('2025-01-01').format('YYYY-MM-DD')
 
             return res.send({
                 status: 200,
@@ -380,6 +431,7 @@ exports.getReport = async (req, res) => {
                 _id: emp.jobId,
                 jobTitle: emp.jobTitle,
                 jobRole: emp.jobRole,
+                reason: emp.rejectionReason,
                 status: emp.status
             })).slice(skip, skip + limit)
 
