@@ -9,13 +9,15 @@ const Timesheet = require('../models/timeSheet')
 const User = require("../models/user")
 const mongoose = require('mongoose')
 const moment = require('moment')
+const Notification = require("../models/notification")
+const Task = require("../models/task")
 
 // find Absences users for Superadmin, Administrator and Manager
 const findAbsentUsers = async (requestedUser) => {
     try {
         const todayDate = moment().format("YYYY-MM-DD")
 
-        let matchStage = { isActive: true, isDeleted: { $ne: true } }
+        let matchStage = { isDeleted: { $ne: true } }
 
         if(requestedUser.role === "Superadmin"){
             matchStage.role = { $in: ['Administrator', 'Manager', 'Employee'] }
@@ -422,6 +424,48 @@ const getEmployeeStatus = async (requestedUser) => {
     }
 }
 
+// find unread notification count
+const getCountOfUnreadNotification = async (userId, role) => {
+    try {
+
+        let matchStage = {
+            "readBy": {
+                $elemMatch: {
+                    userId: new mongoose.Types.ObjectId(String(userId))
+                }
+            }
+        }
+
+        const unreadNotifications = await Notification.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            { $unwind: "$user" },
+            { 
+                $match: {
+                    ...matchStage,
+                    readBy: {
+                        $elemMatch: {
+                            userId: new mongoose.Types.ObjectId(String(userId)),
+                            isRead: false,
+                        }
+                    }
+                }
+            },
+            { $count: 'unreadNotificationsCount' }
+        ])
+
+        return unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
+    } catch (error) {
+        console.error('Error occurred while fetching unread notification count:', error)
+    }
+}
+
 exports.dashboard = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
@@ -445,6 +489,7 @@ exports.dashboard = async (req, res) => {
             }
 
             const absentUsers = await findAbsentUsers(req.user)
+            const unreadNotificationCount = await getCountOfUnreadNotification(req.user._id, req.user.role)
 
             let responseData = {}
 
@@ -490,9 +535,9 @@ exports.dashboard = async (req, res) => {
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
                     User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
+                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
@@ -503,6 +548,8 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
+                    unreadNotificationCount,
+
                     totalCompanies,
                     currentMonthTotalCompanies,
                     companyGrowth: calculatePercentageGrowth(currentMonthTotalCompanies, previousMonthTotalCompanies),
@@ -554,6 +601,7 @@ exports.dashboard = async (req, res) => {
 
                 const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
+                const isTemplateSigned = jobDetail?.isTemplateSigned
 
                 const managerUsers = await User.find({ role: "Manager", companyId, locationId: { $elemMatch: { $in: locationId } }, isDeleted: { $ne: true } }).select("_id")
                 const managerUsersIds = managerUsers.map(user => user._id)
@@ -564,6 +612,7 @@ exports.dashboard = async (req, res) => {
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
                 const employeeStatus = await getEmployeeStatus(req.user)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }).countDocuments()
 
                 const [
                     totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
@@ -583,9 +632,9 @@ exports.dashboard = async (req, res) => {
                     Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
                     Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isActive: true, isDeleted: { $ne: true } }),
-                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isActive: true, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true } }),
+                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerUsersIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
@@ -606,6 +655,10 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
+                    isTemplateSigned,
+                    countOfLateClockIn,
+                    unreadNotificationCount,
+
                     totalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
@@ -663,6 +716,7 @@ exports.dashboard = async (req, res) => {
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } })
 
                 const managerEmployees = await User.find({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true } }).select("_id")
                 const managerEmployeeIds = managerEmployees.map(user => user._id)
@@ -680,9 +734,9 @@ exports.dashboard = async (req, res) => {
                     User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
                     User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true } }),
-                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isActive: { $ne: false }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true } }),
+                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ role: 'Employee', companyId, locationId: { $elemMatch: { $in: locationId } }, jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, isDeleted: { $ne: true } }),
                     Leave.countDocuments({ userId: { $in: managerEmployeeIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
@@ -705,6 +759,8 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    countOfLateClockIn,
+                    unreadNotificationCount,
                     
                     totalEmployees,
                     currentMonthTotalEmployees,
@@ -758,6 +814,7 @@ exports.dashboard = async (req, res) => {
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
+                const countOfLateClockIn = await Task.find({ userId: req.user._id, jobId, isLate: true, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } })
 
                 const [
                     totalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests, currentMonthTotalOwnLeaveRequests,
@@ -778,6 +835,8 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     isTemplateSigned,
+                    countOfLateClockIn,
+                    unreadNotificationCount,
 
                     totalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,

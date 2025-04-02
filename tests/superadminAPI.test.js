@@ -205,7 +205,7 @@ describe('**- Crud Company Test**', () => {
         test('should return 200 for fetch all companys', async () => {
             const getAllResponse = await request(app).get('/getAllCompany').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getAllResponse.text).status).toBe(200);
-            expect(JSON.parse(getAllResponse.text).message).toBe('Companines fetched successfully.');
+            expect(JSON.parse(getAllResponse.text).message).toBe('Companies fetched successfully.');
             expect(JSON.parse(getAllResponse.text).companies).toBeInstanceOf(Array);
         })
         test('should return 403 for Access denied', async () => {
@@ -1884,6 +1884,60 @@ describe('Superadmin and Administrator can generate employee reports link for cl
     test('should return 403 for, access denied', async () => {
         await User.findOneAndUpdate({token}, { $set: { role: 'superadmin' } })
         const res = await request(app).post(`/generateLink`).set('Authorization', `Bearer ${token}`)
+        expect(JSON.parse(res.text).status).toBe(403)
+        expect(JSON.parse(res.text).message).toBe('Access denied')
+    })
+})
+
+describe('Superadmin can active or deactive to employees', () => {
+    let userId
+    let token
+    test('Should return 401 for unauthorized: Invalid API key', async () => {
+        await User.create({
+            personalDetails: {
+                email: 'testersuperadminforactivateanddeactivateuser@gmail.com'
+            },
+            role: 'Superadmin',
+            password: 'Password@123',
+            isDeleted: false
+        })
+
+        const user = await User.create({
+            personalDetails: {
+                email: 'testeremployeeforactivedeactive@gmail.com'
+            },
+            role: 'Employee',
+            password: 'Password@123',
+            isDeleted: false,
+            isActive: true
+        })
+        userId = user._id
+
+        const login = await request(app).post('/login').send({ email: 'testersuperadminforactivateanddeactivateuser@gmail.com', password: 'Password@123' })
+        expect(JSON.parse(login.text).status).toBe(200)
+        token = await JSON.parse(login.text).user.token
+        const res = await request(app).post('/activateDeactivateUser')
+        expect(JSON.parse(res.text).status).toBe(401)
+        expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
+    })
+    test('Should return 404 for user not founs', async () => {
+        const res = await request(app).post('/activateDeactivateUser').set('Authorization', `Bearer ${token}`)
+        expect(JSON.parse(res.text).status).toBe(404)
+        expect(JSON.parse(res.text).message).toBe('User not found')
+    })
+    test('Should return 200 for employee deactivate successfully', async () => {
+        const res = await request(app).post(`/activateDeactivateUser?userId=${userId}`).set('Authorization', `Bearer ${token}`)
+        expect(JSON.parse(res.text).status).toBe(200)
+        expect(JSON.parse(res.text).message).toBe('User deactivate successfully')
+    })
+    test('Should return 200 for employee activate successfully', async () => {
+        const res = await request(app).post(`/activateDeactivateUser?userId=${userId}`).set('Authorization', `Bearer ${token}`)
+        expect(JSON.parse(res.text).status).toBe(200)
+        expect(JSON.parse(res.text).message).toBe('User activate successfully')
+    })
+    test('Should return 403 for access denied', async () => {
+        await User.findOneAndUpdate({token}, { $set: { role: 'superadmin' } })
+        const res = await request(app).post(`/activateDeactivateUser?userId=${userId}`).set('Authorization', `Bearer ${token}`)
         expect(JSON.parse(res.text).status).toBe(403)
         expect(JSON.parse(res.text).message).toBe('Access denied')
     })

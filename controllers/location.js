@@ -85,12 +85,18 @@ exports.getAllLocation = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            const locations = await Location.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
+            let baseQuery = { isDeleted: { $ne: true } }
 
-            const totalLocations = await Location.find({ isDeleted: { $ne: true } }).countDocuments()
+            if(searchQuery){
+                baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const locations = await Location.find(baseQuery).skip(skip).limit(limit)
+            const totalLocations = await Location.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,

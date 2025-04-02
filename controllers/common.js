@@ -11,6 +11,8 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const useragent = require("useragent");
 const streamifier = require('streamifier');
+const Template = require("../models/template");
+const Task = require("../models/task");
 
 exports.login = async (req, res) => {
     try {
@@ -24,12 +26,16 @@ exports.login = async (req, res) => {
             return res.send({ status: 404, message: "User not found" });
         }
 
+        if(isExist && isExist?.isActive === false){
+            return res.send({ status: 400, message: 'You do not have permission for loogIn!' })
+        }
+
         const token = await isExist.generateAuthToken()
         const browser = useragent.parse(req.headers["user-agent"]);
         isExist.token = token
         // isExist.token = token.JWTToken
         isExist.lastTimeLoggedIn = moment().toDate()
-        isExist.isActive = true
+        isExist.isLoggedIn = true
         isExist.usedBrowser = browser
         isExist.save()
 
@@ -80,7 +86,7 @@ exports.logOut = async (req, res) => {
 
         existUser.token = ""
         existUser.lastTimeLoggedOut = moment().toDate()
-        existUser.isActive = false
+        existUser.isLoggedIn = false
         await existUser.save()
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
@@ -418,6 +424,27 @@ const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
     })
 }
 
+async function generateUserId() {
+    const lastUser = await User.findOne().sort({ unique_ID: -1 }).select("unique_ID")
+
+    let newId = (lastUser && typeof lastUser.unique_ID === "number") ? lastUser.unique_ID + 1 : 1001
+
+    if (newId > 9999) {
+        return new Error("User ID limit exceeded. No available IDs.")
+    }
+
+    let existingUser = await User.findOne({ unique_ID: newId })
+    while (existingUser) {
+        newId++
+        if (newId > 9999) {
+            return new Error("User ID limit exceeded. No available IDs.")
+        }
+        existingUser = await User.findOne({ unique_ID: newId })
+    }
+  
+    return newId;
+}
+
 exports.addUser = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
@@ -463,6 +490,16 @@ exports.addUser = async (req, res) => {
             if(jobDetails){
                 jobDetails.forEach(JD => {
                     locationIds.push(JD.location)
+                })
+                // for check template assigned or not
+                jobDetails.forEach(async JD => {
+                    if(JD?.templateId){
+                        const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
+                        if(!template){
+                            return res.send({ status: 404, message: 'Template not found' })
+                        }
+                        JD.isTemplateSigned = false
+                    }
                 })
             }
 
@@ -621,8 +658,10 @@ exports.addUser = async (req, res) => {
                 }
             }
             // console.log('new user', newUser)
+            const unique_ID = await generateUserId()
             const user = await User.create({
                 ...newUser,
+                unique_ID,
                 userContractURL: contractURL?.secure_url
             })
 
@@ -661,24 +700,55 @@ exports.getUser = async (req, res) => {
     }
 }
 
+const getGracePoints = async (userId, jobId) => {
+    const startDate = moment().startOf('month').toDate()
+    const endDate = moment().endOf('month').toDate()
+    const countOfLateClockIn = await Task.find({ userId, jobId, isLate: true, createdAt: { $gte: startDate, $lte: endDate } }).countDocuments()
+    return countOfLateClockIn > 0 ? countOfLateClockIn : 0
+}
+
+const calculateUserGracePoints = async (users) => {
+    return Promise.all(users.map(async (user) => {
+        let roleWisePoints = []
+
+        await Promise.all(user.jobDetails.map(async (job) => {
+            const { _id: jobId, jobTitle } = job
+            let gracePoints = await getGracePoints(user._id, jobId)
+
+            roleWisePoints.push({
+                jobId,
+                jobTitle,
+                gracePoints
+            })
+        }))
+
+        return {
+            ...user.toObject(),
+            roleWisePoints
+        }
+    }))
+}
+
 exports.getAllUsers = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
-            const timePeriod = parseInt(req.query.timePeriod)
+            // const timePeriod = parseInt(req.query.timePeriod)
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            let timeFilter = {}
-            if (timePeriod) {
-                const filteredHour = new Date()
-                filteredHour.setHours(filteredHour.getHours() - timePeriod)
-                timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
-            }
+            // let timeFilter = {}
+            // if (timePeriod) {
+            //     const filteredHour = new Date()
+            //     filteredHour.setHours(filteredHour.getHours() - timePeriod)
+            //     timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
+            // }
 
-            let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+            // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+            let baseQuery = { isDeleted: { $ne: true } }
 
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
@@ -686,14 +756,24 @@ exports.getAllUsers = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
-            } else {
+            } else if(req.user.role === 'Manager') {
+                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
             }
 
-            const users = await User.find(baseQuery).skip(skip).limit(limit)
-            const totalUsers = await User.find(baseQuery).countDocuments()
+            if (searchQuery) {
+                baseQuery.$or = [
+                    { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
+                    { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
+                ];
+            }
+
+            const allUsers = await User.find(baseQuery)            
+            const updateUsers = await calculateUserGracePoints(allUsers)
+            const users = updateUsers.slice(skip, skip + limit)
+            const totalUsers = updateUsers.length
 
             return res.send({
                 status: 200,
@@ -983,5 +1063,33 @@ exports.sendMailToEmployee = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while sending mail:', error)
         res.send({ message: 'Error occurred while sending mail!' })
+    }
+}
+
+exports.activateDeactivateUser = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin']
+        if(allowedRoles.includes(req.user.role)){
+            const { userId } = req.query
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            if(user.isActive){
+                user.isActive = false
+                await user.save()
+                return res.send({ status: 200, message: 'User deactivate successfully' })
+            } else {
+                user.isActive = true
+                await user.save()
+                return res.send({ status: 200, message: 'User activate successfully' })
+            }
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deacting user:', error)
+        res.send({ message: 'Error occurred while deacting user!' })
     }
 }

@@ -114,57 +114,22 @@ exports.getNotifications = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
             const userId = req.user._id
 
-            let matchStage = {}
+            const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    
+            if (!existingUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
 
-            if (req.user.role === "Superadmin") {
-                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-    
-                if (!existingUser) {
-                    return res.send({ status: 404, message: "User not found" })
-                }
-                matchStage = {
-                    "readBy": {
-                        $elemMatch: {
-                            userId: new mongoose.Types.ObjectId(String(userId))
-                        }
-                    }
-                }
-            } else {
-                const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-    
-                if (!existingUser) {
-                    return res.send({ status: 404, message: "User not found" })
-                }
-    
-                if (req.user.role === "Administrator") {
-                    matchStage = {
-                        "readBy": {
-                            $elemMatch: {
-                                userId: new mongoose.Types.ObjectId(String(userId))
-                            }
-                        }
-                    }
-                } else if(req.user.role === "Manager") {
-                    matchStage = {
-                        "readBy": {
-                            $elemMatch: {
-                                userId: new mongoose.Types.ObjectId(String(userId))
-                            }
-                        }
-                    }
-                } else if(req.user.role === 'Employee') {
-                    matchStage = {
-                        // "notifiedId": userId,
-                        "readBy": {
-                            $elemMatch: {
-                                userId: new mongoose.Types.ObjectId(String(userId))
-                            }
-                        }
+            let matchStage = {
+                "readBy": {
+                    $elemMatch: {
+                        userId: new mongoose.Types.ObjectId(String(userId))
                     }
                 }
             }
@@ -184,6 +149,9 @@ exports.getNotifications = async (req, res) => {
                 { $sort: { createdAt: -1 } },
                 {
                     $addFields: {
+                        userName: {
+                            $concat: ["$user.personalDetails.firstName", " ", "$user.personalDetails.lastName"] 
+                        },
                         isRead: {
                             $max: {
                                 $map: {
@@ -203,6 +171,18 @@ exports.getNotifications = async (req, res) => {
                         }
                     }
                 },
+            ]
+
+            if (searchQuery) {
+                const regex = new RegExp(searchQuery.replace(/[-\s]/g, "[-\\s]*"), "i")
+                pipeline.push({
+                    $match: {
+                        userName: { $regex: regex }
+                    }
+                })
+            }
+
+            pipeline.push(
                 {
                     $project: {
                         userId: 1,
@@ -216,9 +196,9 @@ exports.getNotifications = async (req, res) => {
                         isRead: 1
                     }
                 }
-            ]
+            )
 
-            const notifications = await Notification.aggregate(pipeline).skip(skip).limit(limit)
+            const notifications = await Notification.aggregate([...pipeline]).skip(skip).limit(limit)
 
             const totalNotificationsResult = await Notification.aggregate([...pipeline, { $count: "total" }])
             const totalNotifications = totalNotificationsResult.length > 0 ? totalNotificationsResult[0].total : 0;
@@ -264,6 +244,164 @@ exports.getNotifications = async (req, res) => {
         console.error("Error occurred while fetching notifications:", error)
         res.send({ message: "Error occurred while fetching notifications!" }) 
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+
+    //         const skip = (page - 1) * limit
+
+    //         const userId = req.user._id
+
+    //         let matchStage = {}
+
+    //         if (req.user.role === "Superadmin") {
+    //             const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    
+    //             if (!existingUser) {
+    //                 return res.send({ status: 404, message: "User not found" })
+    //             }
+    //             matchStage = {
+    //                 "readBy": {
+    //                     $elemMatch: {
+    //                         userId: new mongoose.Types.ObjectId(String(userId))
+    //                     }
+    //                 }
+    //             }
+    //         } else {
+    //             const existingUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    
+    //             if (!existingUser) {
+    //                 return res.send({ status: 404, message: "User not found" })
+    //             }
+    
+    //             if (req.user.role === "Administrator") {
+    //                 matchStage = {
+    //                     "readBy": {
+    //                         $elemMatch: {
+    //                             userId: new mongoose.Types.ObjectId(String(userId))
+    //                         }
+    //                     }
+    //                 }
+    //             } else if(req.user.role === "Manager") {
+    //                 matchStage = {
+    //                     "readBy": {
+    //                         $elemMatch: {
+    //                             userId: new mongoose.Types.ObjectId(String(userId))
+    //                         }
+    //                     }
+    //                 }
+    //             } else if(req.user.role === 'Employee') {
+    //                 matchStage = {
+    //                     // "notifiedId": userId,
+    //                     "readBy": {
+    //                         $elemMatch: {
+    //                             userId: new mongoose.Types.ObjectId(String(userId))
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         // console.log('matchStage', matchStage)
+
+    //         let pipeline = [
+    //             {
+    //                 $lookup: {
+    //                     from: "users",
+    //                     localField: "userId",
+    //                     foreignField: "_id",
+    //                     as: "user"
+    //                 }
+    //             },
+    //             { $unwind: "$user" },
+    //             { $match: matchStage },
+    //             { $sort: { createdAt: -1 } },
+    //             {
+    //                 $addFields: {
+    //                     userName: {
+    //                         $concat: ["$user.personalDetails.firstName", " ", "$user.personalDetails.lastName"] 
+    //                     },
+    //                     isRead: {
+    //                         $max: {
+    //                             $map: {
+    //                                 input: {
+    //                                     $filter: {
+    //                                         input: "$readBy",
+    //                                         as: "item",
+    //                                         cond: { 
+    //                                             $eq: ["$$item.userId", new mongoose.Types.ObjectId(String(userId))] 
+    //                                         }
+    //                                     }
+    //                                 },
+    //                                 as: "match",
+    //                                 in: "$$match.isRead"
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             },
+    //             {
+    //                 $project: {
+    //                     userId: 1,
+    //                     userName: 1,
+    //                     notifiedId: 1,
+    //                     type: 1,
+    //                     message: 1,
+    //                     readBy: 1,
+    //                     createdAt: 1,
+    //                     updatedAt: 1,
+    //                     isRead: 1
+    //                 }
+    //             }
+    //         ]
+
+    //         const notifications = await Notification.aggregate(pipeline).skip(skip).limit(limit)
+
+    //         const totalNotificationsResult = await Notification.aggregate([...pipeline, { $count: "total" }])
+    //         const totalNotifications = totalNotificationsResult.length > 0 ? totalNotificationsResult[0].total : 0;
+
+    //         let unreadNotificationsCount = 0
+    //         const unreadNotifications = await Notification.aggregate([
+    //             {
+    //                 $lookup: {
+    //                     from: "users",
+    //                     localField: "userId",
+    //                     foreignField: "_id",
+    //                     as: "user"
+    //                 }
+    //             },
+    //             { $unwind: "$user" },
+    //             { 
+    //                 $match: {
+    //                     ...matchStage,
+    //                     readBy: {
+    //                         $elemMatch: {
+    //                             userId: new mongoose.Types.ObjectId(String(userId)),
+    //                             isRead: false,
+    //                         }
+    //                     }
+    //                 }
+    //             },
+    //             { $count: 'unreadNotificationsCount' }
+    //         ])
+
+    //         unreadNotificationsCount = unreadNotifications.length > 0 ? unreadNotifications[0].unreadNotificationsCount : 0
+
+    //         res.send({
+    //             status: 200,
+    //             message: 'Notifications fetched successfully.',
+    //             unreadNotificationsCount,
+    //             notifications,
+    //             totalNotifications,
+    //             totalPages: Math.ceil(totalNotifications / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error("Error occurred while fetching notifications:", error)
+    //     res.send({ message: "Error occurred while fetching notifications!" }) 
+    // }
 }
 
 exports.getUnreadNotificationsCount = async (req, res) => {
