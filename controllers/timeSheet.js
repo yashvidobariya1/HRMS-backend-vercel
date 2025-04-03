@@ -1506,6 +1506,7 @@ exports.getAllQRCodes = async (req, res) => {
             const locationId = req.params.id
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = ( page - 1 ) * limit
 
@@ -1520,8 +1521,20 @@ exports.getAllQRCodes = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).skip(skip).limit(limit)
-            const totalQRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).countDocuments()
+            let baseQuery = { companyId, locationId, isActive: { $ne: false } }
+
+            let QRCodes = await QR.find(baseQuery).populate('locationId', 'locationName')
+
+            if(searchQuery){
+                const regex = new RegExp(searchQuery.replace(/[-\s]/g, "[-\\s]*"), "i")
+                QRCodes = QRCodes.filter(QR => {
+                    const locationName = QR?.locationId?.locationName
+                    return regex.test(`${locationName}`)
+                })
+            }
+
+            const totalQRCodes = QRCodes.length
+            const allQRCodes = QRCodes.slice(skip, skip + limit)
 
             let qrValue = `${location?.locationName}-${company?.companyDetails?.businessName}`
 
@@ -1529,7 +1542,7 @@ exports.getAllQRCodes = async (req, res) => {
                 status: 200,
                 message: 'QR codes fetched successfully.',
                 qrValue,
-                QRCodes,
+                QRCodes: allQRCodes,
                 totalQRCodes,
                 totalPages: Math.ceil(totalQRCodes / limit) || 1,
                 currentPage: page || 1

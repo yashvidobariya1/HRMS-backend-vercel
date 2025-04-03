@@ -24,14 +24,18 @@ const RecruitmentJobSchema = new mongoose.Schema({
     companyWebSite: String,
     companyEmail: String, // required
     companyContactNumber: Number,
-    totalApplicant: Number,
+    totalApplicants: {
+        type: Number,
+        default: 0
+    },
     jobPostedLink: String,
     jobUniqueKey: String,
     createdBy: String, // creator role
     creatorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }
+    },
+    canceledAt: Date,
     
 }, { timestamps: true })
 

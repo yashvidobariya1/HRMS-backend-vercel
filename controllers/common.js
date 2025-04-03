@@ -27,7 +27,7 @@ exports.login = async (req, res) => {
         }
 
         if(isExist && isExist?.isActive === false){
-            return res.send({ status: 400, message: 'You do not have permission for loogIn!' })
+            return res.send({ status: 400, message: 'You do not have permission for logIn!' })
         }
 
         const token = await isExist.generateAuthToken()
