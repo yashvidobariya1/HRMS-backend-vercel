@@ -4,6 +4,13 @@ const Company = require('../models/company');
 const cloudinary = require('../utils/cloudinary');
 const axios = require("axios");
 const moment = require('moment');
+const mammoth = require('mammoth');
+
+const extractPlaceholders = (text) => {
+    const placeholderRegex = /{(.*?)}/g
+    let matches = text.match(placeholderRegex)
+    return matches ? matches.map(match => match.replace(/{{|}}/g, '').trim()) : []
+};
 
 exports.addTemplate = async (req, res) => {
     try {

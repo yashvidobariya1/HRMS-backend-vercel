@@ -996,9 +996,9 @@ exports.approveLeaveRequest = async (req, res) => {
             const leaveRequestId = req.params.id
             const { leaves, approvalReason } = req.body
 
-            if(!approvalReason){
-                return res.send({ status: 400, message: 'Approval reason is required' })
-            }
+            // if(!approvalReason){
+            //     return res.send({ status: 400, message: 'Approval reason is required' })
+            // }
 
             const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
 
@@ -1096,6 +1096,10 @@ exports.rejectLeaveRequest = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
             const { rejectionReason } = req.body
+
+            // if(!rejectionReason){
+            //     return res.send({ status: 400, message: 'Rejection reason is required' })
+            // }
 
             const leave = await Leave.findOne({ _id: leaveRequestId, isDeleted: { $ne: true } })
 

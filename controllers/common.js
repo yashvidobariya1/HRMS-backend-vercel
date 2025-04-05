@@ -13,6 +13,7 @@ const useragent = require("useragent");
 const streamifier = require('streamifier');
 const Template = require("../models/template");
 const Task = require("../models/task");
+const Timesheet = require("../models/timeSheet");
 
 exports.login = async (req, res) => {
     try {
@@ -772,8 +773,38 @@ exports.getAllUsers = async (req, res) => {
 
             const allUsers = await User.find(baseQuery)            
             const updateUsers = await calculateUserGracePoints(allUsers)
-            const users = updateUsers.slice(skip, skip + limit)
-            const totalUsers = updateUsers.length
+
+            // user's today clock in active or not
+            const usersWithClockInStatus = await Promise.all(
+                updateUsers.map(async (user) => {
+                    let todaysTimesheet = []
+    
+                    for (const job of user.jobDetails) {
+                        const timesheet = await Timesheet.findOne({
+                            userId: user._id,
+                            jobId: job._id,
+                            date: moment().format('YYYY-MM-DD'),
+                            isTimerOn: true
+                        })
+    
+                        todaysTimesheet.push({
+                            jobId: job._id,
+                            jobName: job.jobTitle,
+                            isActiveClockIn: !!timesheet
+                        })
+                    }
+    
+                    return {
+                        ...user,
+                        todaysTimesheet
+                    }
+                })
+            )
+            const users = usersWithClockInStatus.slice(skip, skip + limit)
+            const totalUsers = usersWithClockInStatus.length
+
+            // const users = updateUsers.slice(skip, skip + limit)
+            // const totalUsers = updateUsers.length
 
             return res.send({
                 status: 200,

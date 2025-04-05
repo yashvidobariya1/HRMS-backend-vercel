@@ -12,7 +12,7 @@ exports.addLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius } = req.body
+            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius, breakTime, graceTime } = req.body
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -41,6 +41,8 @@ exports.addLocation = async (req, res) => {
                 postcode,
                 country,
                 ukviApproved,
+                breakTime,
+                graceTime,
             }
 
             // console.log('new Location', newLocation)
@@ -266,6 +268,8 @@ exports.updateLocationDetails = async (req, res) => {
                         latitude: req.body.latitude,
                         longitude: req.body.longitude,
                         radius: req.body.radius,
+                        breakTime: req.body.breakTime,
+                        graceTime: req.body.graceTime,
                         address: req.body.address,
                         addressLine2: req.body.addressLine2,
                         city: req.body.city,

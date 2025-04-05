@@ -587,9 +587,9 @@ exports.rejectReport = async (req, res) => {
             return res.send({ status: 404, message: 'Report not found' })
         }
 
-        if(!reason){
-            return res.send({ status: 400, message: 'Rejection reason is required!' })
-        }
+        // if(!reason){
+        //     return res.send({ status: 400, message: 'Rejection reason is required!' })
+        // }
 
         report?.employees.map(user => {
             // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){

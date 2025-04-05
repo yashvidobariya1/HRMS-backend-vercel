@@ -51,11 +51,11 @@ exports.createJobPost = async (req, res) => {
 
             if (!isUnique) {
                 uniqueId = generateUniqueId();
-                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/job/${uniqueId}` });
+                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/job?key=${uniqueId}` });
                 if (!existingJob) isUnique = true;
             }
 
-            const generatedUrl = `${process.env.FRONTEND_URL}/job/${uniqueId}`
+            const generatedUrl = `${process.env.FRONTEND_URL}/job?key=${uniqueId}`
 
             let jobPostImg
             if(jobPhoto){
@@ -105,14 +105,17 @@ exports.createJobPost = async (req, res) => {
 
 exports.getJobPost = async (req, res) => {
     try {
-        const jobPostId = req.params.id
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const jobPostId = req.params.id
 
-        const jobPost = await RecruitmentJob.findOne({ _id: jobPostId, isDeleted: { $ne: true } })
-        if(!jobPost){
-            return res.send({ status: 404, message: 'Job post not found' })
-        }
+            const jobPost = await RecruitmentJob.findOne({ _id: jobPostId, isDeleted: { $ne: true } })
+            if(!jobPost){
+                return res.send({ status: 404, message: 'Job post not found' })
+            }
 
-        return res.send({ status: 200, message: 'Job post fetched successfully', jobPost })
+            return res.send({ status: 200, message: 'Job post fetched successfully', jobPost })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching job post:', error)
         res.send({ message: 'Error occurred while fetching job post!' })
@@ -121,7 +124,7 @@ exports.getJobPost = async (req, res) => {
 
 exports.getJobPostForPublic = async (req, res) => {
     try {
-        const jobPostKey = req.params.key
+        const jobPostKey = req.query.key
 
         const jobPost = await RecruitmentJob.findOne({ jobUniqueKey: jobPostKey, isDeleted: { $ne: true } })
         if(!jobPost){

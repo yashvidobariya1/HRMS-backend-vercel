@@ -96,7 +96,10 @@ exports.getAllCandidates = async (req, res) => {
             }
 
             if (searchQuery) {
-                baseQuery['candidates.firstName'] = { $regex: searchQuery, $options: 'i' }
+                baseQuery['$or'] = [
+                    { firstName: { $regex: searchQuery, $options: 'i' } },
+                    { lastName: { $regex: searchQuery, $options: 'i' } }
+                ]
             }
 
             const candidates = await Candidate.aggregate([
@@ -129,16 +132,17 @@ exports.getAllCandidates = async (req, res) => {
 
             const totalCandidates = candidates.length
 
-            return res.status(200).json({
+            return res.send({
+                status: 200,
                 message: 'Candidates fetched successfully',
                 candidates,
                 totalCandidates,
-                totalPages: Math.ceil((totalCandidates.length ? totalCandidates[0].total : 0) / limit) || 1,
+                totalPages: Math.ceil(totalCandidates / limit) || 1,
                 currentPage: page
             })
-        } else return res.status(403).json({ message: 'Access denied' })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching candidates:', error)
-        return res.status(500).json({ message: 'Error occurred while fetching candidates!' })
+        return response.send({ message: 'Error occurred while fetching candidates!' })
     }
 }

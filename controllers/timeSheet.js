@@ -50,6 +50,9 @@ exports.clockInFunc = async (req, res) => {
             }
 
             const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -71,13 +74,16 @@ exports.clockInFunc = async (req, res) => {
                 GEOFENCE_CENTER,
                 GEOFENCE_RADIUS
             )) {
-                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+                return res.send({ status: 403, message: 'You are outside the company location area.' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
             let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
-            const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate })
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: "You don't have any tasks assigned for today!" })
+            }
             
             if (!timesheet) {
                 timesheet = new Timesheet({
@@ -91,7 +97,7 @@ exports.clockInFunc = async (req, res) => {
                     // console.log('assignedTask.startTime', assignedTask.startTime)
                     // console.log('time now:', moment().format('HH:mm'))
                     const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
-                    const allowedClockInTime = moment(taskStartTime).add(process.env.GRACING_TIME, 'minutes')
+                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
                     const currentTime = moment()
                     if (currentTime.isAfter(allowedClockInTime)) {
                         await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
@@ -278,6 +284,9 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -299,7 +308,7 @@ exports.clockOutFunc = async (req, res) => {
                 GEOFENCE_CENTER,
                 GEOFENCE_RADIUS
             )) {
-                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+                return res.send({ status: 403, message: 'You are outside the company location area.' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
@@ -314,7 +323,7 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClockin.clockOut = moment().toDate()
+            lastClockin.clockOut = moment().subtract(companyLocation?.breakTime, 'minutes').toDate()
             lastClockin.isClockin = false
 
             const clockInTime = moment(lastClockin.clockIn).toDate()
@@ -433,17 +442,188 @@ exports.clockOutFunc = async (req, res) => {
     }
 }
 
+exports.clockInForEmployee = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const {
+                date,
+                startTime,
+                userId,
+                jobId
+            } = req.body
+
+            if(!date || !startTime){
+                return res.send({ status: 400, message: "Date and start time are required" })
+            }
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
+
+            let timesheet = await Timesheet.findOne({ userId, jobId, date })
+
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: date, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}` : `${existUser?.personalDetails?.firstName}`} today!` })
+            }
+
+            if (!timesheet) {
+                timesheet = new Timesheet({
+                    userId,
+                    jobId,
+                    date,
+                    clockinTime: [],
+                    totalHours: '0h 0m 0s'
+                })
+                if(assignedTask){
+                    const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
+                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
+                    const currentTime = moment()
+                    if (currentTime.isAfter(allowedClockInTime)) {
+                        await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
+                    }
+                }
+            }
+
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+
+            if (lastClockin && !lastClockin.clockOut) {
+                return res.send({ status: 400, message: "Please clock out before clockin again." })
+            }
+
+            timesheet.clockinTime.push({
+                clockIn: moment(`${date}T${startTime}`).format('YYYY-MM-DDTHH:mm:ss.SSS'),
+                clockOut: "",
+                isClockin: true
+            })
+            
+            timesheet.isTimerOn = true
+            await timesheet.save()
+
+            return res.send({ status: 200, message: 'Clock IN successfully', timesheet })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while clock-IN:', error)
+        return res.send({ message: 'Error occurred while clock-IN!' })
+    }
+}
+
+exports.clockOutForEmployee = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const {
+                date,
+                endTime,
+                userId,
+                jobId
+            } = req.body
+
+            if(!date || !endTime){
+                return res.send({ status: 400, message: "Date and end time are required" })
+            }
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
+
+            const timesheet = await Timesheet.findOne({ userId, jobId, date })
+
+            if (!timesheet) {
+                return res.send({ status: 404, message: "No timesheet found for today." })
+            }
+
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+            if (!lastClockin || lastClockin.clockOut) {
+                return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
+            }
+
+            lastClockin.clockOut = moment(`${date}T${endTime}`).subtract(companyLocation?.breakTime, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS')
+            lastClockin.isClockin = false
+
+            const clockInTime = moment(lastClockin.clockIn).toDate()
+            const clockOutTime = moment(lastClockin.clockOut).toDate()            
+
+            const duration = formatDuration(clockInTime, clockOutTime)
+            lastClockin.totalTiming = duration
+
+            if (timesheet.totalHours == '0h 0m 0s') {
+                timesheet.totalHours = duration
+            } else {
+                const result = addDurations(timesheet.totalHours, duration)
+                timesheet.totalHours = result
+            }
+
+            timesheet.isTimerOn = false
+            await timesheet.save()
+
+            const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
+            const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')           
+
+            const weeklyTimesheets = await Timesheet.find({
+                userId,
+                date: { $gte: startOfWeek, $lte: endOfWeek }
+            })
+
+            const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
+                return addDurations(total, ts.totalHours);
+            }, "0h 0m 0s")
+
+            const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
+
+            const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
+            
+            if(weeklyOvertime !== '0h 0m 0s') {
+                timesheet.isOverTime = true
+                timesheet.overTime = weeklyOvertime
+            }
+
+            await timesheet.save()
+
+            return res.send({ status: 200, message: 'Clock OUT successfully', timesheet })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while clock-OUT:', error)
+        return res.send({ message: 'Error occurred while clock-OUT!' })
+    }
+}
+
 // for clock in/out frontend page
 exports.getOwnTodaysTimeSheet = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
 
-            const userId = req.user._id
+            const userId = req.body.userId || req.user._id
             const { jobId } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
