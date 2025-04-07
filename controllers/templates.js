@@ -133,7 +133,7 @@ exports.addTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating template form:', error)
-        res.send({ message: 'Error occurred while creating templates form!' })
+        return res.send({ status: 500, message: 'Error occurred while creating templates form!' })
     }
 }
 
@@ -160,7 +160,7 @@ exports.getTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.log('Error occurred while fetching template:', error)
-        res.send({ message: 'Error occurred while fetching template!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching template!' })
     }
 }
 
@@ -194,7 +194,7 @@ exports.getAllTemplates = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.log('Error occurred while fetching templates:', error)
-        res.send({ message: 'Error occurred while fetching templates!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching templates!' })
     }
 }
 
@@ -262,7 +262,7 @@ exports.updateTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating template details:", error);
-        res.send({ message: "Something went wrong while updating template details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating template details!" })
     }
 }
 
@@ -294,7 +294,7 @@ exports.deleteTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing template:", error);
-        res.send({ message: "Something went wrong while removing template!" })
+        return res.send({ status: 500, message: "Something went wrong while removing template!" })
     }
 }
 
@@ -343,7 +343,7 @@ exports.previewTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while showing template:', error)
-        res.send({ message: 'Error occurred while showing template!' })
+        return res.send({ status: 500, message: 'Error occurred while showing template!' })
     }
 }
 
@@ -387,6 +387,6 @@ exports.saveTemplateWithSignature = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while saving signature:', error)
-        res.send('Error occurred while saving signature!')
+        return res.send({ status: 500, message: 'Error occurred while saving signature!' })
     }
 }

@@ -165,7 +165,7 @@ exports.addManager = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while adding manager:", error);
-    //     res.send({ message: "Something went wrong while adding manager!" })
+    //     return res.send({ status: 500, message: "Something went wrong while adding manager!" })
     // }
 }
 
@@ -190,7 +190,7 @@ exports.getManager = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while getting manager:", error);
-    //     res.send({ message: "Something went wrong while getting manager!" })
+    //     return res.send({ status: 500, message: "Something went wrong while getting manager!" })
     // }
 }
 
@@ -217,7 +217,7 @@ exports.getAllManager = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while getting managers:", error);
-    //     res.send({ message: "Something went wrong while getting managers!" })
+    //     return res.send({ status: 500, message: "Something went wrong while getting managers!" })
     // }
 }
 
@@ -337,7 +337,7 @@ exports.updateManagerDetails = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while updating manager details:", error);
-    //     res.send({ message: "Something went wrong while updating manager details!" })
+    //     return res.send({ status: 500, message: "Something went wrong while updating manager details!" })
     // }
 }
 
@@ -367,6 +367,6 @@ exports.deleteManager = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while removing manager:", error);
-    //     res.send({ message: "Something went wrong while removing manager!" })
+    //     return res.send({ status: 500, message: "Something went wrong while removing manager!" })
     // }
 }

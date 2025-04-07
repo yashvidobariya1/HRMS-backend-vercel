@@ -55,7 +55,7 @@ exports.applyForJob = async (req, res) => {
         return res.send({ status: 200, message: 'Your application submit successfully', candidate })
     } catch (error) {
         console.error('Error occurred while applying job:', error)
-        res.send({ message: ' Error occurred while appliying job!' })
+        return res.send({ status: 500, message: ' Error occurred while appliying job!' })
     }
 }
 
@@ -74,7 +74,7 @@ exports.getCandidateDetails = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching candidate:', error)
-        return res.send({ message: 'Error occurred while fetching candidate!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching candidate!' })
     }
 }
 
@@ -143,6 +143,6 @@ exports.getAllCandidates = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching candidates:', error)
-        return response.send({ message: 'Error occurred while fetching candidates!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching candidates!' })
     }
 }

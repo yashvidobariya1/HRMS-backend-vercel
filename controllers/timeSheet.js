@@ -187,7 +187,7 @@ exports.clockInFunc = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock in:", error);
-        res.send({ message: "Something went wrong while clock in!" })
+        return res.send({ status: 500, message: "Something went wrong while clock in!" })
     }
 }
 
@@ -438,7 +438,7 @@ exports.clockOutFunc = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock out:", error);
-        res.send({ message: "Something went wrong while clock out!" })
+        return res.send({ status: 500, message: "Something went wrong while clock out!" })
     }
 }
 
@@ -517,7 +517,7 @@ exports.clockInForEmployee = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while clock-IN:', error)
-        return res.send({ message: 'Error occurred while clock-IN!' })
+        return res.send({ status: 500, message: 'Error occurred while clock-IN!' })
     }
 }
 
@@ -609,7 +609,7 @@ exports.clockOutForEmployee = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while clock-OUT:', error)
-        return res.send({ message: 'Error occurred while clock-OUT!' })
+        return res.send({ status: 500, message: 'Error occurred while clock-OUT!' })
     }
 }
 
@@ -652,7 +652,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching timesheet:', error);
-        res.send({ message: "Something went wrong while fetching the timesheet!" });
+        return res.send({ status: 500, message: "Something went wrong while fetching the timesheet!" });
     }
 }
 
@@ -746,7 +746,7 @@ exports.getAllTimeSheets = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching time sheet:', error)
-        res.send({ message: 'Something went wrong while fetching time sheet!' })
+        return res.send({ status: 500, message: 'Something went wrong while fetching time sheet!' })
     }
 }
 
@@ -856,7 +856,8 @@ exports.getTimesheetReport = async (req, res) => {
         
 
             // 1. Fetch timesheet entries (Check-ins/outs)
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
             // console.log('timesheet:', timesheets)
 
             // 2. Fetch leave requests
@@ -889,7 +890,8 @@ exports.getTimesheetReport = async (req, res) => {
 
             const timesheetMap = new Map()
             timesheets.map(TS => {
-                const dateKey = TS.createdAt.toISOString().split("T")[0]
+                // const dateKey = TS.createdAt.toISOString().split("T")[0]
+                const dateKey = TS.date
                 timesheetMap.set(dateKey, TS)
             })
             // console.log('timesheets:', timesheets)
@@ -923,7 +925,8 @@ exports.getTimesheetReport = async (req, res) => {
 
                 if (isWeekend || isFuture) return null
             
-                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
                 const leaveEntries = leaves.filter(leave => {
                     const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
                     const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
@@ -1025,7 +1028,7 @@ exports.getTimesheetReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching timesheet report:', error)
-        res.send({ message: 'Error occurred while fetching timesheet report!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching timesheet report!' })
     }
 }
 
@@ -1220,7 +1223,7 @@ exports.getTimesheetReport = async (req, res) => {
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while downloading timesheet report:', error)
-//         res.send({ message: 'Error occurred while downloading timesheet report!' })
+//         return res.send({ status: 500, message: 'Error occurred while downloading timesheet report!' })
 //     }
 // }
 
@@ -1282,7 +1285,8 @@ exports. downloadTimesheetReport = async (req, res) => {
             }
 
             // Fetch timesheet, leave, and holiday data
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+            // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
 
             const leaves = await Leave.find({ 
                 userId, jobId, 
@@ -1297,7 +1301,8 @@ exports. downloadTimesheetReport = async (req, res) => {
 
             const timesheetMap = new Map()
             timesheets.forEach(ts => {
-                const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                // const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                const dateKey = ts.date
                 timesheetMap.set(dateKey, ts)
             })
 
@@ -1604,7 +1609,7 @@ exports. downloadTimesheetReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while downloading timesheet report:', error)
-        res.send({ message: 'Error occurred while downloading timesheet report!' })
+        return res.send({ status: 500, message: 'Error occurred while downloading timesheet report!' })
     }
 }
 
@@ -1674,7 +1679,7 @@ exports.generateQRcode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occured while generating QR code:', error)
-        res.send({ message: 'Error occured while generating QR code!' })
+        return res.send({ status: 500, message: 'Error occured while generating QR code!' })
     }
 }
 
@@ -1731,7 +1736,7 @@ exports.getAllQRCodes = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching company QR codes:', error)
-        res.send({ message: 'Error occurred while fetching QR codes!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching QR codes!' })
     }
 }
 
@@ -1753,7 +1758,7 @@ exports.inactivateQRCode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while inactivating the QRCode:', error)
-        res.send({ message: 'Error occurred while inactivating the QRCode!' })
+        return res.send({ status: 500, message: 'Error occurred while inactivating the QRCode!' })
     }
 }
 
@@ -1819,7 +1824,7 @@ exports.inactivateQRCode = async (req, res) => {
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred during QR code verification:', error);
-//         res.send({ message: 'Error occurred during QR code verification!' });
+//         return res.send({ status: 500, message: 'Error occurred during QR code verification!' });
 //     }
 // };
 
@@ -1860,6 +1865,6 @@ exports.verifyQRCode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred during QR code verification:', error)
-        res.send({ message: 'Error occurred during QR code verification!' })
+        return res.send({ status: 500, message: 'Error occurred during QR code verification!' })
     }
 };

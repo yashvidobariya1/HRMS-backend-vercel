@@ -242,7 +242,7 @@ exports.getNotifications = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.send({ message: "Error occurred while fetching notifications!" }) 
+        return res.send({ status: 500, message: "Error occurred while fetching notifications!" }) 
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
@@ -400,7 +400,7 @@ exports.getNotifications = async (req, res) => {
     //     } else return res.send({ status: 403, message: 'Access denied' })
     // } catch (error) {
     //     console.error("Error occurred while fetching notifications:", error)
-    //     res.send({ message: "Error occurred while fetching notifications!" }) 
+    //     return res.send({ status: 500, message: "Error occurred while fetching notifications!" }) 
     // }
 }
 
@@ -474,7 +474,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications count:", error)
-        res.send({ message: "Error occurred while fetching notifications count!" })
+        return res.send({ status: 500, message: "Error occurred while fetching notifications count!" })
     }
 }
 
@@ -492,7 +492,7 @@ exports.getNotification = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching notification:', error)
-        res.send({ message: 'Error occurred while fetching notification!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching notification!' })
     }
 }
 
@@ -522,6 +522,6 @@ exports.readNotification = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while reading notification:', error)
-        res.send('Error occurred while reading notification')
+        return res.send({ status: 500, message: 'Error occurred while reading notification!' })
     }
 }

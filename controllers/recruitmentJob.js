@@ -99,7 +99,7 @@ exports.createJobPost = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating job post:', error)
-        res.send({ message: 'Error occurred while creating job post!' })
+        return res.send({ status: 500, message: 'Error occurred while creating job post!' })
     }
 }
 
@@ -118,7 +118,7 @@ exports.getJobPost = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching job post:', error)
-        res.send({ message: 'Error occurred while fetching job post!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching job post!' })
     }
 }
 
@@ -147,7 +147,7 @@ exports.getJobPostForPublic = async (req, res) => {
         return res.send({ status: 200, message: 'Job details fetched successfully', jobDetails })
     } catch (error) {
         console.error('Error occurred while fetching job details:', error)
-        return res.send({ message: 'Error occurred while fetching job details!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching job details!' })
     }
 }
 
@@ -181,11 +181,10 @@ exports.getAllJobPosts = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching job posts:', error)
-        res.send({ message: 'Error occurred while fetching job posts!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching job posts!' })
     }
 }
 
-// pending
 exports.updateJobPost = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -256,11 +255,10 @@ exports.updateJobPost = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating job post:', error)
-        res.send({ message: 'Error occurred while updating job post!' })
+        return res.send({ status: 500, message: 'Error occurred while updating job post!' })
     }
 }
 
-// pending
 exports.deleteJobPost = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -286,6 +284,6 @@ exports.deleteJobPost = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deleting job post:', error)
-        res.send({ message: 'Error occurred while deleting job post!' })
+        return res.send({ status: 500, message: 'Error occurred while deleting job post!' })
     }
 }

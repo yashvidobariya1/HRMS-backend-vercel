@@ -55,6 +55,6 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching logged In/Out employees:', error)
-        res.send({ message: 'Error occurred while fetching logged In/Out employees!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching logged In/Out employees!' })
     }
 }

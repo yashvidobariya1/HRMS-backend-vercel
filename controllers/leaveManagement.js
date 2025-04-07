@@ -537,7 +537,7 @@ exports.getLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching leave request:', error)
-        res.send({ message: 'Error occurred while fetching leave request!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching leave request!' })
     }
 }
 
@@ -583,7 +583,7 @@ exports.getAllOwnLeaves = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching all leaves requests:', error)
-        res.send({ message: 'Error occurred while fetching all leave requests!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching all leave requests!' })
     }
 }
 
@@ -650,7 +650,7 @@ exports.getAllowLeaveCount = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching leave count:', error)
-        res.send({ message: 'Error occurred while fetching leave count!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching leave count!' })
     }
 }
 
@@ -718,7 +718,7 @@ exports.getAllLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching own company employees leave requests:', error)
-        res.send({ message: 'Error occurred while fetching own company employees leave requests!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching own company employees leave requests!' })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -795,7 +795,7 @@ exports.getAllLeaveRequest = async (req, res) => {
     //     } else return res.send({ status: 403, message: 'Access denied' })
     // } catch (error) {
     //     console.error('Error occurred while fetching own company employees leave requests:', error)
-    //     res.send({ message: 'Error occurred while fetching own company employees leave requests!' })
+    //     return res.send({ status: 500, message: 'Error occurred while fetching own company employees leave requests!' })
     // }
 }
 
@@ -960,7 +960,7 @@ exports.updateLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating leave request:', error)
-        res.send({ message: 'Error occurred while updating leave request!' })
+        return res.send({ status: 500, message: 'Error occurred while updating leave request!' })
     }
 }
 
@@ -985,7 +985,7 @@ exports.deleteLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deleting leave reqest:', error)
-        res.send({ message: 'Error occurred while deleting leave request!' })
+        return res.send({ status: 500, message: 'Error occurred while deleting leave request!' })
     }
 }
 
@@ -1086,7 +1086,7 @@ exports.approveLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while approving leave request:', error)
-        return res.send({ message: 'Error occurred while approving leave request!' })
+        return res.send({ status: 500, message: 'Error occurred while approving leave request!' })
     }
 }
 
@@ -1167,6 +1167,6 @@ exports.rejectLeaveRequest = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while rejecting leave request:', error)
-        return res.send({ message: 'Error occurred while rejecting leave request!' })
+        return res.send({ status: 500, message: 'Error occurred while rejecting leave request!' })
     }
 }

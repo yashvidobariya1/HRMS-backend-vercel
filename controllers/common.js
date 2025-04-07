@@ -72,7 +72,7 @@ exports.login = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while logging in:", error);
-        res.send({ message: "Something went wrong while login!" })
+        return res.send({ status: 500, message: "Something went wrong while login!" })
     }
 };
 
@@ -92,7 +92,7 @@ exports.logOut = async (req, res) => {
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
         console.error('Error occurred while logging out:', error)
-        res.send({ message: 'Error occurred while logging out!' })
+        return res.send({ status: 500, message: 'Error occurred while logging out!' })
     }
 }
 
@@ -153,7 +153,7 @@ exports.emailVerification = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while email verification:", error);
-        res.send({ message: "Something went wrong while email verification!" })
+        return res.send({ status: 500, message: "Something went wrong while email verification!" })
     }
 }
 
@@ -178,7 +178,7 @@ exports.otpVerification = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while OTP verification:", error);
-        res.send({ message: "Something went wrong while OTP verification!" })
+        return res.send({ status: 500, message: "Something went wrong while OTP verification!" })
     }
 }
 
@@ -218,7 +218,7 @@ exports.forgotPassword = async (req, res) => {
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
         console.error("Error occurred while forgot password:", error);
-        res.send({ message: "Something went wrong while forgot password!" })
+        return res.send({ status: 500, message: "Something went wrong while forgot password!" })
     }
 }
 
@@ -256,7 +256,7 @@ exports.updatePassword = async (req, res) => {
         return res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
         console.error("Error occurred while updating password:", error);
-        res.send({ message: "Something went wrong while updating password!" })
+        return res.send({ status: 500, message: "Something went wrong while updating password!" })
     }
 }
 
@@ -280,7 +280,7 @@ exports.getDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
-        res.send({ message: "Something went wrong while getting details!" })
+        return res.send({ status: 500, message: "Something went wrong while getting details!" })
     }
 }
 
@@ -387,7 +387,7 @@ exports.updateProfileDetails = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating profile details:', error)
-        res.send({ message: 'Error occurred while updating profile details!' })
+        return res.send({ status: 500, message: 'Error occurred while updating profile details!' })
     }
 }
 
@@ -670,7 +670,7 @@ exports.addUser = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding user:", error);
-        res.send({ message: "Something went wrong while adding user!" })
+        return res.send({ status: 500, message: "Something went wrong while adding user!" })
     }
 }
 
@@ -697,7 +697,7 @@ exports.getUser = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting user:", error);
-        res.send({ message: "Something went wrong while getting user!" })
+        return res.send({ status: 500, message: "Something went wrong while getting user!" })
     }
 }
 
@@ -819,7 +819,7 @@ exports.getAllUsers = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while getting users:", error);
-        res.send({ message: "Something went wrong while getting users!" })
+        return res.send({ status: 500, message: "Something went wrong while getting users!" })
     }
 }
 
@@ -1002,7 +1002,7 @@ exports.updateUserDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating user details:", error);
-        res.send({ message: "Something went wrong while updating user details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating user details!" })
     }
 }
 
@@ -1031,7 +1031,7 @@ exports.deleteUserDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing user:", error);
-        res.send({ message: "Something went wrong while removing user!" })
+        return res.send({ status: 500, message: "Something went wrong while removing user!" })
     }
 }
 
@@ -1056,7 +1056,7 @@ exports.getUserJobTitles = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while finding user job type:', error)
-        res.send({ message: 'Error occurred while finding user role job type!' })
+        return res.send({ status: 500, message: 'Error occurred while finding user role job type!' })
     }
 }
 
@@ -1093,7 +1093,7 @@ exports.sendMailToEmployee = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while sending mail:', error)
-        res.send({ message: 'Error occurred while sending mail!' })
+        return res.send({ status: 500, message: 'Error occurred while sending mail!' })
     }
 }
 
@@ -1121,6 +1121,6 @@ exports.activateDeactivateUser = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deacting user:', error)
-        res.send({ message: 'Error occurred while deacting user!' })
+        return res.send({ status: 500, message: 'Error occurred while deacting user!' })
     }
 }
