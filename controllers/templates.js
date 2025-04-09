@@ -32,9 +32,63 @@ exports.addTemplate = async (req, res) => {
                 }
             }
 
-            if (template) {
-                const document = template;
+            const requiredKeys = process.env.REQUIRED_KEY_FOR_TEMPLATE.split(',').map(key => key.trim())
+            let extractedKeys = []
 
+            const document = template
+
+            if(template.startsWith('data:')){
+                template = template.split(',')[1]
+            }
+
+            if (templateFileName.endsWith('.pdf')) {
+                try {
+                    const pdfBuffer = Buffer.from(template, 'base64')
+                    const pdfData = await pdfParse(pdfBuffer)
+                    
+                    if (!pdfData || !pdfData.text) {
+                        throw new Error("PDF extraction failed: No text found.")
+                    }
+
+                    extractedKeys = extractPlaceholders(pdfData.text)
+                } catch (pdfError) {
+                    console.error("PDF Parsing Error:", pdfError)
+                    return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                }
+            } else if (templateFileName.endsWith('.docx')) {
+                try {
+                    const { value } = await mammoth.extractRawText({ buffer: Buffer.from(template, 'base64') })
+                    
+                    if (!value) {
+                        throw new Error("DOCX extraction failed: No text found.")
+                    }
+
+                    extractedKeys = extractPlaceholders(value)
+                } catch (docxError) {
+                    console.error("DOCX Parsing Error:", docxError)
+                    return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                }
+            } else {
+                return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
+            }
+
+            // const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key));
+            // console.log('requiredKeys:', requiredKeys)
+            const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
+            // console.log('extraKeys:', extraKeys)
+
+            // if (missingKeys.length > 0 || extraKeys.length > 0) {
+            if (extraKeys.length > 0) {
+                return res.send({
+                    status: 400,
+                    message: "Template file contains invalid placeholders.",
+                    // missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
+                    extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
+                })
+            }
+
+            let documentURL
+            if (template) {
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing template document');
                     return res.send({ status: 400, message: "Invalid or missing template document." });
@@ -46,7 +100,7 @@ exports.addTemplate = async (req, res) => {
                         format: "docx"
                     });
                     // console.log('Cloudinary response:', element);
-                    template = element.secure_url
+                    documentURL = element.secure_url
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to Cloudinary:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -57,7 +111,7 @@ exports.addTemplate = async (req, res) => {
             const name = [firstName, lastName].filter(Boolean).join(" ");
             const templateForm = {
                 templateName,
-                template,
+                template: documentURL,
                 templateFileName,
                 creatorId: req.user._id,
                 createdRole: req.user.role,
@@ -109,11 +163,18 @@ exports.getAllTemplates = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            const templates = await Template.find({ isDeleted: { $ne: true } }).skip(skip).limit(limit)
-            const totalTemplates = await Template.find({ isDeleted: { $ne: true } }).countDocuments()
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if(searchQuery){
+                baseQuery['templateName'] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const templates = await Template.find(baseQuery).skip(skip).limit(limit)
+            const totalTemplates = await Template.find(baseQuery).countDocuments()
 
             return res.send({
                 status: 200,

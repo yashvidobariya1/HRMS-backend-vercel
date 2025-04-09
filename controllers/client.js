@@ -76,20 +76,25 @@ exports.getAllClient = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
             const companyId = req.query.companyId
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
-            let clients
-            let totalClients = 0
-            if(req.user.role == 'Superadmin'){
-                clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
-            } else if(req.user.role == 'Administrator'){
-                // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
-                clients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
-                totalClients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if (req.user.role === 'Superadmin' && companyId) {
+                baseQuery.companyId = companyId
+            } else if (req.user.role === 'Administrator') {
+                baseQuery.companyId = req.user.companyId
             }
+
+            if (searchQuery) {
+                baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
+            }
+
+            const clients = await Client.find(baseQuery).skip(skip).limit(limit)
+            const totalClients = await Client.find(baseQuery).countDocuments()
+
             return res.send({
                 status: 200,
                 message: 'Clients fetched successfully',
@@ -103,6 +108,40 @@ exports.getAllClient = async (req, res) => {
         console.error('Error occurred while fetching clients:', error)
         res.send({ message: 'Error occurred while fetching clients!' })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+    //         const companyId = req.query.companyId
+    //         const searchQuery = req.query.search
+
+    //         const skip = (page - 1) * limit
+
+    //         let clients
+    //         let totalClients = 0
+    //         if(req.user.role == 'Superadmin'){
+    //             clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         } else if(req.user.role == 'Administrator'){
+    //             // clients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             // totalClients = await Client.find({ companyId: req.user.companyId, locationId: { $in: req.user.locationId }, isDeleted: { $ne: true } }).countDocuments()
+    //             clients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
+    //             totalClients = await Client.find({ companyId: req.user.companyId, isDeleted: { $ne: true } }).countDocuments()
+    //         }
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Clients fetched successfully',
+    //             clients,
+    //             totalClients,
+    //             totalPages: Math.ceil(totalClients / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching clients:', error)
+    //     res.send({ message: 'Error occurred while fetching clients!' })
+    // }
 }
 
 exports.getCompanyClients = async (req, res) => {
@@ -259,7 +298,7 @@ exports.generateLinkForClient = async (req, res) => {
                 startDate,
                 endDate,
                 employees: filteredEmployees,
-                createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
+                // createdBy: `${req.user?.personalDetails?.lastName ? `${req.user?.personalDetails?.firstName} ${req.user?.personalDetails?.lastName}` : `${req.user?.personalDetails?.firstName}`}`,
                 creatorId: req.user._id
             }
 

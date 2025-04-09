@@ -660,58 +660,46 @@ exports.getAllLeaveRequest = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = ( page - 1 ) * limit
 
-            let allLeaveRequests
-            let totalLeaveRequests
+            let allLeaveRequests = []
+            let totalLeaveRequests = 0
+
+            let baseQuery = { isDeleted: { $ne: true } }
             
             if(req.user.role == 'Superadmin'){
-                const allLeaveRequestsOfAdmin = await Leave.find({ isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
-
-                let allAdminLR = []
-                for(const LR of allLeaveRequestsOfAdmin){
-                    const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
-                    if (existingUser.role === 'Administrator') {
-                        allAdminLR.push(LR)
-                    }
-                }
-                allLeaveRequests = allAdminLR.slice(skip, skip + limit)
-                totalLeaveRequests = allAdminLR?.length
+                baseQuery['userId'] = { $in: await User.find({ role: 'Administrator', isDeleted: { $ne: true } }).distinct('_id') }
             } else if(req.user.role == 'Administrator'){
-                const allLeaveRequestsOfEmployees = await Leave.find({
-                    companyId: req.user.companyId,
-                    locationId: { $in: req.user.locationId },
-                    isDeleted: { $ne: true }
-                }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
-
-                let allEmployeesLR = []
-                for (const LR of allLeaveRequestsOfEmployees) {
-                    const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
-                    if (existingUser.role === 'Manager') {
-                        allEmployeesLR.push(LR)
-                    }
-                }
-                allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
-                totalLeaveRequests = allEmployeesLR?.length
+                baseQuery['companyId'] = req.user.companyId
+                baseQuery['locationId'] = { $in: req.user.locationId }
+                baseQuery['userId'] = { $in: await User.find({ role: 'Manager', isDeleted: { $ne: true } }).distinct('_id') }
             } else if(req.user.role == 'Manager'){
                 const employees = await User.find({
                     jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
                     isDeleted: { $ne: true }
-                }).select("_id")
-
-                const employeeIds = employees.map(emp => emp._id)
-
-                const leaveRequests = await Leave.find({
-                    userId: { $in: employeeIds },
-                    companyId: req.user.companyId,
-                    locationId: { $in: req.user.locationId },
-                    isDeleted: { $ne: true }
-                }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 });
-
-                allLeaveRequests = leaveRequests.slice(skip, skip + limit)
-                totalLeaveRequests = leaveRequests.length
+                }).select('_id')
+                baseQuery['userId'] = { $in: employees.map(emp => emp._id) }
+                baseQuery['companyId'] = req.user.companyId
+                baseQuery['locationId'] = { $in: req.user.locationId }
             }
+
+            let leaveRequests = await Leave.find(baseQuery)
+                .populate('userId', 'personalDetails.firstName personalDetails.lastName')
+                .sort({ createdAt: -1 })
+
+            if(searchQuery){
+                const regex = new RegExp(searchQuery.replace(/[-\s]/g, "[-\\s]*"), "i")
+                leaveRequests = leaveRequests.filter(leave => {
+                    const firstName = leave?.userId?.personalDetails?.firstName || ''
+                    const lastName = leave?.userId?.personalDetails?.lastName || ''
+                    return regex.test(`${firstName} ${lastName}`) || regex.test(firstName) || regex.test(lastName)
+                })
+            }
+
+            totalLeaveRequests = leaveRequests.length
+            allLeaveRequests = leaveRequests.slice(skip, skip + limit)
 
             const formattedLeaves = allLeaveRequests.length > 0 ? allLeaveRequests.map(leave => ({
                 ...leave.toObject(),
@@ -732,6 +720,83 @@ exports.getAllLeaveRequest = async (req, res) => {
         console.error('Error occurred while fetching own company employees leave requests:', error)
         res.send({ message: 'Error occurred while fetching own company employees leave requests!' })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 10
+
+    //         const skip = ( page - 1 ) * limit
+
+    //         let allLeaveRequests
+    //         let totalLeaveRequests
+            
+    //         if(req.user.role == 'Superadmin'){
+    //             const allLeaveRequestsOfAdmin = await Leave.find({ isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
+
+    //             let allAdminLR = []
+    //             for(const LR of allLeaveRequestsOfAdmin){
+    //                 const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
+    //                 if (existingUser.role === 'Administrator') {
+    //                     allAdminLR.push(LR)
+    //                 }
+    //             }
+    //             allLeaveRequests = allAdminLR.slice(skip, skip + limit)
+    //             totalLeaveRequests = allAdminLR?.length
+    //         } else if(req.user.role == 'Administrator'){
+    //             const allLeaveRequestsOfEmployees = await Leave.find({
+    //                 companyId: req.user.companyId,
+    //                 locationId: { $in: req.user.locationId },
+    //                 isDeleted: { $ne: true }
+    //             }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 })
+
+    //             let allEmployeesLR = []
+    //             for (const LR of allLeaveRequestsOfEmployees) {
+    //                 const existingUser = await User.findOne({ _id: LR.userId, isDeleted: { $ne: true } })
+    //                 if (existingUser.role === 'Manager') {
+    //                     allEmployeesLR.push(LR)
+    //                 }
+    //             }
+    //             allLeaveRequests = allEmployeesLR.slice(skip, skip + limit)
+    //             totalLeaveRequests = allEmployeesLR?.length
+    //         } else if(req.user.role == 'Manager'){
+    //             const employees = await User.find({
+    //                 jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
+    //                 isDeleted: { $ne: true }
+    //             }).select("_id")
+
+    //             const employeeIds = employees.map(emp => emp._id)
+
+    //             const leaveRequests = await Leave.find({
+    //                 userId: { $in: employeeIds },
+    //                 companyId: req.user.companyId,
+    //                 locationId: { $in: req.user.locationId },
+    //                 isDeleted: { $ne: true }
+    //             }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 });
+
+    //             allLeaveRequests = leaveRequests.slice(skip, skip + limit)
+    //             totalLeaveRequests = leaveRequests.length
+    //         }
+
+    //         const formattedLeaves = allLeaveRequests.length > 0 ? allLeaveRequests.map(leave => ({
+    //             ...leave.toObject(),
+    //             userName: `${leave?.userId?.personalDetails?.lastName ? `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}` : `${leave?.userId?.personalDetails?.firstName}`}`,
+    //             userId: leave?.userId?._id
+    //         })) : []
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'All leave requests fetched successfully.',
+    //             allLeaveRequests: formattedLeaves.length > 0 ? formattedLeaves : [],
+    //             totalLeaveRequests,
+    //             totalPages: Math.ceil(totalLeaveRequests / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching own company employees leave requests:', error)
+    //     res.send({ message: 'Error occurred while fetching own company employees leave requests!' })
+    // }
 }
 
 exports.updateLeaveRequest = async (req, res) => {

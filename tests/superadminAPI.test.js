@@ -205,7 +205,7 @@ describe('**- Crud Company Test**', () => {
         test('should return 200 for fetch all companys', async () => {
             const getAllResponse = await request(app).get('/getAllCompany').set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(getAllResponse.text).status).toBe(200);
-            expect(JSON.parse(getAllResponse.text).message).toBe('Companines fetched successfully.');
+            expect(JSON.parse(getAllResponse.text).message).toBe('Companies fetched successfully.');
             expect(JSON.parse(getAllResponse.text).companies).toBeInstanceOf(Array);
         })
         test('should return 403 for Access denied', async () => {

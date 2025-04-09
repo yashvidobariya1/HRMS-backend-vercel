@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 // const CryptoJS = require("crypto-js")
 
 const userSchema = new mongoose.Schema({
-  unique_ID: { type: Number, unique: true },
+  unique_ID: Number,
   isDeleted: {
     type: Boolean, default: false
   },
@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema({
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
     isTemplateSigned: {
       type: Boolean,
-      default: false
+      default: true
     },
     signedTemplateURL: String,
     role: String
