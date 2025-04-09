@@ -493,7 +493,7 @@ exports.addUser = async (req, res) => {
                 })
                 // for check template assigned or not
                 jobDetails.forEach(async JD => {
-                    if(JD?.templateId){
+                    if(JD.templateId && JD.templateId !== ""){
                         const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
                         if(!template){
                             return res.send({ status: 404, message: 'Template not found' })
