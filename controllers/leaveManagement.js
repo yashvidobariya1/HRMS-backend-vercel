@@ -546,7 +546,7 @@ exports.getAllOwnLeaves = async (req, res) => {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = ( page - 1 ) * limit
             const userId = req.user._id
@@ -659,7 +659,7 @@ exports.getAllLeaveRequest = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = ( page - 1 ) * limit
@@ -724,7 +724,7 @@ exports.getAllLeaveRequest = async (req, res) => {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
     //     if(allowedRoles.includes(req.user.role)){
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = ( page - 1 ) * limit
 

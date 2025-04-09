@@ -1,7 +1,7 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getUserJobTitles, updateProfileDetails, sendMailToEmployee } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport, clockInForEmployee, clockOutForEmployee } = require('../controllers/timeSheet')
+const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport, clockInForEmployee, clockOutForEmployee, getAbsenceReport } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 const { saveTemplateWithSignature, previewTemplate } = require('../controllers/templates')
@@ -63,6 +63,7 @@ commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
 // timesheet report
 commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
+commonRoute.post('/getAbsenceReport', auth, getAbsenceReport)
 commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
 // generate template
 commonRoute.post('/previewTemplate', auth, previewTemplate)

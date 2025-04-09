@@ -86,7 +86,7 @@ exports.getAllLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -97,13 +97,20 @@ exports.getAllLocation = async (req, res) => {
                 baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }
             }
 
-            const locations = await Location.find(baseQuery).skip(skip).limit(limit)
+            const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
             const totalLocations = await Location.find(baseQuery).countDocuments()
+
+            const formattedLocations = locations.map(loc => {
+                return {
+                    ...loc.toObject(),
+                    locationName: `${loc.locationName} (${loc.companyId.companyDetails.businessName})`
+                }
+            }).slice(skip, skip + limit)
 
             return res.send({
                 status: 200,
                 message: 'Locations fetched successfully.',
-                locations: locations ? locations : [],
+                locations: formattedLocations ? formattedLocations : [],
                 totalLocations,
                 totalPages: Math.ceil(totalLocations / limit) || 1,
                 currentPage: page || 1

@@ -619,7 +619,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
 
@@ -662,7 +662,7 @@ exports.getAllTimeSheets = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const userId = req.body.userId || req.user._id
@@ -755,7 +755,7 @@ exports.getTimesheetReport = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 30
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
 
@@ -1032,13 +1032,276 @@ exports.getTimesheetReport = async (req, res) => {
     }
 }
 
+exports.getAbsenceReport = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user?.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 50
+
+            const skip = (page - 1) * limit
+
+            const { jobId } = req.body
+
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const userId = req.body?.userId || req.user?._id || user?._id
+            const { month, year, week } = req.query
+
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
+            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
+
+            let startDate, endDate
+
+            if(req.body?.startDate && req.body?.endDate){
+                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
+                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
+            } else {
+                if (year && month && month !== "All") {
+                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(year === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (year && month === "All") {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (year && week) {
+                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
+                } else if (year) {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (month && month !== "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (month === "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (week) {
+                    const currentYear = moment().year();
+                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+                } else {
+                    startDate = moment().startOf('month').format('YYYY-MM-DD');
+                    endDate = moment().endOf('month').format('YYYY-MM-DD');
+                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment().endOf('month').format('YYYY-MM-DD')
+                    }
+                }
+            }
+        
+
+            // 1. Fetch timesheet entries (Check-ins/outs)
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
+            // console.log('timesheet:', timesheets)
+
+            // 2. Fetch leave requests
+            const leaves = await Leave.find({
+                userId,
+                jobId,
+                $or: [
+                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: "Approved",
+                isDeleted: { $ne: true }
+            })
+            // console.log('leaves:', leaves)
+
+            // 3. Fetch holidays
+            const holidays = await Holiday.find({
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
+                date: { $gte: startDate, $lte: endDate },
+                isDeleted: { $ne: true }
+            })
+            // console.log('holidays:', holidays)
+
+            const dateList = [];
+            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+                dateList.push(d.clone().format('YYYY-MM-DD'))
+            }
+            // console.log('dateList:', dateList)
+
+            const timesheetMap = new Map()
+            timesheets.map(TS => {
+                // const dateKey = TS.createdAt.toISOString().split("T")[0]
+                const dateKey = TS.date
+                timesheetMap.set(dateKey, TS)
+            })
+            // console.log('timesheets:', timesheets)
+
+            const leaveMap = new Map()
+            leaves.forEach(leave => {
+                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+                let tempDate = leaveStart.clone()
+            
+                while (tempDate.isSameOrBefore(leaveEnd)) {
+                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+                    tempDate.add(1, 'days')
+                }
+            })
+            // console.log('leaves:', leaves)
+
+            const holidayMap = new Map();
+            holidays.map(HD => {
+                holidayMap.set(HD.date, HD)
+            })
+            // console.log('holidays:', holidays)
+
+            const today = moment().format('YYYY-MM-DD')
+
+            const allReports = dateList.map(dateObj => {
+                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+                if (isWeekend || isFuture) return null
+            
+                // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
+                const leaveEntries = leaves.filter(leave => {
+                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+                });
+                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+            
+                const hasTimesheet = timesheetEntries.length > 0
+                const hasLeave = leaveEntries.length > 0
+                const hasHoliday = holidayEntries.length > 0
+                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+                let status = "Absent"
+        
+                if (hasLeave) {
+                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+                    status = isHalfLeave ? "HalfLeave" : "Leave"
+                } else if (hasTimesheet) {
+                    status = "Present"
+                } else if (hasHoliday) {
+                    status = "Holiday"
+                }
+            
+                let data = {}
+            
+                if (hasTimesheet && !hasLeave && !hasHoliday) {
+                    data.timesheetData = {
+                        date: timesheetEntries[0]?.date,
+                        clockinTime: timesheetEntries[0]?.clockinTime,
+                        totalHours: timesheetEntries[0]?.totalHours,
+                        overTime: timesheetEntries[0]?.overTime
+                    }
+                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+                    data.leaveData = {
+                        leaveType: leaveEntries[0]?.leaveType,
+                        selectionDuration: leaveEntries[0]?.selectionDuration,
+                        startDate: leaveEntries[0]?.startDate,
+                        endDate: leaveEntries[0]?.endDate,
+                        leaveDays: leaveEntries[0]?.leaveDays,
+                        leaves: leaveEntries[0]?.leaveType,
+                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                        status: leaveEntries[0]?.status,
+                    }
+                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+                    data.holidayData = {
+                        date: holidayEntries[0]?.date,
+                        occasion: holidayEntries[0]?.occasion
+                    }
+                } else if (hasTimesheet || hasLeave || hasHoliday) {
+                    data = {
+                        timesheetData: hasTimesheet ? {
+                            date: timesheetEntries[0]?.date,
+                            clockinTime: timesheetEntries[0]?.clockinTime,
+                            totalHours: timesheetEntries[0]?.totalHours,
+                            overTime: timesheetEntries[0]?.overTime
+                        } : undefined,
+                        leaveData: hasLeave ? {
+                            leaveType: leaveEntries[0]?.leaveType,
+                            selectionDuration: leaveEntries[0]?.selectionDuration,
+                            startDate: leaveEntries[0]?.startDate,
+                            endDate: leaveEntries[0]?.endDate,
+                            leaveDays: leaveEntries[0]?.leaveDays,
+                            leaves: leaveEntries[0]?.leaveType,
+                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                            status: leaveEntries[0]?.status,
+                        } : undefined,
+                        holidayData: hasHoliday ? {
+                            date: holidayEntries[0]?.date,
+                            occasion: holidayEntries[0]?.occasion
+                        } : undefined
+                    }
+                }
+            
+                return {
+                    date: dateObj,
+                    status,
+                    leave: hasLeave,
+                    holiday: hasHoliday,
+                    absent: isAbsent === 'Absent',
+                    data
+                }
+            }).filter(report => report !== null)
+
+            const absentReports = allReports.filter(r => r.status === 'Absent')
+            const report = absentReports.slice(skip, skip + limit)
+            const totalReports = absentReports.length
+
+            return res.send({
+                status: 200,
+                message: 'Absence report fetched successfully',
+                report: report ? report : [],
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit) || 1,
+                currentPage: page || 1
+            })
+
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching timesheet report:', error)
+        return res.send({ status: 500, message: 'Error occurred while fetching timesheet report!' })
+    }
+}
+
 // old method
 // exports.downloadTimesheetReport = async (req, res) => {
 //     try {
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
 //         if(allowedRoles.includes(req.user.role)){
 //             const page = parseInt(req.query.page) || 1
-//             const limit = parseInt(req.query.limit) || 10
+//             const limit = parseInt(req.query.limit) || 50
 
 //             const skip = (page - 1) * limit
 
@@ -1690,7 +1953,7 @@ exports.getAllQRCodes = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const locationId = req.params.id
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = ( page - 1 ) * limit

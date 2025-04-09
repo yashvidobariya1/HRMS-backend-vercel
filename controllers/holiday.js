@@ -87,8 +87,8 @@ exports.getAllHolidays = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page)
-            const limit = parseInt(req.query.limit)
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 50
             const year = req.query.year || moment().format('YYYY')
             // console.log('year:', year)
             const searchQuery = req.query.search ? req.query.search.trim() : ''

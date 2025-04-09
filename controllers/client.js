@@ -74,7 +74,7 @@ exports.getAllClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const companyId = req.query.companyId
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
@@ -112,7 +112,7 @@ exports.getAllClient = async (req, res) => {
     //     const allowedRoles = ['Superadmin', 'Administrator']
     //     if(allowedRoles.includes(req.user.role)){
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
     //         const companyId = req.query.companyId
     //         const searchQuery = req.query.search
 
@@ -149,7 +149,7 @@ exports.getCompanyClients = async (req, res) => {
         const allowedRoles = ['Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const companyId = req.user.companyId
@@ -359,7 +359,7 @@ exports.getGeneratedReports = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const { clientId } = req.query
@@ -458,7 +458,7 @@ exports.getReport = async (req, res) => {
 exports.getClientUsers = async (req, res) => {
     // try {
     //     const page = parseInt(req.query.page) || 1
-    //     const limit = parseInt(req.query.limit) || 10
+    //     const limit = parseInt(req.query.limit) || 50
 
     //     const skip = (page - 1) * limit
 
