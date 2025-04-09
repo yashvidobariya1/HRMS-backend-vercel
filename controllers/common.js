@@ -553,10 +553,26 @@ exports.addUser = async (req, res) => {
             //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
             //     }
             // }
+
+            let contractURL
+            let generatedContract
+
             if(contractDetails?.contractType){
                 contractDetailsFile = {
                     contractId: contractDetails?.contractType,
                 }
+
+                const contractId = contractDetails?.contractType
+                
+
+                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+                generatedContract = await generateContractForUser(userData, contractId)
+
+                contractURL = await uploadBufferToCloudinary(generatedContract)
+
             }
 
             const generatePass = () => {
@@ -603,16 +619,6 @@ exports.addUser = async (req, res) => {
                 COMPANY_NAME: company?.companyDetails?.businessName
             }
 
-            const contractId = contractDetails?.contractType
-            let generatedContract
-
-            const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-            if(!contract){
-                return res.send({ status: 404, message: 'Contract not found' })
-            }
-            generatedContract = await generateContractForUser(userData, contractId)
-
-            const contractURL = await uploadBufferToCloudinary(generatedContract)
             // console.log('contractURL?.secure_url:', contractURL?.secure_url)
 
             if (personalDetails.sendRegistrationLink == true) {
@@ -669,7 +675,7 @@ exports.addUser = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding user:", error);
-        res.send({ message: "Something went wrong while adding user!" })
+        return res.send({ status: 500, message: "Something went wrong while adding user!" })
     }
 }
 
