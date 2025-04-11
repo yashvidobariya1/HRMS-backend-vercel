@@ -65,7 +65,7 @@ exports.addCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding company:", error);
-        res.send({ message: "Something went wrong while adding company!" })
+        return res.send({ status: 500, message: "Something went wrong while adding company!" })
     }
 }
 
@@ -90,7 +90,7 @@ exports.getCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching company:", error);
-        res.send({ message: "Something went wrong while fetching company!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching company!" })
     }
 }
 
@@ -99,7 +99,7 @@ exports.getAllCompany = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -128,13 +128,13 @@ exports.getAllCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching companies:", error);
-        res.send({ message: "Something went wrong while fetching companies!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching companies!" })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator'];
     //     if (allowedRoles.includes(req.user.role)) {
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -163,7 +163,7 @@ exports.getAllCompany = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while fetching companies:", error);
-    //     res.send({ message: "Something went wrong while fetching companies!" })
+    //     return res.send({ status: 500, message: "Something went wrong while fetching companies!" })
     // }
 }
 
@@ -230,7 +230,7 @@ exports.updateCompanyDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating company details:", error);
-        res.send({ message: "Something went wrong while updating company details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating company details!" })
     }
 }
 
@@ -260,6 +260,6 @@ exports.deleteCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing company:", error);
-        res.send({ message: "Something went wrong while removing company!" })
+        return res.send({ status: 500, message: "Something went wrong while removing company!" })
     }
 }

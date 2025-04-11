@@ -39,7 +39,7 @@ const User = require('../models/user')
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while creating the task:', error)
-//         res.send({ message: 'Error occurred while creating the task!' })
+//         return res.send({ status: 500, message: 'Error occurred while creating the task!' })
 //     }
 // }
 
@@ -58,7 +58,7 @@ const User = require('../models/user')
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while fetching the task:', error)
-//         res.send({ message: 'Error occurred while fetching the task!' })
+//         return res.send({ status: 500, message: 'Error occurred while fetching the task!' })
 //     }
 // }
 
@@ -67,7 +67,7 @@ const User = require('../models/user')
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
 //         if(allowedRoles.includes(req.user.role)){
 //             const page = parseInt(req.query.page) || 1
-//             const limit = parseInt(req.query.limit) || 10
+//             const limit = parseInt(req.query.limit) || 50
 
 //             const skip = (page - 1) * limit
 
@@ -104,7 +104,7 @@ const User = require('../models/user')
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while fetching the task:', error)
-//         res.send({ message: 'Error occurred while fetching the task!' })
+//         return res.send({ status: 500, message: 'Error occurred while fetching the task!' })
 //     }
 // }
 
@@ -143,7 +143,7 @@ const User = require('../models/user')
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while updating the task:', error)
-//         res.send({ message: 'Error occurred while updating the task!' })
+//         return res.send({ status: 500, message: 'Error occurred while updating the task!' })
 //     }
 // }
 
@@ -172,7 +172,7 @@ const User = require('../models/user')
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while deleting the task:', error)
-//         res.send({ message: 'Error occurred while deleting the task!' })
+//         return res.send({ status: 500, message: 'Error occurred while deleting the task!' })
 //     }
 // }
 
@@ -217,7 +217,7 @@ exports.createTask = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating the task:', error)
-        res.send({ message: 'Error occurred while creating the task!' })
+        return res.send({ status: 500, message: 'Error occurred while creating the task!' })
     }
 }
 
@@ -239,7 +239,7 @@ exports.getTask = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching the task:', error)
-        return res.send({ message: 'Error occurred while fetching the task!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching the task!' })
     }
 }
 
@@ -286,7 +286,7 @@ exports.getAllTasks = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching all tasks:', error)
-        return res.send({ message: 'Error occurred while fetching all tasks!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching all tasks!' })
     }
 }
 
@@ -325,7 +325,7 @@ exports.updateTask = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating the task:', error)
-        res.send({ message: 'Error occurred while updating the task!' })
+        return res.send({ status: 500, message: 'Error occurred while updating the task!' })
     }
 }
 
@@ -349,7 +349,7 @@ exports.canceledTask = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while canceling the task:', error)
-        return res.send({ message: 'Error occurred while canceling the task!' })
+        return res.send({ status: 500, message: 'Error occurred while canceling the task!' })
     }
 }
 
@@ -368,6 +368,6 @@ exports.getCountOfLateClockIn = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching count of late clock-IN:', error)
-        res.send({ message: 'Error occurred while fetching count of late clock-IN' })
+        return res.send({ status: 500, message: 'Error occurred while fetching count of late clock-IN' })
     }
 }

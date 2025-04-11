@@ -60,7 +60,7 @@ exports.addHoliday = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating holiday:', error)
-        res.send({ message: 'Error occurred while creating holiday!' })
+        return res.send({ status: 500, message: 'Error occurred while creating holiday!' })
     }
 }
 
@@ -79,7 +79,7 @@ exports.getHoliday = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching holiday:', error)
-        res.send({ message: 'Error occurred while fetching holiday!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching holiday!' })
     }
 }
 
@@ -87,8 +87,8 @@ exports.getAllHolidays = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const page = parseInt(req.query.page)
-            const limit = parseInt(req.query.limit)
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 50
             const year = req.query.year || moment().format('YYYY')
             // console.log('year:', year)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
@@ -140,7 +140,7 @@ exports.getAllHolidays = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching holidays:', error)
-        res.send({ message: 'Error occurred while fetching holidays!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching holidays!' })
     }
 }
 
@@ -183,7 +183,7 @@ exports.updateHoliday = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating holiday details:', error)
-        res.send({ message: 'Error occurred while updating holiday details!' })
+        return res.send({ status: 500, message: 'Error occurred while updating holiday details!' })
     }
 }
 
@@ -211,6 +211,6 @@ exports.deleteHoliday = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deleting holiday:', error)
-        res.send({ message: 'Error occurred while deleting holiday!' })
+        return res.send({ status: 500, message: 'Error occurred while deleting holiday!' })
     }
 }

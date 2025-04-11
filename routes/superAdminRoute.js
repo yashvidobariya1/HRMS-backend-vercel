@@ -8,7 +8,8 @@ const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } =
 const { addClient, getClient, getAllClient, updateClient, deleteClient, generateLinkForClient, getCompanyClients } = require('../controllers/client')
 const { addTemplate, getTemplate, getAllTemplates, updateTemplate, deleteTemplate } = require('../controllers/templates')
 const { activateDeactivateUser } = require('../controllers/common')
-const { createJobPost, getJobPost, getAllJobPosts } = require('../controllers/recruitmentJob')
+const { createJobPost, getJobPost, getAllJobPosts, updateJobPost, deleteJobPost, getJobPostForPublic } = require('../controllers/recruitmentJob')
+const { applyForJob, getCandidateDetails, getAllCandidates } = require('../controllers/candidate')
 
 const superAdminRoute = Router()
 
@@ -62,7 +63,14 @@ superAdminRoute.post('/generateLink', auth, generateLinkForClient)
 superAdminRoute.post('/activateDeactivateUser', auth, activateDeactivateUser)
 // Job post ( job & candidate )
 superAdminRoute.post('/createJobPost', auth, createJobPost)
-superAdminRoute.get('/getJobPost/:id', getJobPost)
+superAdminRoute.get('/getJobPost/:id', auth, getJobPost)
+superAdminRoute.get('/job', getJobPostForPublic)
 superAdminRoute.get('/getAllJobPost', auth, getAllJobPosts)
+superAdminRoute.post('/updateJobPost/:id', auth, updateJobPost)
+superAdminRoute.post('/deleteJobPost/:id', auth, deleteJobPost)
+// candidate
+superAdminRoute.post('/applyForJob/:key', applyForJob)
+superAdminRoute.get('/getCandidateDetails/:id', auth, getCandidateDetails)
+superAdminRoute.get('/getAllCandidates', auth, getAllCandidates)
 
 module.exports = superAdminRoute

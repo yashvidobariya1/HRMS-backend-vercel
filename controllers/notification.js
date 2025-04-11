@@ -8,7 +8,7 @@ const moment = require("moment");
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
 //         if(allowedRoles.includes(req.user.role)){
 //             const page = parseInt(req.query.page) || 1
-//             const limit = parseInt(req.query.limit) || 10
+//             const limit = parseInt(req.query.limit) || 50
 
 //             const skip = (page - 1) * limit
 //             const userId = new mongoose.Types.ObjectId(String(req.user._id))
@@ -113,7 +113,7 @@ exports.getNotifications = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -242,13 +242,13 @@ exports.getNotifications = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications:", error)
-        res.send({ message: "Error occurred while fetching notifications!" }) 
+        return res.send({ status: 500, message: "Error occurred while fetching notifications!" }) 
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
     //     if(allowedRoles.includes(req.user.role)){
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -400,7 +400,7 @@ exports.getNotifications = async (req, res) => {
     //     } else return res.send({ status: 403, message: 'Access denied' })
     // } catch (error) {
     //     console.error("Error occurred while fetching notifications:", error)
-    //     res.send({ message: "Error occurred while fetching notifications!" }) 
+    //     return res.send({ status: 500, message: "Error occurred while fetching notifications!" }) 
     // }
 }
 
@@ -474,7 +474,7 @@ exports.getUnreadNotificationsCount = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error("Error occurred while fetching notifications count:", error)
-        res.send({ message: "Error occurred while fetching notifications count!" })
+        return res.send({ status: 500, message: "Error occurred while fetching notifications count!" })
     }
 }
 
@@ -492,7 +492,7 @@ exports.getNotification = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching notification:', error)
-        res.send({ message: 'Error occurred while fetching notification!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching notification!' })
     }
 }
 
@@ -522,6 +522,6 @@ exports.readNotification = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while reading notification:', error)
-        res.send('Error occurred while reading notification')
+        return res.send({ status: 500, message: 'Error occurred while reading notification!' })
     }
 }

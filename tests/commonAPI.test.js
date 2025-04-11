@@ -788,7 +788,9 @@ describe('User CRUD==================================================', () => {
                 })
                 location = await Location.create({
                     locationName: 'addTestLocationForSuperadmin',
-                    companyId: company._id
+                    companyId: company._id,
+                    breakTime: 20,
+                    graceTime: 15
                 })
                 contract = await Contract.create({
                     contractName: 'addTestContractForSuperadmin',
@@ -1190,7 +1192,9 @@ describe('User CRUD==================================================', () => {
                 })
                 location = await Location.create({
                     locationName: 'addTestLocationForAdministrator',
-                    companyId: company._id
+                    companyId: company._id,
+                    breakTime: 20,
+                graceTime: 15
                 })
                 contract = await Contract.create({
                     contractName: 'addTestLocationForAdministrator',
@@ -1592,7 +1596,9 @@ describe('User CRUD==================================================', () => {
                 })
                 location = await Location.create({
                     locationName: 'addTestLocationForManager',
-                    companyId: company._id
+                    companyId: company._id,
+                    breakTime: 20,
+                    graceTime: 15
                 })
                 contract = await Contract.create({
                     contractName: 'addTestLocationForManager',
@@ -1971,7 +1977,9 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 longitude: "21.212121",
                 radius: "1000",
                 locationName: "second location",
-                ukviApproved: true
+                ukviApproved: true,
+                breakTime: 20,
+                graceTime: 15
             })
             const user = await User.create({
                 personalDetails: {
@@ -1984,6 +1992,15 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
             })
             userId = user._id
             userJobId = user.jobDetails[0]._id
+            await Task.create({
+                taskName: "taskName",
+                taskDescription: "description",
+                taskDate: moment().format('YYYY-MM-DD'),
+                startTime: "10:00",
+                endTime: "18:00",
+                userId,
+                jobId: userJobId,
+            })
             const login = await request(app).post('/login').send({ email: 'testingforclockin@gmail.com', password: 'Password123' })
             expect(JSON.parse(login.text).status).toBe(200)
             userToken = JSON.parse(login.text).user.token
@@ -2045,7 +2062,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                     location: { latitude: 12.2337, longitude: 27.8138 }
                 })
             expect(JSON.parse(res.text).status).toBe(403)
-            expect(JSON.parse(res.text).message).toBe('You are outside the geofence area.')
+            expect(JSON.parse(res.text).message).toBe('You are outside the company location area.')
         })
         test('should return 400 for clockIn before clockOut', async () => {
             const res = await request(app).post('/clockIn').set('Authorization', `Bearer ${userToken}`)
@@ -2085,7 +2102,9 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                 longitude: "21.212121",
                 radius: "1000",
                 locationName: "second location",
-                ukviApproved: true
+                ukviApproved: true,
+                breakTime: 20,
+                graceTime: 15
             })
             const user = await User.create({
                 personalDetails: {
@@ -2098,6 +2117,15 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
             })
             userId = user._id
             userJobId = user.jobDetails[0]._id
+            await Task.create({
+                taskName: "taskName",
+                taskDescription: "description",
+                taskDate: moment().format('YYYY-MM-DD'),
+                startTime: "10:00",
+                endTime: "18:00",
+                userId,
+                jobId: userJobId,
+            })
             const login = await request(app).post('/login').send({ email: 'testingforclockout@gmail.com', password: 'Password123' })
             expect(JSON.parse(login.text).status).toBe(200)
             userToken = JSON.parse(login.text).user.token
@@ -2149,7 +2177,7 @@ describe('ClockIn or ClockOut for Administrators, managers and employees========
                     location: { latitude: 12.2337, longitude: 27.8138 }
                 })
             expect(JSON.parse(res.text).status).toBe(403)
-            expect(JSON.parse(res.text).message).toBe('You are outside the geofence area.')
+            expect(JSON.parse(res.text).message).toBe('You are outside the company location area.')
         })
         test('should return 404 for time sheet not found', async () => {
             const res = await request(app).post('/clockOut').set('Authorization', `Bearer ${userToken}`)
@@ -4247,7 +4275,9 @@ describe('~ timesheet report', () => {
                     longitude: "21.212121",
                     radius: "1000",
                     locationName: "second location",
-                    ukviApproved: true
+                    ukviApproved: true,
+                    breakTime: 20,
+                    graceTime: 15
                 })
                 await User.create({
                     personalDetails: {
@@ -4334,7 +4364,9 @@ describe('~ timesheet report', () => {
                     longitude: "21.212121",
                     radius: "1000",
                     locationName: "second location",
-                    ukviApproved: true
+                    ukviApproved: true,
+                    breakTime: 20,
+                    graceTime: 15
                 })
                 await User.create({
                     personalDetails: {
@@ -4421,7 +4453,9 @@ describe('~ timesheet report', () => {
                     longitude: "21.212121",
                     radius: "1000",
                     locationName: "second location",
-                    ukviApproved: true
+                    ukviApproved: true,
+                    breakTime: 20,
+                    graceTime: 15
                 })
                 const user = await User.create({
                     personalDetails: {
@@ -4737,18 +4771,18 @@ describe('Task===================================================', () => {
             const login = await request(app).post('/login').send({ email: 'testingforgetalltask@gmail.com', password: 'Password@123' })
             expect(JSON.parse(login.text).status).toBe(200)
             token = await JSON.parse(login.text).user.token
-            const res = await request(app).get(`/getAllTasks`)
+            const res = await request(app).post(`/getAllTasks`)
             expect(JSON.parse(res.text).status).toBe(401)
             expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key')
         })
         test('should return 200 for task fetched successsfully', async () => {
-            const res = await request(app).get(`/getAllTasks`).set('Authorization', `Bearer ${token}`).send({ userId, jobId: jobRoleId })
+            const res = await request(app).post(`/getAllTasks`).set('Authorization', `Bearer ${token}`).send({ userId, jobId: jobRoleId })
             expect(JSON.parse(res.text).status).toBe(200)
             expect(JSON.parse(res.text).message).toBe('All tasks fetched successfully')
         })
         test('Should return 403 for Access denied', async () => {
             await User.findOneAndUpdate({ token }, { $set: { role: 'superadmin' } })
-            const res = await request(app).get(`/getAllTasks`).set('Authorization', `Bearer ${token}`)
+            const res = await request(app).post(`/getAllTasks`).set('Authorization', `Bearer ${token}`)
             expect(JSON.parse(res.text).status).toBe(403)
             expect(JSON.parse(res.text).message).toBe('Access denied')
         })

@@ -859,6 +859,6 @@ exports.dashboard = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while requesting dashboard:', error)
-        res.send({ message: 'Error occurred while fetching dashboard data!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching dashboard data!' })
     }
 }

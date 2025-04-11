@@ -5,7 +5,7 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const timePeriod = parseInt(req.query.timePeriod)
 
             const skip = (page - 1) * limit
@@ -55,6 +55,6 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching logged In/Out employees:', error)
-        res.send({ message: 'Error occurred while fetching logged In/Out employees!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching logged In/Out employees!' })
     }
 }

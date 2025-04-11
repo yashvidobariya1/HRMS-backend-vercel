@@ -141,7 +141,7 @@ exports.addContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding contract form:", error);
-        res.send({ message: "Something went wrong while adding contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while adding contract form!" })
     }
 }
 
@@ -150,7 +150,7 @@ exports.getAllContract = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -179,13 +179,13 @@ exports.getAllContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while fetching contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
     //     if (allowedRoles.includes(req.user.role)) {
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -210,7 +210,7 @@ exports.getAllContract = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while fetching contract form:", error);
-    //     res.send({ message: "Something went wrong while fetching contract form!" })
+    //     return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     // }
 }
 
@@ -219,7 +219,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -250,7 +250,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while fetching contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     }
 }
 
@@ -277,7 +277,7 @@ exports.getContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching Contract:", error);
-        res.send({ message: "Something went wrong while fetching Contract!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching Contract!" })
     }
 }
 
@@ -348,7 +348,7 @@ exports.updateContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating contract details:", error);
-        res.send({ message: "Something went wrong while updating contract details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating contract details!" })
     }
 }
 
@@ -380,7 +380,7 @@ exports.deleteContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing contract:", error);
-        res.send({ message: "Something went wrong while removing contract!" })
+        return res.send({ status: 500, message: "Something went wrong while removing contract!" })
     }
 }
 
@@ -531,7 +531,7 @@ exports.generateContractForEmployee = async (req, res) => {
     // //     return res.send({status:200,messgae:'SUCCESS'})
     // // } catch (error) {
     // //     console.error('Error occurred while generating employee contract:', error, 'MESSAGE:', error.message)
-    // //     res.send({ message: 'Error occurred while generating employee contract!' })
+    // //     return res.send({ status: 500, message: 'Error occurred while generating employee contract!' })
     // // }
     // try {
     //     const { userId, contractId } = req.body;
@@ -601,6 +601,6 @@ exports.generateContractForEmployee = async (req, res) => {
     //     return res.send('SUCCESS')
     // } catch (error) {
     //     console.error('Error occurred while generating employee contract:', error, 'MESSAGE:', error.message)
-    //     res.send({ message: 'Error occurred while generating employee contract!' })
+    //     return res.send({ status: 500, message: 'Error occurred while generating employee contract!' })
     // }
 }

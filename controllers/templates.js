@@ -4,6 +4,13 @@ const Company = require('../models/company');
 const cloudinary = require('../utils/cloudinary');
 const axios = require("axios");
 const moment = require('moment');
+const mammoth = require('mammoth');
+
+const extractPlaceholders = (text) => {
+    const placeholderRegex = /{(.*?)}/g
+    let matches = text.match(placeholderRegex)
+    return matches ? matches.map(match => match.replace(/{{|}}/g, '').trim()) : []
+};
 
 exports.addTemplate = async (req, res) => {
     try {
@@ -126,7 +133,7 @@ exports.addTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating template form:', error)
-        res.send({ message: 'Error occurred while creating templates form!' })
+        return res.send({ status: 500, message: 'Error occurred while creating templates form!' })
     }
 }
 
@@ -153,7 +160,7 @@ exports.getTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.log('Error occurred while fetching template:', error)
-        res.send({ message: 'Error occurred while fetching template!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching template!' })
     }
 }
 
@@ -162,7 +169,7 @@ exports.getAllTemplates = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -187,7 +194,7 @@ exports.getAllTemplates = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.log('Error occurred while fetching templates:', error)
-        res.send({ message: 'Error occurred while fetching templates!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching templates!' })
     }
 }
 
@@ -255,7 +262,7 @@ exports.updateTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating template details:", error);
-        res.send({ message: "Something went wrong while updating template details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating template details!" })
     }
 }
 
@@ -287,7 +294,7 @@ exports.deleteTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing template:", error);
-        res.send({ message: "Something went wrong while removing template!" })
+        return res.send({ status: 500, message: "Something went wrong while removing template!" })
     }
 }
 
@@ -336,7 +343,7 @@ exports.previewTemplate = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while showing template:', error)
-        res.send({ message: 'Error occurred while showing template!' })
+        return res.send({ status: 500, message: 'Error occurred while showing template!' })
     }
 }
 
@@ -380,6 +387,6 @@ exports.saveTemplateWithSignature = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while saving signature:', error)
-        res.send('Error occurred while saving signature!')
+        return res.send({ status: 500, message: 'Error occurred while saving signature!' })
     }
 }

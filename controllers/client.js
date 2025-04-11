@@ -48,7 +48,7 @@ exports.addClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while adding client:', error)
-        res.send({ message: 'Error occurred while adding client!' })
+        return res.send({ status: 500, message: 'Error occurred while adding client!' })
     }
 }
 
@@ -65,7 +65,7 @@ exports.getClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching client:', error)
-        res.send({ message: 'Error occurred while fetching client!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching client!' })
     }
 }
 
@@ -74,7 +74,7 @@ exports.getAllClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const companyId = req.query.companyId
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
@@ -106,13 +106,13 @@ exports.getAllClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching clients:', error)
-        res.send({ message: 'Error occurred while fetching clients!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator']
     //     if(allowedRoles.includes(req.user.role)){
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
     //         const companyId = req.query.companyId
     //         const searchQuery = req.query.search
 
@@ -140,7 +140,7 @@ exports.getAllClient = async (req, res) => {
     //     } else return res.send({ status: 403, message: 'Access denied' })
     // } catch (error) {
     //     console.error('Error occurred while fetching clients:', error)
-    //     res.send({ message: 'Error occurred while fetching clients!' })
+    //     return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     // }
 }
 
@@ -149,7 +149,7 @@ exports.getCompanyClients = async (req, res) => {
         const allowedRoles = ['Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const companyId = req.user.companyId
@@ -168,7 +168,7 @@ exports.getCompanyClients = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching clients:',error)
-        res.send({ message: 'Error occurred while fetching clients!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     }
 }
 
@@ -203,7 +203,7 @@ exports.updateClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error("Error occurred while updating client's details!", error)
-        res.send({ message: "Error occurred while updating client's details!" })
+        return res.send({ status: 500, message: "Error occurred while updating client's details!" })
     }
 }
 
@@ -230,7 +230,7 @@ exports.deleteClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error('Error occurred while deleting client:', error)
-        res.send({ message: 'Error occurred while deleting client!' })
+        return res.send({ status: 500, message: 'Error occurred while deleting client!' })
     }
 }
 
@@ -350,7 +350,7 @@ exports.generateLinkForClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occured while generating link:', error)
-        res.send({ message: 'Error occurred while generating link!' })
+        return res.send({ status: 500, message: 'Error occurred while generating link!' })
     }
 }
 
@@ -359,7 +359,7 @@ exports.getGeneratedReports = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const { clientId } = req.query
@@ -405,7 +405,7 @@ exports.getGeneratedReports = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching reports:', error)
-        res.send({ message: 'Error occurred while fetching reports!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching reports!' })
     }
 }
 
@@ -451,14 +451,14 @@ exports.getReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching report:', error)
-        res.send({ message: 'Error occurred while fetching report!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching report!' })
     }
 }
 
 exports.getClientUsers = async (req, res) => {
     // try {
     //     const page = parseInt(req.query.page) || 1
-    //     const limit = parseInt(req.query.limit) || 10
+    //     const limit = parseInt(req.query.limit) || 50
 
     //     const skip = (page - 1) * limit
 
@@ -533,7 +533,7 @@ exports.getClientUsers = async (req, res) => {
 
     // } catch (error) {
     //     console.error("Error occurred while fetching clinet's users:", error)
-    //     res.send({ message: "Error occurred while fetching clinet's users!" })
+    return //     res.send({ status: 500, message: "Error occurred while fetching clinet's users!" })
     // }
 }
 
@@ -569,7 +569,7 @@ exports.approveReport = async (req, res) => {
         return res.send({ status: 200, message: 'Employee report approved successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing approval')
-        res.send({ message: 'Error occurred while processing approval!' })
+        return res.send({ status: 500, message: 'Error occurred while processing approval!' })
     }
 }
 
@@ -587,9 +587,9 @@ exports.rejectReport = async (req, res) => {
             return res.send({ status: 404, message: 'Report not found' })
         }
 
-        if(!reason){
-            return res.send({ status: 400, message: 'Rejection reason is required!' })
-        }
+        // if(!reason){
+        //     return res.send({ status: 400, message: 'Rejection reason is required!' })
+        // }
 
         report?.employees.map(user => {
             // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
@@ -611,6 +611,6 @@ exports.rejectReport = async (req, res) => {
         return res.send({ status: 200, message: 'Employee report rejected successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing rejection')
-        res.send({ message: 'Error occurred while processing rejection!' })
+        return res.send({ status: 500, message: 'Error occurred while processing rejection!' })
     }
 }
