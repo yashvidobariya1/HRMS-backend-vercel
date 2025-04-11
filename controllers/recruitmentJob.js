@@ -289,8 +289,6 @@ exports.getCompanyLocationsForJobPost = async (req, res) => {
             if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId.toString()
             }
-
-            console.log('baseQuery:', baseQuery)
             
             const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
 
