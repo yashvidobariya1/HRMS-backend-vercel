@@ -494,7 +494,7 @@ exports.addUser = async (req, res) => {
                 })
                 // for check template assigned or not
                 jobDetails.forEach(async JD => {
-                    if(JD?.templateId){
+                    if(JD.templateId && JD.templateId !== ""){
                         const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
                         if(!template){
                             return res.send({ status: 404, message: 'Template not found' })
@@ -554,10 +554,26 @@ exports.addUser = async (req, res) => {
             //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
             //     }
             // }
+
+            let contractURL
+            let generatedContract
+
             if(contractDetails?.contractType){
                 contractDetailsFile = {
                     contractId: contractDetails?.contractType,
                 }
+
+                const contractId = contractDetails?.contractType
+                
+
+                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+                generatedContract = await generateContractForUser(userData, contractId)
+
+                contractURL = await uploadBufferToCloudinary(generatedContract)
+                // console.log('contractURL?.secure_url:', contractURL?.secure_url)
             }
 
             const generatePass = () => {
@@ -603,18 +619,6 @@ exports.addUser = async (req, res) => {
                 ANNUAL_SALARY: 'ANNUAL_SALARY',
                 COMPANY_NAME: company?.companyDetails?.businessName
             }
-
-            const contractId = contractDetails?.contractType
-            let generatedContract
-
-            const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-            if(!contract){
-                return res.send({ status: 404, message: 'Contract not found' })
-            }
-            generatedContract = await generateContractForUser(userData, contractId)
-
-            const contractURL = await uploadBufferToCloudinary(generatedContract)
-            // console.log('contractURL?.secure_url:', contractURL?.secure_url)
 
             if (personalDetails.sendRegistrationLink == true) {
                 try {
@@ -800,7 +804,20 @@ exports.getAllUsers = async (req, res) => {
                     }
                 })
             )
-            const users = usersWithClockInStatus.slice(skip, skip + limit)
+            const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
+                const firstName = user.personalDetails?.firstName || ''
+                const lastName = user.personalDetails?.lastName || ''
+                const userName = `${firstName} ${lastName}`.trim()
+
+                return {
+                    userName,
+                    Id: user?.unique_ID,
+                    position: user?.role,
+                    email: user?.personalDetails?.email,
+                    status: user?.isActive,
+                    todaysTimesheet: user?.todaysTimesheet
+                }
+            })
             const totalUsers = usersWithClockInStatus.length
 
             // const users = updateUsers.slice(skip, skip + limit)

@@ -13,14 +13,11 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto,
                 jobTitle,
                 jobDescription,
-                jobLocation,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 locationId,
                 companyWebSite,
-                companyEmail,
-                companyContactNumber,
             } = req.body
 
             const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
@@ -80,15 +77,15 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto: jobPostImg,
                 jobTitle,
                 jobDescription,
-                jobLocation,
+                jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 companyId,
                 locationId,
                 companyWebSite,
-                companyEmail,
-                companyContactNumber,
+                companyEmail: company?.contactPersonEmail,
+                companyContactNumber: company?.contactPhone,
                 jobPostedLink: generatedUrl,
                 jobUniqueKey: uniqueId,
                 creatorId: req.user._id,
@@ -194,14 +191,11 @@ exports.updateJobPost = async (req, res) => {
                 jobPhoto,
                 jobTitle,
                 jobDescription,
-                jobLocation,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 locationId,
                 companyWebSite,
-                companyEmail,
-                companyContactNumber,
             } = req.body
 
             const jobPost = await RecruitmentJob.findOne({ _id: jobPostId, isDeleted: { $ne: true } })
@@ -239,14 +233,11 @@ exports.updateJobPost = async (req, res) => {
                         jobPhoto: jobPostImg,
                         jobTitle,
                         jobDescription,
-                        jobLocation,
                         jobCategory,
                         jobApplyTo,
                         jobStatus,
                         locationId,
                         companyWebSite,
-                        companyEmail,
-                        companyContactNumber,
                     }
                 }, { new: true }
             )
@@ -285,5 +276,37 @@ exports.deleteJobPost = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while deleting job post:', error)
         return res.send({ status: 500, message: 'Error occurred while deleting job post!' })
+    }
+}
+
+exports.getCompanyLocationsForJobPost = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if(req.user.role !== 'Superadmin'){
+                baseQuery.companyId = req.user.companyId.toString()
+            }
+
+            console.log('baseQuery:', baseQuery)
+            
+            const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
+
+            const formattedLocations = locations.map(loc => ({
+                _id: loc._id,
+                locationName: `${loc.locationName} (${loc.companyId?.companyDetails?.businessName})`
+            }))
+
+            return res.send({
+                status: 200,
+                message: "Company's locations fetched successfully.",
+                locations: formattedLocations
+            });
+        } else return res.send({ status: 403, message: "Access denied" });
+    } catch (error) {
+        console.error("Error occurred while fetching locations:", error);
+        return res.send({ status: 500, message: "Something went wrong while fetching locations!" });
     }
 }
