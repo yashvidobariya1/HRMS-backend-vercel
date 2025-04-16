@@ -2,6 +2,7 @@ const Company = require("../models/company");
 const Location = require("../models/location");
 const cloudinary = require('../utils/cloudinary')
 const moment = require('moment')
+const sharp = require('sharp')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -20,7 +21,20 @@ exports.addCompany = async (req, res) => {
                     console.log(`Invalid or missing document for item`)
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
+                    const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if (!matches || matches.length !== 3) {
+                        return res.send({ status: 400, message: 'Invalid Image Format!' })
+                    }
+
+                    const imageBuffer = Buffer.from(matches[2], 'base64')
+
+                    const compressedBuffer = await sharp(imageBuffer)
+                        .toFormat("jpeg", { quality: 70 })
+                        .toBuffer()
+
+                    const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                    let element = await cloudinary.uploader.upload(compressedBase64, {
                         resource_type: "auto",
                         folder: "companyLogos",
                     });
@@ -114,8 +128,31 @@ exports.getAllCompany = async (req, res) => {
                 baseQuery["companyDetails.businessName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const companies = await Company.find(baseQuery).skip(skip).limit(limit)
-            const totalCompanies = await Company.find(baseQuery).countDocuments()
+            const [result] = await Company.aggregate([
+                { $match: baseQuery },
+                {
+                    $facet: {
+                        companies: [
+                            { $skip: skip },
+                            { $limit: limit },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    'companyDetails.businessName': 1,
+                                    'companyDetails.companyCode': 1,
+                                    'companyDetails.city': 1,
+                                }
+                            }
+                        ],
+                        total: [
+                            { $count: 'count' }
+                        ]
+                    }
+                }
+            ])
+        
+            const companies = result.companies || []
+            const totalCompanies = result.total.length > 0 ? result.total[0].count : 0
 
             return res.send({
                 status: 200,

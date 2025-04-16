@@ -19,6 +19,10 @@ exports.applyForJob = async (req, res) => {
             return res.send({ status: 404, message: "Job post not found" })
         }
 
+        if(jobPost.jobApplyTo == moment().format('YYYY-MM-DD')){
+            return res.send({ status: 400, message: 'This job posting has expired.' })
+        }
+
         let uploadedResume
         if(resume){
             const document = resume

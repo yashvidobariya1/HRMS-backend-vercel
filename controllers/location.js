@@ -103,7 +103,7 @@ exports.getAllLocation = async (req, res) => {
             const formattedLocations = locations.map(loc => {
                 return {
                     ...loc.toObject(),
-                    locationName: `${loc.locationName} (${loc.companyId.companyDetails.businessName})`
+                    locationName: `${loc?.locationName} (${loc?.companyId?.companyDetails?.businessName})`
                 }
             }).slice(skip, skip + limit)
 

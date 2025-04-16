@@ -48,11 +48,11 @@ exports.createJobPost = async (req, res) => {
 
             if (!isUnique) {
                 uniqueId = generateUniqueId();
-                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/job?key=${uniqueId}` });
+                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/applyJob?key=${uniqueId}` });
                 if (!existingJob) isUnique = true;
             }
 
-            const generatedUrl = `${process.env.FRONTEND_URL}/job?key=${uniqueId}`
+            const generatedUrl = `${process.env.FRONTEND_URL}/applyJob?key=${uniqueId}`
 
             let jobPostImg
             if(jobPhoto){
@@ -128,11 +128,16 @@ exports.getJobPostForPublic = async (req, res) => {
             return res.send({ status: 404, message: 'Job post not found' })
         }
 
+        const location = await Location.findOne({ _id: jobPost.locationId, isDeleted: { $ne: true } })
+        if(!location){
+            return res.send({ status: 404, message: 'Location not found' })
+        }
+
         const jobDetails = {
             jobPhoto: jobPost?.jobPhoto,
             jobTitle: jobPost?.jobTitle,
             jobDescription: jobPost?.jobDescription,
-            jobLocation: jobPost?.jobLocation,
+            jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
             jobCategory: jobPost?.jobCategory,
             jobApplyTo: jobPost?.jobApplyTo,
             jobStatus: jobPost?.jobStatus,
@@ -154,6 +159,7 @@ exports.getAllJobPosts = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
@@ -164,13 +170,34 @@ exports.getAllJobPosts = async (req, res) => {
                 baseQuery.locationId = { $in: req.user.locationId }
             }
 
+            if (searchQuery) {
+                baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
+            }
+
             const jobPost = await RecruitmentJob.find(baseQuery).skip(skip).limit(limit)
             const totalJobPost = await RecruitmentJob.find(baseQuery).countDocuments()
+
+            let filteredData = await Promise.all(
+                (jobPost || []).map(async (JP) => {
+                    const location = await Location.findOne({ _id: JP.locationId, isDeleted: { $ne: true } })
+        
+                    return {
+                        _id: JP?._id,
+                        jobTitle: JP?.jobTitle,
+                        jobDescription: JP?.jobDescription,
+                        jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                        jobCategory: JP?.jobCategory,
+                        jobApplyTo: JP?.jobApplyTo,
+                        jobStatus: JP?.jobStatus,
+                        jobPostedLink: JP?.jobPostedLink,
+                    }
+                })
+            );
 
             return res.send({
                 status: 200,
                 message: 'All job post fetched successfully',
-                jobPost,
+                jobPost: filteredData,
                 totalJobPost,
                 totalPages: Math.ceil(totalJobPost / limit) || 1,
                 currentPage: page
@@ -203,6 +230,11 @@ exports.updateJobPost = async (req, res) => {
                 return res.send({ status: 404, message: 'Job post not found' })
             }
 
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            if(!location){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
+
             let jobPostImg
             if(jobPhoto){
                 const document = jobPhoto
@@ -232,6 +264,7 @@ exports.updateJobPost = async (req, res) => {
                     $set: {
                         jobPhoto: jobPostImg,
                         jobTitle,
+                        jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobDescription,
                         jobCategory,
                         jobApplyTo,

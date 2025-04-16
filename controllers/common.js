@@ -15,66 +15,130 @@ const Template = require("../models/template");
 const Task = require("../models/task");
 const Timesheet = require("../models/timeSheet");
 
-exports.login = async (req, res) => {
-    try {
-        if (!req.body.email || !req.body.password) {
-            return res.send({ status: 400, message: "Email and password are required" });
-        }
+// exports.login = async (req, res) => {
+//     try {
+//         if (!req.body.email || !req.body.password) {
+//             return res.send({ status: 400, message: "Email and password are required" });
+//         }
 
-        const isExist = await User.findOne({ "personalDetails.email": req.body.email, isDeleted: false });
+//         const isExist = await User.findOne({ "personalDetails.email": req.body.email, isDeleted: false });
+
+//         if (!isExist) {
+//             return res.send({ status: 404, message: "User not found" });
+//         }
+
+//         if(isExist && isExist?.isActive === false){
+//             return res.send({ status: 400, message: 'You do not have permission to logIn!' })
+//         }
+
+//         const token = await isExist.generateAuthToken()
+//         const browser = useragent.parse(req.headers["user-agent"]);
+//         isExist.token = token
+//         // isExist.token = token.JWTToken
+//         isExist.lastTimeLoggedIn = moment().toDate()
+//         isExist.isLoggedIn = true
+//         isExist.usedBrowser = browser
+//         await isExist.save()
+
+//         const personalDetails = isExist?.personalDetails
+//         const role = isExist?.role
+//         const createdAt = isExist?.createdAt
+//         const _id = isExist?._id
+
+//         if (isExist.password == req.body.password) {
+//             return res.send({
+//                 status: 200,
+//                 message: "User login successfully",
+//                 user: { personalDetails, role, token, createdAt, _id },
+//                 // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
+//             });
+//         } else {
+//             const hashedPassword = isExist.password;
+//             bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
+//                 if (err) {
+//                     console.error("Error comparing passwords:", err);
+//                     return res.send({ status: 500, message: "Internal server error" });
+//                 }
+//                 if (!result) {
+//                     return res.send({ status: 401, message: "Invalid credential" });
+//                 }
+//                 return res.send({
+//                     status: 200,
+//                     message: "User login successfully",
+//                     user: { personalDetails, role, token, createdAt, _id },
+//                     // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
+//                 });
+//             });
+//         }
+//     } catch (error) {
+//         console.error("Error occurred while logging in:", error);
+//         return res.send({ status: 500, message: "Something went wrong while login!" })
+//     }
+// };
+
+exports.login = async (req, res) => {
+    const { email, password } = req.body
+    
+    if(!email || !password){
+        return res.send({ status: 400, message: 'Email or password is required' })
+    }
+    
+    try {
+        const isExist = await User.findOne(
+            { "personalDetails.email": email, isDeleted: false },
+            { 
+                password: 1,
+                isActive: 1,
+                personalDetails: 1,
+                role: 1,
+                createdAt: 1
+            }
+        )
 
         if (!isExist) {
-            return res.send({ status: 404, message: "User not found" });
+            return res.send({ status: 404, message: "User not found" })
         }
 
-        if(isExist && isExist?.isActive === false){
-            return res.send({ status: 400, message: 'You do not have permission for logIn!' })
+        if (!isExist.isActive) {
+            return res.send({ status: 403, message: 'You do not have permission to log in!' })
+        }
+
+        let passwordValid = false
+
+        if(isExist.password === password){
+            passwordValid = true
+        } else {
+            passwordValid = bcrypt.compare(password, isExist.password)
+        }
+
+        if(!passwordValid){
+            return res.send({ status: 401, message: 'Invalid credential' })
         }
 
         const token = await isExist.generateAuthToken()
-        const browser = useragent.parse(req.headers["user-agent"]);
+        const browser = useragent.parse(req.headers["user-agent"])
         isExist.token = token
-        // isExist.token = token.JWTToken
         isExist.lastTimeLoggedIn = moment().toDate()
         isExist.isLoggedIn = true
         isExist.usedBrowser = browser
-        isExist.save()
+        await isExist.save()
 
         const personalDetails = isExist?.personalDetails
         const role = isExist?.role
         const createdAt = isExist?.createdAt
         const _id = isExist?._id
 
-        if (isExist.password == req.body.password) {
-            return res.send({
-                status: 200,
-                message: "User login successfully",
-                user: { personalDetails, role, token, createdAt, _id },
-                // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
-            });
-        } else {
-            const hashedPassword = isExist.password;
-            bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
-                if (err) {
-                    console.error("Error comparing passwords:", err);
-                    return res.send({ status: 500, message: "Internal server error" });
-                }
-                if (!result) {
-                    return res.send({ status: 401, message: "Invalid credential" });
-                }
-                return res.send({
-                    status: 200,
-                    message: "User login successfully",
-                    user: { personalDetails, role, token, createdAt, _id },
-                    // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
-                });
-            });
-        }
+        return res.send({
+            status: 200,
+            message: "User login successfully",
+            user: { personalDetails, role, token, createdAt, _id },
+        })
+
     } catch (error) {
-        console.error("Error occurred while logging in:", error);
-        return res.send({ status: 500, message: "Something went wrong while login!" })
+        console.error('Error occurred while login:', error)
+        return res.send({ status: 500, message: 'Something went wrong while login!' })
     }
-};
+}
 
 exports.logOut = async (req, res) => {
     try {
@@ -728,7 +792,7 @@ const calculateUserGracePoints = async (users) => {
         }))
 
         return {
-            ...user.toObject(),
+            ...user?.toObject(),
             roleWisePoints
         }
     }))
@@ -811,11 +875,13 @@ exports.getAllUsers = async (req, res) => {
 
                 return {
                     userName,
+                    _id: user?._id,
                     Id: user?.unique_ID,
                     position: user?.role,
                     email: user?.personalDetails?.email,
                     status: user?.isActive,
-                    todaysTimesheet: user?.todaysTimesheet
+                    todaysTimesheet: user?.todaysTimesheet,
+                    roleWisePoints: user.roleWisePoints
                 }
             })
             const totalUsers = usersWithClockInStatus.length

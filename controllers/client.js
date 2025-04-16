@@ -92,8 +92,32 @@ exports.getAllClient = async (req, res) => {
                 baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const clients = await Client.find(baseQuery).skip(skip).limit(limit)
-            const totalClients = await Client.find(baseQuery).countDocuments()
+            const [result] = await Client.aggregate([
+                { $match: baseQuery },
+                {
+                    $facet: {
+                        clients: [
+                            { $skip: skip },
+                            { $limit: limit },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    'clientName': 1,
+                                    'contactNumber': 1,
+                                    'email': 1,
+                                    'city': 1,
+                                }
+                            }
+                        ],
+                        total: [
+                            { $count: 'count' }
+                        ]
+                    }
+                }
+            ])
+        
+            const clients = result.clients || []
+            const totalClients = result.total.length > 0 ? result.total[0].count : 0
 
             return res.send({
                 status: 200,
