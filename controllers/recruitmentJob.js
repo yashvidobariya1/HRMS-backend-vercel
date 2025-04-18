@@ -4,6 +4,7 @@ const RecruitmentJob = require('../models/recruitmentJob')
 const cloudinary = require('../utils/cloudinary')
 const crypto = require('crypto')
 const moment = require('moment')
+const sharp = require('sharp')
 
 exports.createJobPost = async (req, res) => {
     try {
@@ -13,13 +14,11 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto,
                 jobTitle,
                 jobDescription,
-                jobLocation,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 locationId,
                 companyWebSite,
-                companyEmail,
                 companyContactNumber,
             } = req.body
 
@@ -51,11 +50,11 @@ exports.createJobPost = async (req, res) => {
 
             if (!isUnique) {
                 uniqueId = generateUniqueId();
-                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/job?key=${uniqueId}` });
+                const existingJob = await RecruitmentJob.findOne({ jobPostedLink: `${process.env.FRONTEND_URL}/applyJob?key=${uniqueId}` });
                 if (!existingJob) isUnique = true;
             }
 
-            const generatedUrl = `${process.env.FRONTEND_URL}/job?key=${uniqueId}`
+            const generatedUrl = `${process.env.FRONTEND_URL}/applyJob?key=${uniqueId}`
 
             let jobPostImg
             if(jobPhoto){
@@ -64,7 +63,20 @@ exports.createJobPost = async (req, res) => {
                     console.log(`Invalid or missing document for item`)
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
+                    const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if (!matches || matches.length !== 3) {
+                        return res.send({ status: 400, message: 'Invalid Image Format!' })
+                    }
+
+                    const imageBuffer = Buffer.from(matches[2], 'base64')
+                    
+                    const compressedBuffer = await sharp(imageBuffer)
+                        .toFormat("jpeg", { quality: 70 })
+                        .toBuffer()
+
+                    const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                    let element = await cloudinary.uploader.upload(compressedBase64, {
                         resource_type: "auto",
                         folder: "jobPostImage",
                     });
@@ -80,14 +92,14 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto: jobPostImg,
                 jobTitle,
                 jobDescription,
-                jobLocation,
+                jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 companyId,
                 locationId,
                 companyWebSite,
-                companyEmail,
+                companyEmail: company?.contactPersonEmail,
                 companyContactNumber,
                 jobPostedLink: generatedUrl,
                 jobUniqueKey: uniqueId,
@@ -131,11 +143,21 @@ exports.getJobPostForPublic = async (req, res) => {
             return res.send({ status: 404, message: 'Job post not found' })
         }
 
+        const location = await Location.findOne({ _id: jobPost.locationId, isDeleted: { $ne: true } })
+        if(!location){
+            return res.send({ status: 404, message: 'Location not found' })
+        }
+
+        const todaysDate = moment().format('YYYY-MM-DD')
+        if(moment(todaysDate).isAfter(jobPost?.jobApplyTo)){
+            return res.send({ status: 410, message: 'This application has expired and is no longer available.' })
+        }
+
         const jobDetails = {
             jobPhoto: jobPost?.jobPhoto,
             jobTitle: jobPost?.jobTitle,
             jobDescription: jobPost?.jobDescription,
-            jobLocation: jobPost?.jobLocation,
+            jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
             jobCategory: jobPost?.jobCategory,
             jobApplyTo: jobPost?.jobApplyTo,
             jobStatus: jobPost?.jobStatus,
@@ -157,6 +179,7 @@ exports.getAllJobPosts = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
@@ -167,13 +190,36 @@ exports.getAllJobPosts = async (req, res) => {
                 baseQuery.locationId = { $in: req.user.locationId }
             }
 
+            if (searchQuery) {
+                baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
+            }
+
             const jobPost = await RecruitmentJob.find(baseQuery).skip(skip).limit(limit)
             const totalJobPost = await RecruitmentJob.find(baseQuery).countDocuments()
+
+            let filteredData = await Promise.all(
+                (jobPost || []).map(async (JP) => {
+                    const location = await Location.findOne({ _id: JP.locationId, isDeleted: { $ne: true } })
+        
+                    return {
+                        _id: JP?._id,
+                        jobTitle: JP?.jobTitle,
+                        jobDescription: JP?.jobDescription,
+                        locationName: location?.locationName,
+                        companyContactNumber: JP?.companyContactNumber || '',
+                        // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                        jobCategory: JP?.jobCategory,
+                        jobApplyTo: JP?.jobApplyTo,
+                        jobStatus: JP?.jobStatus,
+                        jobPostedLink: JP?.jobPostedLink,
+                    }
+                })
+            );
 
             return res.send({
                 status: 200,
                 message: 'All job post fetched successfully',
-                jobPost,
+                jobPost: filteredData,
                 totalJobPost,
                 totalPages: Math.ceil(totalJobPost / limit) || 1,
                 currentPage: page
@@ -194,19 +240,21 @@ exports.updateJobPost = async (req, res) => {
                 jobPhoto,
                 jobTitle,
                 jobDescription,
-                jobLocation,
                 jobCategory,
                 jobApplyTo,
                 jobStatus,
                 locationId,
                 companyWebSite,
-                companyEmail,
-                companyContactNumber,
             } = req.body
 
             const jobPost = await RecruitmentJob.findOne({ _id: jobPostId, isDeleted: { $ne: true } })
             if(!jobPost){
                 return res.send({ status: 404, message: 'Job post not found' })
+            }
+
+            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            if(!location){
+                return res.send({ status: 404, message: 'Location not found' })
             }
 
             let jobPostImg
@@ -217,7 +265,20 @@ exports.updateJobPost = async (req, res) => {
                 }
                 try {
                     if(document.startsWith('data:')){
-                        let element = await cloudinary.uploader.upload(document, {
+                        const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                        if (!matches || matches.length !== 3) {
+                            return res.send({ status: 400, message: 'Invalid Image Format!' })
+                        }
+
+                        const imageBuffer = Buffer.from(matches[2], 'base64')
+                    
+                        const compressedBuffer = await sharp(imageBuffer)
+                            .toFormat("jpeg", { quality: 70 })
+                            .toBuffer()
+
+                        const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                        let element = await cloudinary.uploader.upload(compressedBase64, {
                             resource_type: "auto",
                             folder: "jobPostImage",
                         });
@@ -238,15 +299,13 @@ exports.updateJobPost = async (req, res) => {
                     $set: {
                         jobPhoto: jobPostImg,
                         jobTitle,
+                        jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobDescription,
-                        jobLocation,
                         jobCategory,
                         jobApplyTo,
                         jobStatus,
                         locationId,
                         companyWebSite,
-                        companyEmail,
-                        companyContactNumber,
                     }
                 }, { new: true }
             )
@@ -285,5 +344,35 @@ exports.deleteJobPost = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while deleting job post:', error)
         return res.send({ status: 500, message: 'Error occurred while deleting job post!' })
+    }
+}
+
+exports.getCompanyLocationsForJobPost = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            if(req.user.role !== 'Superadmin'){
+                baseQuery.companyId = req.user.companyId.toString()
+            }
+            
+            const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
+
+            const formattedLocations = locations.map(loc => ({
+                _id: loc._id,
+                locationName: `${loc.locationName} (${loc.companyId?.companyDetails?.businessName})`
+            }))
+
+            return res.send({
+                status: 200,
+                message: "Company's locations fetched successfully.",
+                locations: formattedLocations
+            });
+        } else return res.send({ status: 403, message: "Access denied" });
+    } catch (error) {
+        console.error("Error occurred while fetching locations:", error);
+        return res.send({ status: 500, message: "Something went wrong while fetching locations!" });
     }
 }

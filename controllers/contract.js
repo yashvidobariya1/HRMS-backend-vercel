@@ -4,15 +4,14 @@ const cloudinary = require('../utils/cloudinary');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const moment = require('moment');
+const User = require("../models/user");
 
 // const User = require("../models/user");
 // const axios = require('axios');
 // const fs = require('fs');
-// const FormData = require('form-data');
 // const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 // const pdfform = require('pdfform.js');
-// const pdffiller = require("node-pdffiller");
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -165,8 +164,49 @@ exports.getAllContract = async (req, res) => {
                 baseQuery["contractName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const contracts = await Contract.find(baseQuery).skip(skip).limit(limit)
-            const totalContracts = await Contract.find(baseQuery).countDocuments()
+            // const [result] = await Contract.aggregate([
+            //     { $match: baseQuery },
+            //     {
+            //         $facet: {
+            //             contract: [
+            //                 { $skip: skip },
+            //                 { $limit: limit },
+            //                 {
+            //                     $project: {
+            //                         _id: 1,
+            //                         'contractName': 1,
+            //                         'contractFileName': 1,
+            //                         'companyName': 1,
+            //                         'uploadBy': 1,
+            //                         'updatedAt': 1,
+            //                     }
+            //                 }
+            //             ],
+            //             total: [
+            //                 { $count: "total" }
+            //             ]
+            //         }
+            //     }
+            // ])
+
+            const allContracts = await Contract.find(baseQuery).skip(skip).limit(limit)
+
+            const filteredData = await Promise.all(
+                allContracts.map(async contract => {
+                    const company = await Company.findOne({ _id: contract?.companyId, isDeleted: { $ne: true } }).select('companyDetails.businessName').lean()
+                    const uploadBy = await User.findOne({ _id: contract?.creatorId, isDeleted: { $ne: true } }).select('personalDetails.firstName personalDetails.lastName').lean()
+                    return {
+                        _id: contract?._id,
+                        contractName: contract?.contractName,
+                        contractFileName: contract?.contractFileName,
+                        companyName: company?.companyDetails?.businessName,
+                        uploadBy: `${uploadBy?.personalDetails?.lastName ? `${uploadBy?.personalDetails?.firstName} ${uploadBy?.personalDetails?.lastName}` : `${uploadBy?.personalDetails?.firstName}`}`,
+                        updatedAt: contract?.updatedAt
+                    }
+                })
+            )
+            const contracts = filteredData.slice(skip, skip + limit)
+            const totalContracts = filteredData.length
 
             return res.send({
                 status: 200,

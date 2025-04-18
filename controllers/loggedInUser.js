@@ -7,6 +7,7 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const timePeriod = parseInt(req.query.timePeriod)
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
@@ -30,6 +31,12 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
+            }
+
+            if (searchQuery) {
+                baseQuery['$or'] = [
+                    { userName: { $regex: searchQuery, $options: 'i' } }
+                ]
             }
 
             const users = await User.find(baseQuery).skip(skip).limit(limit)

@@ -2,6 +2,7 @@ const Candidate = require('../models/candidate')
 const RecruitmentJob = require('../models/recruitmentJob')
 const cloudinary = require('../utils/cloudinary')
 const mongoose = require('mongoose')
+const moment = require('moment')
 
 exports.applyForJob = async (req, res) => {
     try {
@@ -17,6 +18,11 @@ exports.applyForJob = async (req, res) => {
         const jobPost = await RecruitmentJob.findOne({ jobUniqueKey: jobPostKey, isDeleted: { $ne: true } })
         if (!jobPost) {
             return res.send({ status: 404, message: "Job post not found" })
+        }
+
+        const todaysDate = moment().format('YYYY-MM-DD')
+        if(moment(todaysDate).isAfter(jobPost?.jobApplyTo)){
+            return res.send({ status: 410, message: 'This application has expired and is no longer available.' })
         }
 
         let uploadedResume

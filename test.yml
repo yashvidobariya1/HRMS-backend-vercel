@@ -1,0 +1,52 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 60
+      arrivalRate: 50
+
+  payload:
+    path: "./users.csv"
+    fields:
+      - email
+      - password
+
+scenarios:
+  - name: "Login user"
+    flow:
+      - post:
+          url: "/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.user.token"
+              as: authToken
+
+      - get:
+          url: "/getAllCompany"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllLocation"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllContract"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllClients"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllTemplates"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllJobPosts"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/getAllCandidates"
+          headers:
+            Authorization: "Bearer {{ authToken }}"

@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken')
-// const CryptoJS = require("crypto-js")
 
 const userSchema = new mongoose.Schema({
   unique_ID: Number,
@@ -45,7 +44,7 @@ const userSchema = new mongoose.Schema({
   jobDetails: [{
     jobTitle: String,
     jobDescription: String,
-    annualSalary: Number,
+    annualSalary: String,
     hourlyRate: Number,
     weeklyWorkingHours: Number,
     weeklyWorkingHoursPattern: String,
@@ -151,13 +150,6 @@ userSchema.methods.generateAuthToken = async function() {
   const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
   return token
 }
-
-// userSchema.methods.generateAuthToken = async function () {
-//   const user = this
-//   const JWTToken = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
-//   const encrypted_token = CryptoJS.AES.encrypt(JWTToken, process.env.ENCRYPTION_SECRET_KEY).toString()
-//   return { JWTToken, encrypted_token }
-// }
 
 const User = mongoose.model('User', userSchema);
 

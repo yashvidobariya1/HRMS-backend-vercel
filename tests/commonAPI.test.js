@@ -70,7 +70,7 @@ describe('Login API==================================================', () => {
     test('should return 400 for email and password required', async () => {
         const res = await request(app).post('/login').send({});
         expect(JSON.parse(res.text).status).toBe(400);
-        expect(JSON.parse(res.text).message).toBe('Email and password are required');
+        expect(JSON.parse(res.text).message).toBe('Email or password is required');
     });
     test('should return 404 for non-existing user', async () => {
         const res = await request(app)
@@ -97,7 +97,7 @@ describe('Login API==================================================', () => {
             .post('/login')
             .send({
                 email: 'test@example.com',
-                password: 'wrongpassword',
+                password: 'wrong@password123',
             });
         expect(JSON.parse(res.text).status).toBe(401);
         expect(JSON.parse(res.text).message).toBe('Invalid credential');
@@ -354,7 +354,7 @@ describe('Forgot Password process API===========================================
 });
 
 describe('dashboard==================================================', () => {
-    let token
+    let token, companyId
     test('should return 401 for Unauthorized: Invalid API key', async () => {
         await User.create({
             personalDetails: {
@@ -364,6 +364,13 @@ describe('dashboard==================================================', () => {
             role: 'Superadmin',
             password: 'Superadmin@123',
         });
+
+        const company = await Company.create({
+            companyDetails: {
+                businessName: 'addTestCompanyForSuperadminDashboard'
+            }
+        })
+        companyId = company._id
 
         const login = await request(app)
             .post('/login')
@@ -381,7 +388,7 @@ describe('dashboard==================================================', () => {
         expect(JSON.parse(res.text).message).toBe('Unauthorized: Invalid API key');
     })
     test('should return 200 for fetched dashboard data', async () => {
-        const res = await request(app).post('/dashboard').set('Authorization', `Bearer ${token}`)
+        const res = await request(app).post(`/dashboard?companyId=${companyId}`).set('Authorization', `Bearer ${token}`)
         expect(JSON.parse(res.text).status).toBe(200)
     })
     test('should return 403 for Access denied', async () => {
@@ -870,7 +877,7 @@ describe('User CRUD==================================================', () => {
                         "contractType": contract._id.toString()
                     }
                 })
-                // console.log('res:', res)
+                // console.log('res:', res.text)
                 expect(res.body.status).toBe(200);
                 expect(res.body.message).toBe('Employee created successfully.');
                 createdEmployeeId = await (JSON.parse(res.text)).user._id
