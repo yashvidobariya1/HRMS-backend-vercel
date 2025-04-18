@@ -5,8 +5,9 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const timePeriod = parseInt(req.query.timePeriod)
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
 
@@ -32,6 +33,12 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
                 baseQuery.role = { $in: ["Employee"] }
             }
 
+            if (searchQuery) {
+                baseQuery['$or'] = [
+                    { userName: { $regex: searchQuery, $options: 'i' } }
+                ]
+            }
+
             const users = await User.find(baseQuery).skip(skip).limit(limit)
             const formattedUsers = users.length > 0 ? users.map(user => ({
                 userName: `${user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`}`,
@@ -55,6 +62,6 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching logged In/Out employees:', error)
-        res.send({ message: 'Error occurred while fetching logged In/Out employees!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching logged In/Out employees!' })
     }
 }

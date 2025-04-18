@@ -2,6 +2,7 @@ const Company = require("../models/company");
 const Location = require("../models/location");
 const cloudinary = require('../utils/cloudinary')
 const moment = require('moment')
+const sharp = require('sharp')
 
 exports.addCompany = async (req, res) => {
     try {
@@ -20,7 +21,20 @@ exports.addCompany = async (req, res) => {
                     console.log(`Invalid or missing document for item`)
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
+                    const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if (!matches || matches.length !== 3) {
+                        return res.send({ status: 400, message: 'Invalid Image Format!' })
+                    }
+
+                    const imageBuffer = Buffer.from(matches[2], 'base64')
+
+                    const compressedBuffer = await sharp(imageBuffer)
+                        .toFormat("jpeg", { quality: 70 })
+                        .toBuffer()
+
+                    const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                    let element = await cloudinary.uploader.upload(compressedBase64, {
                         resource_type: "auto",
                         folder: "companyLogos",
                     });
@@ -65,7 +79,7 @@ exports.addCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding company:", error);
-        res.send({ message: "Something went wrong while adding company!" })
+        return res.send({ status: 500, message: "Something went wrong while adding company!" })
     }
 }
 
@@ -90,7 +104,7 @@ exports.getCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching company:", error);
-        res.send({ message: "Something went wrong while fetching company!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching company!" })
     }
 }
 
@@ -99,7 +113,7 @@ exports.getAllCompany = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -114,8 +128,31 @@ exports.getAllCompany = async (req, res) => {
                 baseQuery["companyDetails.businessName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const companies = await Company.find(baseQuery).skip(skip).limit(limit)
-            const totalCompanies = await Company.find(baseQuery).countDocuments()
+            const [result] = await Company.aggregate([
+                { $match: baseQuery },
+                {
+                    $facet: {
+                        companies: [
+                            { $skip: skip },
+                            { $limit: limit },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    'companyDetails.businessName': 1,
+                                    'companyDetails.companyCode': 1,
+                                    'companyDetails.city': 1,
+                                }
+                            }
+                        ],
+                        total: [
+                            { $count: 'count' }
+                        ]
+                    }
+                }
+            ])
+        
+            const companies = result.companies || []
+            const totalCompanies = result.total.length > 0 ? result.total[0].count : 0
 
             return res.send({
                 status: 200,
@@ -128,13 +165,13 @@ exports.getAllCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching companies:", error);
-        res.send({ message: "Something went wrong while fetching companies!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching companies!" })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator'];
     //     if (allowedRoles.includes(req.user.role)) {
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -163,7 +200,7 @@ exports.getAllCompany = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while fetching companies:", error);
-    //     res.send({ message: "Something went wrong while fetching companies!" })
+    //     return res.send({ status: 500, message: "Something went wrong while fetching companies!" })
     // }
 }
 
@@ -196,7 +233,20 @@ exports.updateCompanyDetails = async (req, res) => {
                 }
                 try {
                     if(document.startsWith('data:')){
-                        let element = await cloudinary.uploader.upload(document, {
+                        const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                        if (!matches || matches.length !== 3) {
+                            return res.send({ status: 400, message: 'Invalid Image Format!' })
+                        }
+
+                        const imageBuffer = Buffer.from(matches[2], 'base64')
+
+                        const compressedBuffer = await sharp(imageBuffer)
+                            .toFormat("jpeg", { quality: 70 })
+                            .toBuffer()
+
+                        const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                        let element = await cloudinary.uploader.upload(compressedBase64, {
                             resource_type: "auto",
                             folder: "companyLogos",
                         });
@@ -230,7 +280,7 @@ exports.updateCompanyDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating company details:", error);
-        res.send({ message: "Something went wrong while updating company details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating company details!" })
     }
 }
 
@@ -260,6 +310,6 @@ exports.deleteCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing company:", error);
-        res.send({ message: "Something went wrong while removing company!" })
+        return res.send({ status: 500, message: "Something went wrong while removing company!" })
     }
 }

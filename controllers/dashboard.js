@@ -85,8 +85,19 @@ const user_Growth = async ({ role, companyId = null, locationId = null, userId =
             throw new Error("Invalid role provided");
         }
 
-        const growth = await User.aggregate([
+        const startOfYear = moment().startOf('year').toDate()
+        const endOfYear = moment().endOf('year').toDate()
+
+        const result = await User.aggregate([
             { $match: matchCondition },
+            {
+                $match: {
+                    createdAt: {
+                        $gte: startOfYear,
+                        $lte: endOfYear
+                    }
+                }
+            },
             {
                 $group: {
                     _id: {
@@ -96,21 +107,21 @@ const user_Growth = async ({ role, companyId = null, locationId = null, userId =
                     totalUsers: { $sum: 1 }
                 }
             },
-            { $sort: { "_id.year": 1, "_id.month": 1 } },
-            {
-                $project: {
-                    _id: 0,
-                    year: "$_id.year",
-                    month: {
-                        $let: {
-                            vars: { months: ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] },
-                            in: { $arrayElemAt: ["$$months", "$_id.month"] }
-                        }
-                    },
-                    totalUsers: 1
-                }
+        ])
+
+        const allMonths = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ]
+
+        const currentYear = moment().year()
+        const currentMonth = moment().month()
+
+        const growth = allMonths.slice(0, currentMonth + 1).map((monthName, index) => {
+            const data = result.find(r => r._id.month === index + 1);
+            return {
+                year: currentYear,
+                month: monthName,
+                totalUsers: data ? data.totalUsers : 0
             }
-        ]);
+        })
 
         return growth;
     } catch (error) {
@@ -418,7 +429,7 @@ const getEmployeeStatus = async (requestedUser) => {
             }
         ])
 
-        return { employeeStatus: result };
+        return result;
     } catch (error) {
         console.error("Error fetching employee status:", error);
     }
@@ -470,9 +481,8 @@ exports.dashboard = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const currentDate = moment()
-            const currentYear = currentDate.year()
-            const currentMonth = currentDate.month()
+            const currentYear = moment().year()
+            const currentMonth = moment().month()
 
             const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1
             const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear
@@ -482,6 +492,12 @@ exports.dashboard = async (req, res) => {
 
             const currentMonthStart = moment().startOf('month').toDate()
             const currentMonthEnd = moment().endOf('month').toDate()
+
+            const previousYearStart = moment([currentYear - 1, 0, 1]).startOf('day').toDate()  // Jan 1st of previous year
+            const previousYearEnd = moment([currentYear - 1, 11, 31]).endOf('day').toDate()
+
+            const currentYearStart = moment().startOf('year').toDate()
+            const currentYearEnd = moment().endOf('year').toDate()
 
             const calculatePercentageGrowth = (current, previous) => {
                 if (previous === 0) return current > 0 ? 100 : 0
@@ -494,6 +510,13 @@ exports.dashboard = async (req, res) => {
             let responseData = {}
 
             if(req.user.role === 'Superadmin'){
+
+                const companyId = req.query.companyId
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
                 const adminUsers = await User.find({ role: "Administrator", isDeleted: { $ne: true } }).select("_id")
                 const adminUserIds = adminUsers.map(user => user._id)
 
@@ -501,8 +524,8 @@ exports.dashboard = async (req, res) => {
                 const employeeStatus = await getEmployeeStatus(req.user)
 
                 const [
-                    totalCompanies, previousMonthTotalCompanies, currentMonthTotalCompanies,
-                    totalClients, previousMonthTotalClients, currentMonthTotalClients,
+                    totalCompanies, previousYearTotalCompanies, currentYearTotalCompanies,
+                    totalClients, previousYearTotalClients, currentYearTotalClients,
                     totalContracts, previousMonthTotalContracts, currentMonthTotalContracts,
                     totalLocations, previousMonthTotalLocations, currentMonthTotalLocations,
                     totalTemplates, previousMonthTotalTemplates, currentMonthTotalTemplates,
@@ -512,69 +535,76 @@ exports.dashboard = async (req, res) => {
                     totalPendingLR, currentMonthTotalPendingLR,
                 ] = await Promise.all([
                     Company.countDocuments({ isDeleted: { $ne: true } }),
-                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
-                    Client.countDocuments({ isDeleted: { $ne: true } }),
-                    Client.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Client.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Client.countDocuments({ companyId, isDeleted: { $ne: true } }),
+                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
-                    Contract.countDocuments({ isDeleted: { $ne: true } }),
-                    Contract.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Contract.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Contract.countDocuments({ companyId, isDeleted: { $ne: true } }),
+                    Contract.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Contract.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Location.countDocuments({ isDeleted: { $ne: true } }),
-                    Location.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Location.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Location.countDocuments({ companyId, isDeleted: { $ne: true } }),
+                    Location.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Location.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Template.countDocuments({ isDeleted: { $ne: true } }),
                     Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
                     Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true } }),
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true } }),
+                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true } }),
-                    Leave.countDocuments({ userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true } }),
+                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
                     unreadNotificationCount,
 
                     totalCompanies,
-                    currentMonthTotalCompanies,
-                    companyGrowth: calculatePercentageGrowth(currentMonthTotalCompanies, previousMonthTotalCompanies),
+                    // previousYearTotalCompanies,
+                    currentYearTotalCompanies,
+                    companyGrowth: calculatePercentageGrowth(currentYearTotalCompanies, previousYearTotalCompanies),
 
                     totalClients,
-                    currentMonthTotalClients,
-                    clientGrowth: calculatePercentageGrowth(currentMonthTotalClients, previousMonthTotalClients),
+                    // previousMonthTotalClients,
+                    currentYearTotalClients,
+                    clientGrowth: calculatePercentageGrowth(currentYearTotalClients, previousYearTotalClients),
 
                     totalContracts,
+                    // previousMonthTotalContracts,
                     currentMonthTotalContracts,
                     contractGrowth: calculatePercentageGrowth(currentMonthTotalContracts, previousMonthTotalContracts),
 
                     totalLocations,
+                    // previousMonthTotalLocations,
                     currentMonthTotalLocations,
                     locationGrowth: calculatePercentageGrowth(currentMonthTotalLocations, previousMonthTotalLocations),
 
                     totalTemplates,
+                    // previousMonthTotalTemplates,
                     currentMonthTotalTemplates,
                     templateGrowth: calculatePercentageGrowth(currentMonthTotalTemplates, previousMonthTotalTemplates),
 
                     totalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
@@ -616,7 +646,7 @@ exports.dashboard = async (req, res) => {
 
                 const [
                     totalEmployees, previousMonthTotalEmployees, currentMonthTotalEmployees,
-                    totalClients, previousMonthTotalClients, currentMonthTotalClients,
+                    totalClients, previousYearTotalClients, currentYearTotalClients,
                     totalActiveUsers, previousMonthTotalActiveUsers, currentMonthTotalActiveUsers,
                     totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
                     totalPendingLR, currentMonthTotalPendingLR,
@@ -629,8 +659,8 @@ exports.dashboard = async (req, res) => {
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Client.countDocuments({ companyId, isDeleted: { $ne: true } }),
-                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true } }),
                     User.countDocuments({ role: { $in: ['Manager', 'Employee'] }, companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
@@ -660,18 +690,22 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
 
                     totalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalClients,
-                    currentMonthTotalClients,
-                    clientGrowth: calculatePercentageGrowth(currentMonthTotalClients, previousMonthTotalClients),
+                    // previousYearTotalClients,
+                    currentYearTotalClients,
+                    clientGrowth: calculatePercentageGrowth(currentYearTotalClients, previousYearTotalClients),
 
                     totalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
+                    // previousMonthTotalLeaveRequests,
                     currentMonthTotalLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
@@ -679,12 +713,14 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalPendingLR,
 
                     totalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     ownLeaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
                     currentMonthTotalOwnPendingLR,
 
                     totalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
@@ -763,28 +799,34 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
                     
                     totalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
+                    // previousMonthTotalLeaveRequests,
                     currentMonthTotalLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
                     totalPendingLR,
+                    // previousMonthTotalPendingLR,
                     currentMonthTotalPendingLR,
                     pendingLRGrowth: calculatePercentageGrowth(currentMonthTotalPendingLR, previousMonthTotalPendingLR),
 
                     totalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     ownLeaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
                     currentMonthTotalOwnPendingLR,
 
                     totalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
@@ -839,6 +881,7 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
 
                     totalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
@@ -846,6 +889,7 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalOwnPendingLR,
                     
                     totalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
@@ -859,6 +903,6 @@ exports.dashboard = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while requesting dashboard:', error)
-        res.send({ message: 'Error occurred while fetching dashboard data!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching dashboard data!' })
     }
 }

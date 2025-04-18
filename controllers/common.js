@@ -3,6 +3,7 @@ const Location = require("../models/location");
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const bcrypt = require("bcrypt");
+const { promisify } = require('util')
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
 const moment = require('moment');
@@ -13,67 +14,133 @@ const useragent = require("useragent");
 const streamifier = require('streamifier');
 const Template = require("../models/template");
 const Task = require("../models/task");
+const Timesheet = require("../models/timeSheet");
+
+// exports.login = async (req, res) => {
+//     try {
+//         if (!req.body.email || !req.body.password) {
+//             return res.send({ status: 400, message: "Email and password are required" });
+//         }
+
+//         const isExist = await User.findOne({ "personalDetails.email": req.body.email, isDeleted: false });
+
+//         if (!isExist) {
+//             return res.send({ status: 404, message: "User not found" });
+//         }
+
+//         if(isExist && isExist?.isActive === false){
+//             return res.send({ status: 400, message: 'You do not have permission to logIn!' })
+//         }
+
+//         const token = await isExist.generateAuthToken()
+//         const browser = useragent.parse(req.headers["user-agent"]);
+//         isExist.token = token
+//         // isExist.token = token.JWTToken
+//         isExist.lastTimeLoggedIn = moment().toDate()
+//         isExist.isLoggedIn = true
+//         isExist.usedBrowser = browser
+//         await isExist.save()
+
+//         const personalDetails = isExist?.personalDetails
+//         const role = isExist?.role
+//         const createdAt = isExist?.createdAt
+//         const _id = isExist?._id
+
+//         if (isExist.password == req.body.password) {
+//             return res.send({
+//                 status: 200,
+//                 message: "User login successfully",
+//                 user: { personalDetails, role, token, createdAt, _id },
+//                 // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
+//             });
+//         } else {
+//             const hashedPassword = isExist.password;
+//             bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
+//                 if (err) {
+//                     console.error("Error comparing passwords:", err);
+//                     return res.send({ status: 500, message: "Internal server error" });
+//                 }
+//                 if (!result) {
+//                     return res.send({ status: 401, message: "Invalid credential" });
+//                 }
+//                 return res.send({
+//                     status: 200,
+//                     message: "User login successfully",
+//                     user: { personalDetails, role, token, createdAt, _id },
+//                     // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
+//                 });
+//             });
+//         }
+//     } catch (error) {
+//         console.error("Error occurred while logging in:", error);
+//         return res.send({ status: 500, message: "Something went wrong while login!" })
+//     }
+// };
 
 exports.login = async (req, res) => {
+    const { email, password } = req.body
+    
+    if(!email || !password){
+        return res.send({ status: 400, message: 'Email or password is required' })
+    }
+    
     try {
-        if (!req.body.email || !req.body.password) {
-            return res.send({ status: 400, message: "Email and password are required" });
-        }
-
-        const isExist = await User.findOne({ "personalDetails.email": req.body.email, isDeleted: false });
+        const isExist = await User.findOne(
+            { "personalDetails.email": email, isDeleted: false },
+            { 
+                password: 1,
+                isActive: 1,
+                personalDetails: 1,
+                role: 1,
+                createdAt: 1
+            }
+        )
 
         if (!isExist) {
-            return res.send({ status: 404, message: "User not found" });
+            return res.send({ status: 404, message: "User not found" })
         }
 
-        if(isExist && isExist?.isActive === false){
-            return res.send({ status: 400, message: 'You do not have permission for loogIn!' })
+        if (!isExist.isActive) {
+            return res.send({ status: 403, message: 'You do not have permission to log in!' })
+        }
+
+        let passwordValid = false
+
+        if(isExist.password === password){
+            passwordValid = true
+        } else {
+            const compareAsync = promisify(bcrypt.compare)
+            passwordValid = await compareAsync(password, isExist.password)
+        }
+
+        if(!passwordValid){
+            return res.send({ status: 401, message: 'Invalid credential' })
         }
 
         const token = await isExist.generateAuthToken()
-        const browser = useragent.parse(req.headers["user-agent"]);
+        const browser = useragent.parse(req.headers["user-agent"])
         isExist.token = token
-        // isExist.token = token.JWTToken
         isExist.lastTimeLoggedIn = moment().toDate()
         isExist.isLoggedIn = true
         isExist.usedBrowser = browser
-        isExist.save()
+        await isExist.save()
 
         const personalDetails = isExist?.personalDetails
         const role = isExist?.role
         const createdAt = isExist?.createdAt
         const _id = isExist?._id
 
-        if (isExist.password == req.body.password) {
-            return res.send({
-                status: 200,
-                message: "User login successfully",
-                user: { personalDetails, role, token, createdAt, _id },
-                // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
-            });
-        } else {
-            const hashedPassword = isExist.password;
-            bcrypt.compare(req.body.password, hashedPassword, async (err, result) => {
-                if (err) {
-                    console.error("Error comparing passwords:", err);
-                    return res.send({ status: 500, message: "Internal server error" });
-                }
-                if (!result) {
-                    return res.send({ status: 401, message: "Invalid credential" });
-                }
-                return res.send({
-                    status: 200,
-                    message: "User login successfully",
-                    user: { personalDetails, role, token, createdAt, _id },
-                    // user: { personalDetails, role, token: token.encrypted_token, createdAt, _id },
-                });
-            });
-        }
+        return res.send({
+            status: 200,
+            message: "User login successfully",
+            user: { personalDetails, role, token, createdAt, _id },
+        })
+
     } catch (error) {
-        console.error("Error occurred while logging in:", error);
-        res.send({ message: "Something went wrong while login!" })
+        console.error('Error occurred while login:', error)
+        return res.send({ status: 500, message: 'Something went wrong while login!' })
     }
-};
+}
 
 exports.logOut = async (req, res) => {
     try {
@@ -91,7 +158,7 @@ exports.logOut = async (req, res) => {
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
         console.error('Error occurred while logging out:', error)
-        res.send({ message: 'Error occurred while logging out!' })
+        return res.send({ status: 500, message: 'Error occurred while logging out!' })
     }
 }
 
@@ -152,7 +219,7 @@ exports.emailVerification = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while email verification:", error);
-        res.send({ message: "Something went wrong while email verification!" })
+        return res.send({ status: 500, message: "Something went wrong while email verification!" })
     }
 }
 
@@ -177,7 +244,7 @@ exports.otpVerification = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while OTP verification:", error);
-        res.send({ message: "Something went wrong while OTP verification!" })
+        return res.send({ status: 500, message: "Something went wrong while OTP verification!" })
     }
 }
 
@@ -217,7 +284,7 @@ exports.forgotPassword = async (req, res) => {
         res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
         console.error("Error occurred while forgot password:", error);
-        res.send({ message: "Something went wrong while forgot password!" })
+        return res.send({ status: 500, message: "Something went wrong while forgot password!" })
     }
 }
 
@@ -255,7 +322,7 @@ exports.updatePassword = async (req, res) => {
         return res.send({ status: 200, message: "Password updated successfully." })
     } catch (error) {
         console.error("Error occurred while updating password:", error);
-        res.send({ message: "Something went wrong while updating password!" })
+        return res.send({ status: 500, message: "Something went wrong while updating password!" })
     }
 }
 
@@ -279,7 +346,7 @@ exports.getDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting details:", error);
-        res.send({ message: "Something went wrong while getting details!" })
+        return res.send({ status: 500, message: "Something went wrong while getting details!" })
     }
 }
 
@@ -386,7 +453,7 @@ exports.updateProfileDetails = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating profile details:', error)
-        res.send({ message: 'Error occurred while updating profile details!' })
+        return res.send({ status: 500, message: 'Error occurred while updating profile details!' })
     }
 }
 
@@ -493,7 +560,7 @@ exports.addUser = async (req, res) => {
                 })
                 // for check template assigned or not
                 jobDetails.forEach(async JD => {
-                    if(JD?.templateId){
+                    if(JD.templateId && JD.templateId !== ""){
                         const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
                         if(!template){
                             return res.send({ status: 404, message: 'Template not found' })
@@ -553,11 +620,6 @@ exports.addUser = async (req, res) => {
             //         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
             //     }
             // }
-            if(contractDetails?.contractType){
-                contractDetailsFile = {
-                    contractId: contractDetails?.contractType,
-                }
-            }
 
             const generatePass = () => {
                 const fname = `${personalDetails.firstName}`
@@ -603,17 +665,26 @@ exports.addUser = async (req, res) => {
                 COMPANY_NAME: company?.companyDetails?.businessName
             }
 
-            const contractId = contractDetails?.contractType
+            let contractURL
             let generatedContract
 
-            const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-            if(!contract){
-                return res.send({ status: 404, message: 'Contract not found' })
-            }
-            generatedContract = await generateContractForUser(userData, contractId)
+            if(contractDetails?.contractType){
+                contractDetailsFile = {
+                    contractId: contractDetails?.contractType,
+                }
 
-            const contractURL = await uploadBufferToCloudinary(generatedContract)
-            // console.log('contractURL?.secure_url:', contractURL?.secure_url)
+                const contractId = contractDetails?.contractType
+                
+
+                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+                generatedContract = await generateContractForUser(userData, contractId)
+
+                contractURL = await uploadBufferToCloudinary(generatedContract)
+                // console.log('contractURL?.secure_url:', contractURL?.secure_url)
+            }
 
             if (personalDetails.sendRegistrationLink == true) {
                 try {
@@ -669,7 +740,7 @@ exports.addUser = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding user:", error);
-        res.send({ message: "Something went wrong while adding user!" })
+        return res.send({ status: 500, message: "Something went wrong while adding user!" })
     }
 }
 
@@ -696,7 +767,7 @@ exports.getUser = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting user:", error);
-        res.send({ message: "Something went wrong while getting user!" })
+        return res.send({ status: 500, message: "Something went wrong while getting user!" })
     }
 }
 
@@ -723,7 +794,7 @@ const calculateUserGracePoints = async (users) => {
         }))
 
         return {
-            ...user.toObject(),
+            ...user?.toObject(),
             roleWisePoints
         }
     }))
@@ -734,7 +805,7 @@ exports.getAllUsers = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             // const timePeriod = parseInt(req.query.timePeriod)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
@@ -772,8 +843,53 @@ exports.getAllUsers = async (req, res) => {
 
             const allUsers = await User.find(baseQuery)            
             const updateUsers = await calculateUserGracePoints(allUsers)
-            const users = updateUsers.slice(skip, skip + limit)
-            const totalUsers = updateUsers.length
+
+            // user's today clock in active or not
+            const usersWithClockInStatus = await Promise.all(
+                updateUsers.map(async (user) => {
+                    let todaysTimesheet = []
+    
+                    for (const job of user.jobDetails) {
+                        const timesheet = await Timesheet.findOne({
+                            userId: user._id,
+                            jobId: job._id,
+                            date: moment().format('YYYY-MM-DD'),
+                            isTimerOn: true
+                        })
+    
+                        todaysTimesheet.push({
+                            jobId: job._id,
+                            jobName: job.jobTitle,
+                            isActiveClockIn: !!timesheet
+                        })
+                    }
+    
+                    return {
+                        ...user,
+                        todaysTimesheet
+                    }
+                })
+            )
+            const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
+                const firstName = user.personalDetails?.firstName || ''
+                const lastName = user.personalDetails?.lastName || ''
+                const userName = `${firstName} ${lastName}`.trim()
+
+                return {
+                    userName,
+                    _id: user?._id,
+                    Id: user?.unique_ID,
+                    position: user?.role,
+                    email: user?.personalDetails?.email,
+                    status: user?.isActive,
+                    todaysTimesheet: user?.todaysTimesheet,
+                    roleWisePoints: user.roleWisePoints
+                }
+            })
+            const totalUsers = usersWithClockInStatus.length
+
+            // const users = updateUsers.slice(skip, skip + limit)
+            // const totalUsers = updateUsers.length
 
             return res.send({
                 status: 200,
@@ -788,7 +904,7 @@ exports.getAllUsers = async (req, res) => {
         }
     } catch (error) {
         console.error("Error occurred while getting users:", error);
-        res.send({ message: "Something went wrong while getting users!" })
+        return res.send({ status: 500, message: "Something went wrong while getting users!" })
     }
 }
 
@@ -971,7 +1087,7 @@ exports.updateUserDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating user details:", error);
-        res.send({ message: "Something went wrong while updating user details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating user details!" })
     }
 }
 
@@ -1000,7 +1116,7 @@ exports.deleteUserDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing user:", error);
-        res.send({ message: "Something went wrong while removing user!" })
+        return res.send({ status: 500, message: "Something went wrong while removing user!" })
     }
 }
 
@@ -1025,7 +1141,7 @@ exports.getUserJobTitles = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while finding user job type:', error)
-        res.send({ message: 'Error occurred while finding user role job type!' })
+        return res.send({ status: 500, message: 'Error occurred while finding user role job type!' })
     }
 }
 
@@ -1062,7 +1178,7 @@ exports.sendMailToEmployee = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while sending mail:', error)
-        res.send({ message: 'Error occurred while sending mail!' })
+        return res.send({ status: 500, message: 'Error occurred while sending mail!' })
     }
 }
 
@@ -1090,6 +1206,6 @@ exports.activateDeactivateUser = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while deacting user:', error)
-        res.send({ message: 'Error occurred while deacting user!' })
+        return res.send({ status: 500, message: 'Error occurred while deacting user!' })
     }
 }

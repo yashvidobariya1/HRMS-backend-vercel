@@ -48,7 +48,7 @@ exports.addClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while adding client:', error)
-        res.send({ message: 'Error occurred while adding client!' })
+        return res.send({ status: 500, message: 'Error occurred while adding client!' })
     }
 }
 
@@ -65,7 +65,7 @@ exports.getClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching client:', error)
-        res.send({ message: 'Error occurred while fetching client!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching client!' })
     }
 }
 
@@ -74,7 +74,7 @@ exports.getAllClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const companyId = req.query.companyId
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
@@ -92,8 +92,32 @@ exports.getAllClient = async (req, res) => {
                 baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const clients = await Client.find(baseQuery).skip(skip).limit(limit)
-            const totalClients = await Client.find(baseQuery).countDocuments()
+            const [result] = await Client.aggregate([
+                { $match: baseQuery },
+                {
+                    $facet: {
+                        clients: [
+                            { $skip: skip },
+                            { $limit: limit },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    'clientName': 1,
+                                    'contactNumber': 1,
+                                    'email': 1,
+                                    'city': 1,
+                                }
+                            }
+                        ],
+                        total: [
+                            { $count: 'count' }
+                        ]
+                    }
+                }
+            ])
+        
+            const clients = result.clients || []
+            const totalClients = result.total.length > 0 ? result.total[0].count : 0
 
             return res.send({
                 status: 200,
@@ -106,13 +130,13 @@ exports.getAllClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching clients:', error)
-        res.send({ message: 'Error occurred while fetching clients!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator']
     //     if(allowedRoles.includes(req.user.role)){
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
     //         const companyId = req.query.companyId
     //         const searchQuery = req.query.search
 
@@ -140,7 +164,7 @@ exports.getAllClient = async (req, res) => {
     //     } else return res.send({ status: 403, message: 'Access denied' })
     // } catch (error) {
     //     console.error('Error occurred while fetching clients:', error)
-    //     res.send({ message: 'Error occurred while fetching clients!' })
+    //     return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     // }
 }
 
@@ -149,7 +173,7 @@ exports.getCompanyClients = async (req, res) => {
         const allowedRoles = ['Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const companyId = req.user.companyId
@@ -168,7 +192,7 @@ exports.getCompanyClients = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching clients:',error)
-        res.send({ message: 'Error occurred while fetching clients!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching clients!' })
     }
 }
 
@@ -203,7 +227,7 @@ exports.updateClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error("Error occurred while updating client's details!", error)
-        res.send({ message: "Error occurred while updating client's details!" })
+        return res.send({ status: 500, message: "Error occurred while updating client's details!" })
     }
 }
 
@@ -230,7 +254,7 @@ exports.deleteClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         conosle.error('Error occurred while deleting client:', error)
-        res.send({ message: 'Error occurred while deleting client!' })
+        return res.send({ status: 500, message: 'Error occurred while deleting client!' })
     }
 }
 
@@ -251,7 +275,7 @@ exports.generateLinkForClient = async (req, res) => {
             }
 
             const clientEmails = client?.email
-            console.log('clientEmails:', clientEmails)
+            // console.log('clientEmails:', clientEmails)
 
             const company = await Company.findOne({ _id: client?.companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -333,8 +357,31 @@ exports.generateLinkForClient = async (req, res) => {
                     to: email,
                     subject: 'Employee Timesheet Report',
                     html:`
-                        <h1>Employee Timesheet Report</h1>
-                        <p>Click <a href="${link}">here</a> to view employee report from ${moment(startDate).format('DD-MM-YYYY')} to ${moment(endDate).format('DD-MM-YYYY')}</p>
+                        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                                <div style="background-color: #007bff; color: #ffffff; padding: 20px 30px; text-align: center;">
+                                    <h1 style="margin: 0; font-size: 24px;">Employee Timesheet Report</h1>
+                                </div>
+                                <div style="padding: 30px;">
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Hello,
+                                    </p>
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Please click the link below to view the employee timesheet report for the period from 
+                                        <strong>${moment(startDate).format('DD-MM-YYYY')}</strong> to 
+                                        <strong>${moment(endDate).format('DD-MM-YYYY')}</strong>.
+                                    </p>
+                                    <div style="text-align: center; margin: 30px 0;">
+                                        <a href="${link}" style="display: inline-block; padding: 12px 25px; font-size: 16px; color: #ffffff; background-color: #28a745; text-decoration: none; border-radius: 5px;">
+                                            View Report List
+                                        </a>
+                                    </div>
+                                    <p style="font-size: 14px; color: #777777;">
+                                        <strong>Note:</strong> Please ensure that you review and take the necessary action on each report.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     `
                 }
                 transporter.sendMail(mailOptions)
@@ -350,7 +397,7 @@ exports.generateLinkForClient = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occured while generating link:', error)
-        res.send({ message: 'Error occurred while generating link!' })
+        return res.send({ status: 500, message: 'Error occurred while generating link!' })
     }
 }
 
@@ -359,7 +406,7 @@ exports.getGeneratedReports = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const { clientId } = req.query
@@ -405,7 +452,7 @@ exports.getGeneratedReports = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching reports:', error)
-        res.send({ message: 'Error occurred while fetching reports!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching reports!' })
     }
 }
 
@@ -431,7 +478,7 @@ exports.getReport = async (req, res) => {
                 _id: emp.jobId,
                 jobTitle: emp.jobTitle,
                 jobRole: emp.jobRole,
-                reason: emp.rejectionReason,
+                reason: emp.rejectionReason || "",
                 status: emp.status
             })).slice(skip, skip + limit)
 
@@ -451,14 +498,14 @@ exports.getReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching report:', error)
-        res.send({ message: 'Error occurred while fetching report!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching report!' })
     }
 }
 
 exports.getClientUsers = async (req, res) => {
     // try {
     //     const page = parseInt(req.query.page) || 1
-    //     const limit = parseInt(req.query.limit) || 10
+    //     const limit = parseInt(req.query.limit) || 50
 
     //     const skip = (page - 1) * limit
 
@@ -533,7 +580,7 @@ exports.getClientUsers = async (req, res) => {
 
     // } catch (error) {
     //     console.error("Error occurred while fetching clinet's users:", error)
-    //     res.send({ message: "Error occurred while fetching clinet's users!" })
+    return //     res.send({ status: 500, message: "Error occurred while fetching clinet's users!" })
     // }
 }
 
@@ -569,7 +616,7 @@ exports.approveReport = async (req, res) => {
         return res.send({ status: 200, message: 'Employee report approved successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing approval')
-        res.send({ message: 'Error occurred while processing approval!' })
+        return res.send({ status: 500, message: 'Error occurred while processing approval!' })
     }
 }
 
@@ -587,9 +634,9 @@ exports.rejectReport = async (req, res) => {
             return res.send({ status: 404, message: 'Report not found' })
         }
 
-        if(!reason){
-            return res.send({ status: 400, message: 'Rejection reason is required!' })
-        }
+        // if(!reason){
+        //     return res.send({ status: 400, message: 'Rejection reason is required!' })
+        // }
 
         report?.employees.map(user => {
             // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
@@ -611,6 +658,6 @@ exports.rejectReport = async (req, res) => {
         return res.send({ status: 200, message: 'Employee report rejected successfully', report: employeeData })
     } catch (error) {
         console.log('Error occurred while processing rejection')
-        res.send({ message: 'Error occurred while processing rejection!' })
+        return res.send({ status: 500, message: 'Error occurred while processing rejection!' })
     }
 }

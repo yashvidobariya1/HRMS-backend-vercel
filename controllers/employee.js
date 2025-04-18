@@ -167,7 +167,7 @@ exports.addEmployee = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while adding employee:", error);
-    //     res.send({ message: "Something went wrong while adding employee!" })
+    //     return res.send({ status: 500, message: "Something went wrong while adding employee!" })
     // }
 }
 
@@ -194,7 +194,7 @@ exports.getEmployee = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while getting employee:", error);
-    //     res.send({ message: "Something went wrong while getting employee!" })
+    //     return res.send({ status: 500, message: "Something went wrong while getting employee!" })
     // }
 }
 
@@ -203,7 +203,7 @@ exports.getAllEmployees = async (req, res) => {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
     //     if (allowedRoles.includes(req.user.role)) {
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -222,7 +222,7 @@ exports.getAllEmployees = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while getting employees:", error);
-    //     res.send({ message: "Something went wrong while getting employees!" })
+    //     return res.send({ status: 500, message: "Something went wrong while getting employees!" })
     // }
 }
 
@@ -342,7 +342,7 @@ exports.updateEmployee = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while updating employee details:", error);
-    //     res.send({ message: "Something went wrong while updating employee details!" })
+    //     return res.send({ status: 500, message: "Something went wrong while updating employee details!" })
     // }
 }
 
@@ -371,6 +371,6 @@ exports.deleteEmployee = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while removing employee:", error);
-    //     res.send({ message: "Something went wrong while removing employee!" })
+    //     return res.send({ status: 500, message: "Something went wrong while removing employee!" })
     // }
 }

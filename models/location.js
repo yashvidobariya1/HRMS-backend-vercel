@@ -11,6 +11,14 @@ const locationSchema = new mongoose.Schema({
     latitude: String,
     longitude: String,
     radius: String,
+    breakTime: {
+        type: Number,
+        default: 20
+    },
+    graceTime: {
+        type: Number,
+        default: 15
+    },
     payeReferenceNumber: String,
     locationName: String,
     address: String,

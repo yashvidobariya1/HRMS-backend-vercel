@@ -4,15 +4,14 @@ const cloudinary = require('../utils/cloudinary');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const moment = require('moment');
+const User = require("../models/user");
 
 // const User = require("../models/user");
 // const axios = require('axios');
 // const fs = require('fs');
-// const FormData = require('form-data');
 // const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 // const pdfform = require('pdfform.js');
-// const pdffiller = require("node-pdffiller");
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -141,7 +140,7 @@ exports.addContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while adding contract form:", error);
-        res.send({ message: "Something went wrong while adding contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while adding contract form!" })
     }
 }
 
@@ -150,7 +149,7 @@ exports.getAllContract = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -165,8 +164,49 @@ exports.getAllContract = async (req, res) => {
                 baseQuery["contractName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            const contracts = await Contract.find(baseQuery).skip(skip).limit(limit)
-            const totalContracts = await Contract.find(baseQuery).countDocuments()
+            // const [result] = await Contract.aggregate([
+            //     { $match: baseQuery },
+            //     {
+            //         $facet: {
+            //             contract: [
+            //                 { $skip: skip },
+            //                 { $limit: limit },
+            //                 {
+            //                     $project: {
+            //                         _id: 1,
+            //                         'contractName': 1,
+            //                         'contractFileName': 1,
+            //                         'companyName': 1,
+            //                         'uploadBy': 1,
+            //                         'updatedAt': 1,
+            //                     }
+            //                 }
+            //             ],
+            //             total: [
+            //                 { $count: "total" }
+            //             ]
+            //         }
+            //     }
+            // ])
+
+            const allContracts = await Contract.find(baseQuery).skip(skip).limit(limit)
+
+            const filteredData = await Promise.all(
+                allContracts.map(async contract => {
+                    const company = await Company.findOne({ _id: contract?.companyId, isDeleted: { $ne: true } }).select('companyDetails.businessName').lean()
+                    const uploadBy = await User.findOne({ _id: contract?.creatorId, isDeleted: { $ne: true } }).select('personalDetails.firstName personalDetails.lastName').lean()
+                    return {
+                        _id: contract?._id,
+                        contractName: contract?.contractName,
+                        contractFileName: contract?.contractFileName,
+                        companyName: company?.companyDetails?.businessName,
+                        uploadBy: `${uploadBy?.personalDetails?.lastName ? `${uploadBy?.personalDetails?.firstName} ${uploadBy?.personalDetails?.lastName}` : `${uploadBy?.personalDetails?.firstName}`}`,
+                        updatedAt: contract?.updatedAt
+                    }
+                })
+            )
+            const contracts = filteredData.slice(skip, skip + limit)
+            const totalContracts = filteredData.length
 
             return res.send({
                 status: 200,
@@ -179,13 +219,13 @@ exports.getAllContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while fetching contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
     //     if (allowedRoles.includes(req.user.role)) {
     //         const page = parseInt(req.query.page) || 1
-    //         const limit = parseInt(req.query.limit) || 10
+    //         const limit = parseInt(req.query.limit) || 50
 
     //         const skip = (page - 1) * limit
 
@@ -210,7 +250,7 @@ exports.getAllContract = async (req, res) => {
     //     } else return res.send({ status: 403, message: "Access denied" })
     // } catch (error) {
     //     console.error("Error occurred while fetching contract form:", error);
-    //     res.send({ message: "Something went wrong while fetching contract form!" })
+    //     return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     // }
 }
 
@@ -219,7 +259,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -250,7 +290,7 @@ exports.getAllContractOfCompany = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching contract form:", error);
-        res.send({ message: "Something went wrong while fetching contract form!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching contract form!" })
     }
 }
 
@@ -277,7 +317,7 @@ exports.getContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching Contract:", error);
-        res.send({ message: "Something went wrong while fetching Contract!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching Contract!" })
     }
 }
 
@@ -348,7 +388,7 @@ exports.updateContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating contract details:", error);
-        res.send({ message: "Something went wrong while updating contract details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating contract details!" })
     }
 }
 
@@ -380,7 +420,7 @@ exports.deleteContract = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing contract:", error);
-        res.send({ message: "Something went wrong while removing contract!" })
+        return res.send({ status: 500, message: "Something went wrong while removing contract!" })
     }
 }
 
@@ -531,7 +571,7 @@ exports.generateContractForEmployee = async (req, res) => {
     // //     return res.send({status:200,messgae:'SUCCESS'})
     // // } catch (error) {
     // //     console.error('Error occurred while generating employee contract:', error, 'MESSAGE:', error.message)
-    // //     res.send({ message: 'Error occurred while generating employee contract!' })
+    // //     return res.send({ status: 500, message: 'Error occurred while generating employee contract!' })
     // // }
     // try {
     //     const { userId, contractId } = req.body;
@@ -601,6 +641,6 @@ exports.generateContractForEmployee = async (req, res) => {
     //     return res.send('SUCCESS')
     // } catch (error) {
     //     console.error('Error occurred while generating employee contract:', error, 'MESSAGE:', error.message)
-    //     res.send({ message: 'Error occurred while generating employee contract!' })
+    //     return res.send({ status: 500, message: 'Error occurred while generating employee contract!' })
     // }
 }

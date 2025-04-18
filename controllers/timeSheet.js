@@ -15,6 +15,7 @@ const ExcelJS = require("exceljs")
 const path = require("path");
 const EmployeeReport = require("../models/employeeReport");
 const Task = require("../models/task");
+const sharp = require('sharp')
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -50,6 +51,9 @@ exports.clockInFunc = async (req, res) => {
             }
 
             const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -71,13 +75,16 @@ exports.clockInFunc = async (req, res) => {
                 GEOFENCE_CENTER,
                 GEOFENCE_RADIUS
             )) {
-                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+                return res.send({ status: 403, message: 'You are outside the company location area.' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
             let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
-            const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate })
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: "You don't have any tasks assigned for today!" })
+            }
             
             if (!timesheet) {
                 timesheet = new Timesheet({
@@ -91,7 +98,7 @@ exports.clockInFunc = async (req, res) => {
                     // console.log('assignedTask.startTime', assignedTask.startTime)
                     // console.log('time now:', moment().format('HH:mm'))
                     const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
-                    const allowedClockInTime = moment(taskStartTime).add(process.env.GRACING_TIME, 'minutes')
+                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
                     const currentTime = moment()
                     if (currentTime.isAfter(allowedClockInTime)) {
                         await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
@@ -181,7 +188,7 @@ exports.clockInFunc = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock in:", error);
-        res.send({ message: "Something went wrong while clock in!" })
+        return res.send({ status: 500, message: "Something went wrong while clock in!" })
     }
 }
 
@@ -244,6 +251,52 @@ const subtractDurations = (totalDuration, threshold) => {
     return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
 }
 
+// calculate break time
+// function isDurationMoreThan20Minutes(durationStr) {
+//     const regex = /(\d+)h\s*(\d+)m\s*(\d+)s/
+//     const match = durationStr.match(regex)
+  
+//     if (!match) return false
+  
+//     const hours = parseInt(match[1])
+//     const minutes = parseInt(match[2])
+//     const seconds = parseInt(match[3])
+  
+//     const totalMinutes = (hours * 60) + minutes + (seconds / 60)
+  
+//     return totalMinutes > 20
+// }
+
+// const subtractBreakTimeFromTotalWorkingHours = (durationStr, minutesToSubtract) => {
+//     const match = durationStr.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
+
+//     const hours = parseInt(match[1] || 0);
+//     const minutes = parseInt(match[2] || 0);
+//     const seconds = parseInt(match[3] || 0);
+
+//     // Total seconds of original duration
+//     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+//     // Break time in seconds
+//     const subtractSeconds = minutesToSubtract * 60;
+
+//     // Final duration in seconds (may be negative)
+//     const finalSeconds = totalSeconds - subtractSeconds;
+
+//     // Get absolute value and sign for display
+//     const absSeconds = Math.abs(finalSeconds);
+//     const sign = finalSeconds < 0 ? '-' : '';
+
+//     const newHours = Math.floor(absSeconds / 3600);
+//     const newMinutes = Math.floor((absSeconds % 3600) / 60);
+//     const newSeconds = absSeconds % 60;
+
+//     // Build the string with signs
+//     const result = `${sign}${newHours}h ${sign}${newMinutes}m ${sign}${newSeconds}s`;
+
+//     return result;
+// }
+
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
@@ -278,6 +331,9 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
 
             if (!location || !location.latitude || !location.longitude) {
                 return res.send({ status: 400, message: "Location coordinator data is not found!" })
@@ -299,7 +355,7 @@ exports.clockOutFunc = async (req, res) => {
                 GEOFENCE_CENTER,
                 GEOFENCE_RADIUS
             )) {
-                return res.send({ status: 403, message: 'You are outside the geofence area.' })
+                return res.send({ status: 403, message: 'You are outside the company location area.' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
@@ -314,6 +370,7 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
+            // lastClockin.clockOut = moment().subtract(companyLocation?.breakTime, 'minutes').toDate()
             lastClockin.clockOut = moment().toDate()
             lastClockin.isClockin = false
 
@@ -329,6 +386,30 @@ exports.clockOutFunc = async (req, res) => {
                 const result = addDurations(timesheet.totalHours, duration)
                 timesheet.totalHours = result
             }
+            // =====================================break time calculate=====================================
+            // if (timesheet.totalHours == '0h 0m 0s') {
+            //     timesheet.totalHours = duration
+            // } else {
+            //     // console.log('else part')
+            //     // if(!timesheet.breakTimeDeducted){
+            //     //     console.log('if timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
+            //     //     if (isDurationMoreThan20Minutes(duration)) {
+            //     //         console.log("Duration is more than 20 minutes", duration);
+            //     //         duration = subtractBreakTimeFromTotalWorkingHours(duration, companyLocation?.breakTime)
+            //     //         const result = addDurations(timesheet.totalHours, duration)
+            //     //         timesheet.totalHours = result
+            //     //     } else {
+            //     //         console.log("Duration is 20 minutes or less", duration);
+            //     //         const result = addDurations(timesheet.totalHours, duration)
+            //     //         timesheet.totalHours = result
+            //     //     }
+            //     // } else {
+            //     //     console.log('else timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
+            //     //     const result = addDurations(timesheet.totalHours, duration)
+            //     //     timesheet.totalHours = result
+            //     //     console.log("Duration is 20 minutes or less");
+            //     // }
+            // }
 
             timesheet.isTimerOn = false
             await timesheet.save()
@@ -429,21 +510,192 @@ exports.clockOutFunc = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while clock out:", error);
-        res.send({ message: "Something went wrong while clock out!" })
+        return res.send({ status: 500, message: "Something went wrong while clock out!" })
+    }
+}
+
+exports.clockInForEmployee = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const {
+                date,
+                startTime,
+                userId,
+                jobId
+            } = req.body
+
+            if(!date || !startTime){
+                return res.send({ status: 400, message: "Date and start time are required" })
+            }
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
+
+            let timesheet = await Timesheet.findOne({ userId, jobId, date })
+
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: date, isDeleted: { $ne: true } })
+            if(!assignedTask){
+                return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}` : `${existUser?.personalDetails?.firstName}`} today!` })
+            }
+
+            if (!timesheet) {
+                timesheet = new Timesheet({
+                    userId,
+                    jobId,
+                    date,
+                    clockinTime: [],
+                    totalHours: '0h 0m 0s'
+                })
+                if(assignedTask){
+                    const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
+                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
+                    const currentTime = moment()
+                    if (currentTime.isAfter(allowedClockInTime)) {
+                        await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
+                    }
+                }
+            }
+
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+
+            if (lastClockin && !lastClockin.clockOut) {
+                return res.send({ status: 400, message: "Please clock out before clockin again." })
+            }
+
+            timesheet.clockinTime.push({
+                clockIn: moment(`${date}T${startTime}`).format('YYYY-MM-DDTHH:mm:ss.SSS'),
+                clockOut: "",
+                isClockin: true
+            })
+            
+            timesheet.isTimerOn = true
+            await timesheet.save()
+
+            return res.send({ status: 200, message: 'Clock IN successfully', timesheet })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while clock-IN:', error)
+        return res.send({ status: 500, message: 'Error occurred while clock-IN!' })
+    }
+}
+
+exports.clockOutForEmployee = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const {
+                date,
+                endTime,
+                userId,
+                jobId
+            } = req.body
+
+            if(!date || !endTime){
+                return res.send({ status: 400, message: "Date and end time are required" })
+            }
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if (!existUser) {
+                return res.send({ status: 404, message: "User not found" })
+            }
+
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+            if(!companyLocation){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
+
+            const timesheet = await Timesheet.findOne({ userId, jobId, date })
+
+            if (!timesheet) {
+                return res.send({ status: 404, message: "No timesheet found for today." })
+            }
+
+            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+            if (!lastClockin || lastClockin.clockOut) {
+                return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
+            }
+
+            lastClockin.clockOut = moment(`${date}T${endTime}`).subtract(companyLocation?.breakTime, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS')
+            lastClockin.isClockin = false
+
+            const clockInTime = moment(lastClockin.clockIn).toDate()
+            const clockOutTime = moment(lastClockin.clockOut).toDate()            
+
+            const duration = formatDuration(clockInTime, clockOutTime)
+            lastClockin.totalTiming = duration
+
+            if (timesheet.totalHours == '0h 0m 0s') {
+                timesheet.totalHours = duration
+            } else {
+                const result = addDurations(timesheet.totalHours, duration)
+                timesheet.totalHours = result
+            }
+
+            timesheet.isTimerOn = false
+            await timesheet.save()
+
+            const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
+            const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')           
+
+            const weeklyTimesheets = await Timesheet.find({
+                userId,
+                date: { $gte: startOfWeek, $lte: endOfWeek }
+            })
+
+            const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
+                return addDurations(total, ts.totalHours);
+            }, "0h 0m 0s")
+
+            const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
+
+            const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
+            
+            if(weeklyOvertime !== '0h 0m 0s') {
+                timesheet.isOverTime = true
+                timesheet.overTime = weeklyOvertime
+            }
+
+            await timesheet.save()
+
+            return res.send({ status: 200, message: 'Clock OUT successfully', timesheet })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while clock-OUT:', error)
+        return res.send({ status: 500, message: 'Error occurred while clock-OUT!' })
     }
 }
 
 // for clock in/out frontend page
 exports.getOwnTodaysTimeSheet = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
 
-            const userId = req.user._id
+            const userId = req.body.userId || req.user._id
             const { jobId } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -472,7 +724,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching timesheet:', error);
-        res.send({ message: "Something went wrong while fetching the timesheet!" });
+        return res.send({ status: 500, message: "Something went wrong while fetching the timesheet!" });
     }
 }
 
@@ -482,7 +734,7 @@ exports.getAllTimeSheets = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
             const userId = req.body.userId || req.user._id
@@ -566,7 +818,7 @@ exports.getAllTimeSheets = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error('Error occurred while fetching time sheet:', error)
-        res.send({ message: 'Something went wrong while fetching time sheet!' })
+        return res.send({ status: 500, message: 'Something went wrong while fetching time sheet!' })
     }
 }
 
@@ -575,7 +827,7 @@ exports.getTimesheetReport = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 30
+            const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
 
@@ -676,7 +928,8 @@ exports.getTimesheetReport = async (req, res) => {
         
 
             // 1. Fetch timesheet entries (Check-ins/outs)
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
             // console.log('timesheet:', timesheets)
 
             // 2. Fetch leave requests
@@ -709,7 +962,8 @@ exports.getTimesheetReport = async (req, res) => {
 
             const timesheetMap = new Map()
             timesheets.map(TS => {
-                const dateKey = TS.createdAt.toISOString().split("T")[0]
+                // const dateKey = TS.createdAt.toISOString().split("T")[0]
+                const dateKey = TS.date
                 timesheetMap.set(dateKey, TS)
             })
             // console.log('timesheets:', timesheets)
@@ -743,7 +997,8 @@ exports.getTimesheetReport = async (req, res) => {
 
                 if (isWeekend || isFuture) return null
             
-                const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
                 const leaveEntries = leaves.filter(leave => {
                     const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
                     const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
@@ -845,7 +1100,270 @@ exports.getTimesheetReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching timesheet report:', error)
-        res.send({ message: 'Error occurred while fetching timesheet report!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching timesheet report!' })
+    }
+}
+
+exports.getAbsenceReport = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user?.role)){
+            const page = parseInt(req.query.page) || 1
+            const limit = parseInt(req.query.limit) || 50
+
+            const skip = (page - 1) * limit
+
+            const { jobId } = req.body
+
+            const user = await User.findOne({ "jobDetails._id": jobId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const userId = req.body?.userId || req.user?._id || user?._id
+            const { month, year, week } = req.query
+
+            let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
+
+            const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
+            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
+
+            let startDate, endDate
+
+            if(req.body?.startDate && req.body?.endDate){
+                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
+                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
+            } else {
+                if (year && month && month !== "All") {
+                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(year === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (year && month === "All") {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (year && week) {
+                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
+                } else if (year) {
+                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
+                    if(year === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (month && month !== "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
+                    }
+                } else if (month === "All") {
+                    const currentYear = moment().year();
+                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
+                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
+                    if(currentYear === joiningYear){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
+                    }
+                } else if (week) {
+                    const currentYear = moment().year();
+                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
+                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
+                } else {
+                    startDate = moment().startOf('month').format('YYYY-MM-DD');
+                    endDate = moment().endOf('month').format('YYYY-MM-DD');
+                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                        startDate = moment(joiningDate).format('YYYY-MM-DD')
+                        endDate = moment().endOf('month').format('YYYY-MM-DD')
+                    }
+                }
+            }
+        
+
+            // 1. Fetch timesheet entries (Check-ins/outs)
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
+            // console.log('timesheet:', timesheets)
+
+            // 2. Fetch leave requests
+            const leaves = await Leave.find({
+                userId,
+                jobId,
+                $or: [
+                    { endDate: { $exists: true, $gte: startDate }, startDate: { $lte: endDate } },
+                    { endDate: { $exists: false }, startDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: "Approved",
+                isDeleted: { $ne: true }
+            })
+            // console.log('leaves:', leaves)
+
+            // 3. Fetch holidays
+            const holidays = await Holiday.find({
+                companyId: user.companyId,
+                locationId: { $in: user.locationId },
+                date: { $gte: startDate, $lte: endDate },
+                isDeleted: { $ne: true }
+            })
+            // console.log('holidays:', holidays)
+
+            const dateList = [];
+            for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'days')) {
+                dateList.push(d.clone().format('YYYY-MM-DD'))
+            }
+            // console.log('dateList:', dateList)
+
+            const timesheetMap = new Map()
+            timesheets.map(TS => {
+                // const dateKey = TS.createdAt.toISOString().split("T")[0]
+                const dateKey = TS.date
+                timesheetMap.set(dateKey, TS)
+            })
+            // console.log('timesheets:', timesheets)
+
+            const leaveMap = new Map()
+            leaves.forEach(leave => {
+                const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                
+                let tempDate = leaveStart.clone()
+            
+                while (tempDate.isSameOrBefore(leaveEnd)) {
+                    leaveMap.set(tempDate.format('YYYY-MM-DD'), leave)
+                    tempDate.add(1, 'days')
+                }
+            })
+            // console.log('leaves:', leaves)
+
+            const holidayMap = new Map();
+            holidays.map(HD => {
+                holidayMap.set(HD.date, HD)
+            })
+            // console.log('holidays:', holidays)
+
+            const today = moment().format('YYYY-MM-DD')
+
+            const allReports = dateList.map(dateObj => {
+                const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+                const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+
+                if (isWeekend || isFuture) return null
+            
+                // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
+                const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
+                const leaveEntries = leaves.filter(leave => {
+                    const leaveStart = moment(leave.startDate, 'YYYY-MM-DD')
+                    const leaveEnd = leave.endDate ? moment(leave.endDate, 'YYYY-MM-DD') : leaveStart.clone()
+                    return moment(dateObj).isBetween(leaveStart, leaveEnd, 'day', '[]')
+                });
+                const holidayEntries = holidays.filter(HD => HD.date === dateObj)
+            
+                const hasTimesheet = timesheetEntries.length > 0
+                const hasLeave = leaveEntries.length > 0
+                const hasHoliday = holidayEntries.length > 0
+                const isAbsent = !hasTimesheet && !hasLeave && !hasHoliday && !isFuture
+
+                let status = "Absent"
+        
+                if (hasLeave) {
+                    const isHalfLeave = leaveEntries.some(leave => leave.selectionDuration === "First-Half" || leave.selectionDuration === "Second-Half")
+                    status = isHalfLeave ? "HalfLeave" : "Leave"
+                } else if (hasTimesheet) {
+                    status = "Present"
+                } else if (hasHoliday) {
+                    status = "Holiday"
+                }
+            
+                let data = {}
+            
+                if (hasTimesheet && !hasLeave && !hasHoliday) {
+                    data.timesheetData = {
+                        date: timesheetEntries[0]?.date,
+                        clockinTime: timesheetEntries[0]?.clockinTime,
+                        totalHours: timesheetEntries[0]?.totalHours,
+                        overTime: timesheetEntries[0]?.overTime
+                    }
+                } else if (!hasTimesheet && hasLeave && !hasHoliday) {
+                    data.leaveData = {
+                        leaveType: leaveEntries[0]?.leaveType,
+                        selectionDuration: leaveEntries[0]?.selectionDuration,
+                        startDate: leaveEntries[0]?.startDate,
+                        endDate: leaveEntries[0]?.endDate,
+                        leaveDays: leaveEntries[0]?.leaveDays,
+                        leaves: leaveEntries[0]?.leaveType,
+                        reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                        status: leaveEntries[0]?.status,
+                    }
+                } else if (!hasTimesheet && !hasLeave && hasHoliday) {
+                    data.holidayData = {
+                        date: holidayEntries[0]?.date,
+                        occasion: holidayEntries[0]?.occasion
+                    }
+                } else if (hasTimesheet || hasLeave || hasHoliday) {
+                    data = {
+                        timesheetData: hasTimesheet ? {
+                            date: timesheetEntries[0]?.date,
+                            clockinTime: timesheetEntries[0]?.clockinTime,
+                            totalHours: timesheetEntries[0]?.totalHours,
+                            overTime: timesheetEntries[0]?.overTime
+                        } : undefined,
+                        leaveData: hasLeave ? {
+                            leaveType: leaveEntries[0]?.leaveType,
+                            selectionDuration: leaveEntries[0]?.selectionDuration,
+                            startDate: leaveEntries[0]?.startDate,
+                            endDate: leaveEntries[0]?.endDate,
+                            leaveDays: leaveEntries[0]?.leaveDays,
+                            leaves: leaveEntries[0]?.leaveType,
+                            reasonOfLeave: leaveEntries[0]?.reasonOfLeave,
+                            status: leaveEntries[0]?.status,
+                        } : undefined,
+                        holidayData: hasHoliday ? {
+                            date: holidayEntries[0]?.date,
+                            occasion: holidayEntries[0]?.occasion
+                        } : undefined
+                    }
+                }
+            
+                return {
+                    date: dateObj,
+                    status,
+                    leave: hasLeave,
+                    holiday: hasHoliday,
+                    absent: isAbsent === 'Absent',
+                    data
+                }
+            }).filter(report => report !== null)
+
+            const absentReports = allReports.filter(r => r.status === 'Absent')
+            const report = absentReports.slice(skip, skip + limit)
+            const totalReports = absentReports.length
+
+            return res.send({
+                status: 200,
+                message: 'Absence report fetched successfully',
+                report: report ? report : [],
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit) || 1,
+                currentPage: page || 1
+            })
+
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching timesheet report:', error)
+        return res.send({ status: 500, message: 'Error occurred while fetching timesheet report!' })
     }
 }
 
@@ -855,7 +1373,7 @@ exports.getTimesheetReport = async (req, res) => {
 //         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
 //         if(allowedRoles.includes(req.user.role)){
 //             const page = parseInt(req.query.page) || 1
-//             const limit = parseInt(req.query.limit) || 10
+//             const limit = parseInt(req.query.limit) || 50
 
 //             const skip = (page - 1) * limit
 
@@ -1040,7 +1558,7 @@ exports.getTimesheetReport = async (req, res) => {
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred while downloading timesheet report:', error)
-//         res.send({ message: 'Error occurred while downloading timesheet report!' })
+//         return res.send({ status: 500, message: 'Error occurred while downloading timesheet report!' })
 //     }
 // }
 
@@ -1102,7 +1620,8 @@ exports. downloadTimesheetReport = async (req, res) => {
             }
 
             // Fetch timesheet, leave, and holiday data
-            const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+            // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } })
 
             const leaves = await Leave.find({ 
                 userId, jobId, 
@@ -1117,7 +1636,8 @@ exports. downloadTimesheetReport = async (req, res) => {
 
             const timesheetMap = new Map()
             timesheets.forEach(ts => {
-                const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                // const dateKey = moment(ts.createdAt).format("YYYY-MM-DD")
+                const dateKey = ts.date
                 timesheetMap.set(dateKey, ts)
             })
 
@@ -1424,7 +1944,7 @@ exports. downloadTimesheetReport = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while downloading timesheet report:', error)
-        res.send({ message: 'Error occurred while downloading timesheet report!' })
+        return res.send({ status: 500, message: 'Error occurred while downloading timesheet report!' })
     }
 }
 
@@ -1446,7 +1966,20 @@ exports.generateQRcode = async (req, res) => {
                 return res.send({ status: 400, message: 'QR type is undefined, please enter valid type.' })
             }
 
-            let element = await cloudinary.uploader.upload(qrCode, {
+            const matches = qrCode.match(/^data:(image\/\w+);base64,(.+)$/)
+            if (!matches || matches.length !== 3) {
+                return res.send({ status: 400, message: 'Invalid Image Format!' })
+            }
+
+            const imageBuffer = Buffer.from(matches[2], 'base64')
+
+            const compressedBuffer = await sharp(imageBuffer)
+                .toFormat("jpeg", { quality: 70 })
+                .toBuffer()
+
+            const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+            let element = await cloudinary.uploader.upload(compressedBase64, {
                 resource_type: 'auto',
                 folder: 'QRCodes'
             })
@@ -1494,7 +2027,7 @@ exports.generateQRcode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occured while generating QR code:', error)
-        res.send({ message: 'Error occured while generating QR code!' })
+        return res.send({ status: 500, message: 'Error occured while generating QR code!' })
     }
 }
 
@@ -1505,7 +2038,8 @@ exports.getAllQRCodes = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const locationId = req.params.id
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = ( page - 1 ) * limit
 
@@ -1520,8 +2054,20 @@ exports.getAllQRCodes = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found.' })
             }
 
-            const QRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).skip(skip).limit(limit)
-            const totalQRCodes = await QR.find({ companyId, locationId, isActive: { $ne: false } }).countDocuments()
+            let baseQuery = { companyId, locationId, isActive: { $ne: false } }
+
+            let QRCodes = await QR.find(baseQuery).populate('locationId', 'locationName')
+
+            if(searchQuery){
+                const regex = new RegExp(searchQuery.replace(/[-\s]/g, "[-\\s]*"), "i")
+                QRCodes = QRCodes.filter(QR => {
+                    const locationName = QR?.locationId?.locationName
+                    return regex.test(`${locationName}`)
+                })
+            }
+
+            const totalQRCodes = QRCodes.length
+            const allQRCodes = QRCodes.slice(skip, skip + limit)
 
             let qrValue = `${location?.locationName}-${company?.companyDetails?.businessName}`
 
@@ -1529,7 +2075,7 @@ exports.getAllQRCodes = async (req, res) => {
                 status: 200,
                 message: 'QR codes fetched successfully.',
                 qrValue,
-                QRCodes,
+                QRCodes: allQRCodes,
                 totalQRCodes,
                 totalPages: Math.ceil(totalQRCodes / limit) || 1,
                 currentPage: page || 1
@@ -1538,7 +2084,7 @@ exports.getAllQRCodes = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while fetching company QR codes:', error)
-        res.send({ message: 'Error occurred while fetching QR codes!' })
+        return res.send({ status: 500, message: 'Error occurred while fetching QR codes!' })
     }
 }
 
@@ -1560,7 +2106,7 @@ exports.inactivateQRCode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while inactivating the QRCode:', error)
-        res.send({ message: 'Error occurred while inactivating the QRCode!' })
+        return res.send({ status: 500, message: 'Error occurred while inactivating the QRCode!' })
     }
 }
 
@@ -1626,7 +2172,7 @@ exports.inactivateQRCode = async (req, res) => {
 //         } else return res.send({ status: 403, message: 'Access denied' })
 //     } catch (error) {
 //         console.error('Error occurred during QR code verification:', error);
-//         res.send({ message: 'Error occurred during QR code verification!' });
+//         return res.send({ status: 500, message: 'Error occurred during QR code verification!' });
 //     }
 // };
 
@@ -1667,6 +2213,6 @@ exports.verifyQRCode = async (req, res) => {
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred during QR code verification:', error)
-        res.send({ message: 'Error occurred during QR code verification!' })
+        return res.send({ status: 500, message: 'Error occurred during QR code verification!' })
     }
 };

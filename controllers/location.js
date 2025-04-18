@@ -12,7 +12,7 @@ exports.addLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
 
-            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius } = req.body
+            const { companyId, payeReferenceNumber, locationName, address, addressLine2, city, postcode, country, ukviApproved, latitude, longitude, radius, breakTime, graceTime } = req.body
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -41,6 +41,8 @@ exports.addLocation = async (req, res) => {
                 postcode,
                 country,
                 ukviApproved,
+                breakTime,
+                graceTime,
             }
 
             // console.log('new Location', newLocation)
@@ -50,7 +52,7 @@ exports.addLocation = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while creating location:", error);
-        res.send({ message: "Something went wrong while creating location!" })
+        return res.send({ status: 500, message: "Something went wrong while creating location!" })
     }
 }
 
@@ -75,7 +77,7 @@ exports.getLocation = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching location:", error);
-        res.send({ message: "Something went wrong while fetching location!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching location!" })
     }
 }
 
@@ -84,7 +86,7 @@ exports.getAllLocation = async (req, res) => {
         const allowedRoles = ['Superadmin'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 10
+            const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
@@ -95,13 +97,20 @@ exports.getAllLocation = async (req, res) => {
                 baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }
             }
 
-            const locations = await Location.find(baseQuery).skip(skip).limit(limit)
+            const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
             const totalLocations = await Location.find(baseQuery).countDocuments()
+
+            const formattedLocations = locations.map(loc => {
+                return {
+                    ...loc.toObject(),
+                    locationName: `${loc?.locationName} (${loc?.companyId?.companyDetails?.businessName})`
+                }
+            }).slice(skip, skip + limit)
 
             return res.send({
                 status: 200,
                 message: 'Locations fetched successfully.',
-                locations: locations ? locations : [],
+                locations: formattedLocations ? formattedLocations : [],
                 totalLocations,
                 totalPages: Math.ceil(totalLocations / limit) || 1,
                 currentPage: page || 1
@@ -109,7 +118,7 @@ exports.getAllLocation = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching locations:", error);
-        res.send({ message: "Something went wrong while fetching locations!" })
+        return res.send({ status: 500, message: "Something went wrong while fetching locations!" })
     }
 }
 
@@ -237,7 +246,7 @@ exports.getCompanyLocations = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {
         console.error("Error occurred while fetching locations:", error);
-        res.send({ message: "Something went wrong while fetching locations!" });
+        return res.send({ status: 500, message: "Something went wrong while fetching locations!" });
     }
 }
 
@@ -266,6 +275,8 @@ exports.updateLocationDetails = async (req, res) => {
                         latitude: req.body.latitude,
                         longitude: req.body.longitude,
                         radius: req.body.radius,
+                        breakTime: req.body.breakTime,
+                        graceTime: req.body.graceTime,
                         address: req.body.address,
                         addressLine2: req.body.addressLine2,
                         city: req.body.city,
@@ -281,7 +292,7 @@ exports.updateLocationDetails = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while updating location details:", error);
-        res.send({ message: "Something went wrong while updating location details!" })
+        return res.send({ status: 500, message: "Something went wrong while updating location details!" })
     }
 }
 
@@ -313,6 +324,6 @@ exports.deleteLocation = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while removing location:", error);
-        res.send({ message: "Something went wrong while removing location!" })
+        return res.send({ status: 500, message: "Something went wrong while removing location!" })
     }
 }
