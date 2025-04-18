@@ -275,7 +275,7 @@ exports.generateLinkForClient = async (req, res) => {
             }
 
             const clientEmails = client?.email
-            console.log('clientEmails:', clientEmails)
+            // console.log('clientEmails:', clientEmails)
 
             const company = await Company.findOne({ _id: client?.companyId, isDeleted: { $ne: true } })
             if(!company){
@@ -357,8 +357,31 @@ exports.generateLinkForClient = async (req, res) => {
                     to: email,
                     subject: 'Employee Timesheet Report',
                     html:`
-                        <h1>Employee Timesheet Report</h1>
-                        <p>Click <a href="${link}">here</a> to view employee report from ${moment(startDate).format('DD-MM-YYYY')} to ${moment(endDate).format('DD-MM-YYYY')}</p>
+                        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                                <div style="background-color: #007bff; color: #ffffff; padding: 20px 30px; text-align: center;">
+                                    <h1 style="margin: 0; font-size: 24px;">Employee Timesheet Report</h1>
+                                </div>
+                                <div style="padding: 30px;">
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Hello,
+                                    </p>
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Please click the link below to view the employee timesheet report for the period from 
+                                        <strong>${moment(startDate).format('DD-MM-YYYY')}</strong> to 
+                                        <strong>${moment(endDate).format('DD-MM-YYYY')}</strong>.
+                                    </p>
+                                    <div style="text-align: center; margin: 30px 0;">
+                                        <a href="${link}" style="display: inline-block; padding: 12px 25px; font-size: 16px; color: #ffffff; background-color: #28a745; text-decoration: none; border-radius: 5px;">
+                                            View Report List
+                                        </a>
+                                    </div>
+                                    <p style="font-size: 14px; color: #777777;">
+                                        <strong>Note:</strong> Please ensure that you review and take the necessary action on each report.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     `
                 }
                 transporter.sendMail(mailOptions)

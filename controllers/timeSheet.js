@@ -15,6 +15,7 @@ const ExcelJS = require("exceljs")
 const path = require("path");
 const EmployeeReport = require("../models/employeeReport");
 const Task = require("../models/task");
+const sharp = require('sharp')
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -1894,7 +1895,20 @@ exports.generateQRcode = async (req, res) => {
                 return res.send({ status: 400, message: 'QR type is undefined, please enter valid type.' })
             }
 
-            let element = await cloudinary.uploader.upload(qrCode, {
+            const matches = qrCode.match(/^data:(image\/\w+);base64,(.+)$/)
+            if (!matches || matches.length !== 3) {
+                return res.send({ status: 400, message: 'Invalid Image Format!' })
+            }
+
+            const imageBuffer = Buffer.from(matches[2], 'base64')
+
+            const compressedBuffer = await sharp(imageBuffer)
+                .toFormat("jpeg", { quality: 70 })
+                .toBuffer()
+
+            const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+            let element = await cloudinary.uploader.upload(compressedBase64, {
                 resource_type: 'auto',
                 folder: 'QRCodes'
             })

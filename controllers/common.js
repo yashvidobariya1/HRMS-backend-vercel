@@ -3,6 +3,7 @@ const Location = require("../models/location");
 const Company = require("../models/company");
 const Contract = require("../models/contract");
 const bcrypt = require("bcrypt");
+const { promisify } = require('util')
 const { transporter } = require("../utils/nodeMailer");
 const cloudinary = require('../utils/cloudinary');
 const moment = require('moment');
@@ -108,7 +109,8 @@ exports.login = async (req, res) => {
         if(isExist.password === password){
             passwordValid = true
         } else {
-            passwordValid = bcrypt.compare(password, isExist.password)
+            const compareAsync = promisify(bcrypt.compare)
+            passwordValid = await compareAsync(password, isExist.password)
         }
 
         if(!passwordValid){
@@ -619,27 +621,6 @@ exports.addUser = async (req, res) => {
             //     }
             // }
 
-            let contractURL
-            let generatedContract
-
-            if(contractDetails?.contractType){
-                contractDetailsFile = {
-                    contractId: contractDetails?.contractType,
-                }
-
-                const contractId = contractDetails?.contractType
-                
-
-                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
-                if(!contract){
-                    return res.send({ status: 404, message: 'Contract not found' })
-                }
-                generatedContract = await generateContractForUser(userData, contractId)
-
-                contractURL = await uploadBufferToCloudinary(generatedContract)
-                // console.log('contractURL?.secure_url:', contractURL?.secure_url)
-            }
-
             const generatePass = () => {
                 const fname = `${personalDetails.firstName}`
                 const capitalizeWords = (username) => username.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -682,6 +663,27 @@ exports.addUser = async (req, res) => {
                 WEEKLY_HOURS: 'WEEKLY_HOURS',
                 ANNUAL_SALARY: 'ANNUAL_SALARY',
                 COMPANY_NAME: company?.companyDetails?.businessName
+            }
+
+            let contractURL
+            let generatedContract
+
+            if(contractDetails?.contractType){
+                contractDetailsFile = {
+                    contractId: contractDetails?.contractType,
+                }
+
+                const contractId = contractDetails?.contractType
+                
+
+                const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
+                if(!contract){
+                    return res.send({ status: 404, message: 'Contract not found' })
+                }
+                generatedContract = await generateContractForUser(userData, contractId)
+
+                contractURL = await uploadBufferToCloudinary(generatedContract)
+                // console.log('contractURL?.secure_url:', contractURL?.secure_url)
             }
 
             if (personalDetails.sendRegistrationLink == true) {

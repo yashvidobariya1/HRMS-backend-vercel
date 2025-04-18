@@ -4,6 +4,7 @@ const RecruitmentJob = require('../models/recruitmentJob')
 const cloudinary = require('../utils/cloudinary')
 const crypto = require('crypto')
 const moment = require('moment')
+const sharp = require('sharp')
 
 exports.createJobPost = async (req, res) => {
     try {
@@ -18,6 +19,7 @@ exports.createJobPost = async (req, res) => {
                 jobStatus,
                 locationId,
                 companyWebSite,
+                companyContactNumber,
             } = req.body
 
             const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
@@ -61,7 +63,20 @@ exports.createJobPost = async (req, res) => {
                     console.log(`Invalid or missing document for item`)
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
+                    const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if (!matches || matches.length !== 3) {
+                        return res.send({ status: 400, message: 'Invalid Image Format!' })
+                    }
+
+                    const imageBuffer = Buffer.from(matches[2], 'base64')
+                    
+                    const compressedBuffer = await sharp(imageBuffer)
+                        .toFormat("jpeg", { quality: 70 })
+                        .toBuffer()
+
+                    const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                    let element = await cloudinary.uploader.upload(compressedBase64, {
                         resource_type: "auto",
                         folder: "jobPostImage",
                     });
@@ -85,7 +100,7 @@ exports.createJobPost = async (req, res) => {
                 locationId,
                 companyWebSite,
                 companyEmail: company?.contactPersonEmail,
-                companyContactNumber: company?.contactPhone,
+                companyContactNumber,
                 jobPostedLink: generatedUrl,
                 jobUniqueKey: uniqueId,
                 creatorId: req.user._id,
@@ -131,6 +146,11 @@ exports.getJobPostForPublic = async (req, res) => {
         const location = await Location.findOne({ _id: jobPost.locationId, isDeleted: { $ne: true } })
         if(!location){
             return res.send({ status: 404, message: 'Location not found' })
+        }
+
+        const todaysDate = moment().format('YYYY-MM-DD')
+        if(moment(todaysDate).isAfter(jobPost?.jobApplyTo)){
+            return res.send({ status: 410, message: 'This application has expired and is no longer available.' })
         }
 
         const jobDetails = {
@@ -185,7 +205,9 @@ exports.getAllJobPosts = async (req, res) => {
                         _id: JP?._id,
                         jobTitle: JP?.jobTitle,
                         jobDescription: JP?.jobDescription,
-                        jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                        locationName: location?.locationName,
+                        companyContactNumber: JP?.companyContactNumber,
+                        // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobCategory: JP?.jobCategory,
                         jobApplyTo: JP?.jobApplyTo,
                         jobStatus: JP?.jobStatus,
@@ -243,7 +265,20 @@ exports.updateJobPost = async (req, res) => {
                 }
                 try {
                     if(document.startsWith('data:')){
-                        let element = await cloudinary.uploader.upload(document, {
+                        const matches = document.match(/^data:(image\/\w+);base64,(.+)$/)
+                        if (!matches || matches.length !== 3) {
+                            return res.send({ status: 400, message: 'Invalid Image Format!' })
+                        }
+
+                        const imageBuffer = Buffer.from(matches[2], 'base64')
+                    
+                        const compressedBuffer = await sharp(imageBuffer)
+                            .toFormat("jpeg", { quality: 70 })
+                            .toBuffer()
+
+                        const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
+
+                        let element = await cloudinary.uploader.upload(compressedBase64, {
                             resource_type: "auto",
                             folder: "jobPostImage",
                         });
