@@ -206,7 +206,7 @@ exports.getAllJobPosts = async (req, res) => {
                         jobTitle: JP?.jobTitle,
                         jobDescription: JP?.jobDescription,
                         locationName: location?.locationName,
-                        companyContactNumber: JP?.companyContactNumber,
+                        companyContactNumber: JP?.companyContactNumber || '',
                         // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobCategory: JP?.jobCategory,
                         jobApplyTo: JP?.jobApplyTo,

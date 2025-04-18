@@ -525,7 +525,7 @@ exports.dashboard = async (req, res) => {
 
                 const [
                     totalCompanies, previousYearTotalCompanies, currentYearTotalCompanies,
-                    totalClients, previousMonthTotalClients, currentMonthTotalClients,
+                    totalClients, previousYearTotalClients, currentYearTotalClients,
                     totalContracts, previousMonthTotalContracts, currentMonthTotalContracts,
                     totalLocations, previousMonthTotalLocations, currentMonthTotalLocations,
                     totalTemplates, previousMonthTotalTemplates, currentMonthTotalTemplates,
@@ -574,37 +574,37 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
 
                     totalCompanies,
-                    previousYearTotalCompanies,
+                    // previousYearTotalCompanies,
                     currentYearTotalCompanies,
                     companyGrowth: calculatePercentageGrowth(currentYearTotalCompanies, previousYearTotalCompanies),
 
                     totalClients,
-                    previousMonthTotalClients,
-                    currentMonthTotalClients,
-                    clientGrowth: calculatePercentageGrowth(currentMonthTotalClients, previousMonthTotalClients),
+                    // previousMonthTotalClients,
+                    currentYearTotalClients,
+                    clientGrowth: calculatePercentageGrowth(currentYearTotalClients, previousYearTotalClients),
 
                     totalContracts,
-                    previousMonthTotalContracts,
+                    // previousMonthTotalContracts,
                     currentMonthTotalContracts,
                     contractGrowth: calculatePercentageGrowth(currentMonthTotalContracts, previousMonthTotalContracts),
 
                     totalLocations,
-                    previousMonthTotalLocations,
+                    // previousMonthTotalLocations,
                     currentMonthTotalLocations,
                     locationGrowth: calculatePercentageGrowth(currentMonthTotalLocations, previousMonthTotalLocations),
 
                     totalTemplates,
-                    previousMonthTotalTemplates,
+                    // previousMonthTotalTemplates,
                     currentMonthTotalTemplates,
                     templateGrowth: calculatePercentageGrowth(currentMonthTotalTemplates, previousMonthTotalTemplates),
 
                     totalEmployees,
-                    previousMonthTotalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
-                    previousMonthTotalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
@@ -690,22 +690,22 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
 
                     totalEmployees,
-                    previousMonthTotalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalClients,
-                    previousYearTotalClients,
+                    // previousYearTotalClients,
                     currentYearTotalClients,
                     clientGrowth: calculatePercentageGrowth(currentYearTotalClients, previousYearTotalClients),
 
                     totalActiveUsers,
-                    previousMonthTotalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
-                    previousMonthTotalLeaveRequests,
+                    // previousMonthTotalLeaveRequests,
                     currentMonthTotalLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
@@ -713,14 +713,14 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalPendingLR,
 
                     totalOwnLeaveRequests,
-                    previousMonthTotalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     ownLeaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
                     currentMonthTotalOwnPendingLR,
 
                     totalHolidays,
-                    previousMonthTotalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
@@ -799,34 +799,34 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
                     
                     totalEmployees,
-                    previousMonthTotalEmployees,
+                    // previousMonthTotalEmployees,
                     currentMonthTotalEmployees,
                     employeeGrowth: calculatePercentageGrowth(currentMonthTotalEmployees, previousMonthTotalEmployees),
 
                     totalActiveUsers,
-                    previousMonthTotalActiveUsers,
+                    // previousMonthTotalActiveUsers,
                     currentMonthTotalActiveUsers,
                     activeUsersGrowth: calculatePercentageGrowth(currentMonthTotalActiveUsers, previousMonthTotalActiveUsers),
 
                     totalLeaveRequests,
-                    previousMonthTotalLeaveRequests,
+                    // previousMonthTotalLeaveRequests,
                     currentMonthTotalLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalLeaveRequests, previousMonthTotalLeaveRequests),
 
                     totalPendingLR,
-                    previousMonthTotalPendingLR,
+                    // previousMonthTotalPendingLR,
                     currentMonthTotalPendingLR,
                     pendingLRGrowth: calculatePercentageGrowth(currentMonthTotalPendingLR, previousMonthTotalPendingLR),
 
                     totalOwnLeaveRequests,
-                    previousMonthTotalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     ownLeaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
                     currentMonthTotalOwnPendingLR,
 
                     totalHolidays,
-                    previousMonthTotalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
@@ -881,7 +881,7 @@ exports.dashboard = async (req, res) => {
                     unreadNotificationCount,
 
                     totalOwnLeaveRequests,
-                    previousMonthTotalOwnLeaveRequests,
+                    // previousMonthTotalOwnLeaveRequests,
                     currentMonthTotalOwnLeaveRequests,
                     leaveRequestGrowth: calculatePercentageGrowth(currentMonthTotalOwnLeaveRequests, previousMonthTotalOwnLeaveRequests),
 
@@ -889,7 +889,7 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalOwnPendingLR,
                     
                     totalHolidays,
-                    previousMonthTotalHolidays,
+                    // previousMonthTotalHolidays,
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 

@@ -28,6 +28,10 @@ const TimesheetSchema = new mongoose.Schema(
                 default: false
             }
         }],
+        // breakTimeDeducted: {
+        //     type: Boolean,
+        //     default: false
+        // },
         totalHours: {
             type: String,
             default: "0h 0m 0s"

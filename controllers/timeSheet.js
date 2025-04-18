@@ -251,6 +251,52 @@ const subtractDurations = (totalDuration, threshold) => {
     return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
 }
 
+// calculate break time
+// function isDurationMoreThan20Minutes(durationStr) {
+//     const regex = /(\d+)h\s*(\d+)m\s*(\d+)s/
+//     const match = durationStr.match(regex)
+  
+//     if (!match) return false
+  
+//     const hours = parseInt(match[1])
+//     const minutes = parseInt(match[2])
+//     const seconds = parseInt(match[3])
+  
+//     const totalMinutes = (hours * 60) + minutes + (seconds / 60)
+  
+//     return totalMinutes > 20
+// }
+
+// const subtractBreakTimeFromTotalWorkingHours = (durationStr, minutesToSubtract) => {
+//     const match = durationStr.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
+
+//     const hours = parseInt(match[1] || 0);
+//     const minutes = parseInt(match[2] || 0);
+//     const seconds = parseInt(match[3] || 0);
+
+//     // Total seconds of original duration
+//     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+//     // Break time in seconds
+//     const subtractSeconds = minutesToSubtract * 60;
+
+//     // Final duration in seconds (may be negative)
+//     const finalSeconds = totalSeconds - subtractSeconds;
+
+//     // Get absolute value and sign for display
+//     const absSeconds = Math.abs(finalSeconds);
+//     const sign = finalSeconds < 0 ? '-' : '';
+
+//     const newHours = Math.floor(absSeconds / 3600);
+//     const newMinutes = Math.floor((absSeconds % 3600) / 60);
+//     const newSeconds = absSeconds % 60;
+
+//     // Build the string with signs
+//     const result = `${sign}${newHours}h ${sign}${newMinutes}m ${sign}${newSeconds}s`;
+
+//     return result;
+// }
+
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
@@ -324,7 +370,8 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClockin.clockOut = moment().subtract(companyLocation?.breakTime, 'minutes').toDate()
+            // lastClockin.clockOut = moment().subtract(companyLocation?.breakTime, 'minutes').toDate()
+            lastClockin.clockOut = moment().toDate()
             lastClockin.isClockin = false
 
             const clockInTime = moment(lastClockin.clockIn).toDate()
@@ -339,6 +386,30 @@ exports.clockOutFunc = async (req, res) => {
                 const result = addDurations(timesheet.totalHours, duration)
                 timesheet.totalHours = result
             }
+            // =====================================break time calculate=====================================
+            // if (timesheet.totalHours == '0h 0m 0s') {
+            //     timesheet.totalHours = duration
+            // } else {
+            //     // console.log('else part')
+            //     // if(!timesheet.breakTimeDeducted){
+            //     //     console.log('if timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
+            //     //     if (isDurationMoreThan20Minutes(duration)) {
+            //     //         console.log("Duration is more than 20 minutes", duration);
+            //     //         duration = subtractBreakTimeFromTotalWorkingHours(duration, companyLocation?.breakTime)
+            //     //         const result = addDurations(timesheet.totalHours, duration)
+            //     //         timesheet.totalHours = result
+            //     //     } else {
+            //     //         console.log("Duration is 20 minutes or less", duration);
+            //     //         const result = addDurations(timesheet.totalHours, duration)
+            //     //         timesheet.totalHours = result
+            //     //     }
+            //     // } else {
+            //     //     console.log('else timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
+            //     //     const result = addDurations(timesheet.totalHours, duration)
+            //     //     timesheet.totalHours = result
+            //     //     console.log("Duration is 20 minutes or less");
+            //     // }
+            // }
 
             timesheet.isTimerOn = false
             await timesheet.save()

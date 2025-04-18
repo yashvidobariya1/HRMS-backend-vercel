@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
   jobDetails: [{
     jobTitle: String,
     jobDescription: String,
-    annualSalary: Number,
+    annualSalary: String,
     hourlyRate: Number,
     weeklyWorkingHours: Number,
     weeklyWorkingHoursPattern: String,
