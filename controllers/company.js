@@ -1,8 +1,9 @@
 const Company = require("../models/company");
 const Location = require("../models/location");
-const cloudinary = require('../utils/cloudinary')
 const moment = require('moment')
 const sharp = require('sharp')
+const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
+const User = require("../models/user");
 
 exports.addCompany = async (req, res) => {
     try {
@@ -34,12 +35,11 @@ exports.addCompany = async (req, res) => {
 
                     const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
 
-                    let element = await cloudinary.uploader.upload(compressedBase64, {
-                        resource_type: "auto",
-                        folder: "companyLogos",
-                    });
-                    // console.log('Cloudinary response:', element);
-                    companyLogoImg = element?.secure_url
+                    const fileName = unique_Id()
+
+                    const element = await uploadToS3(compressedBase64, 'companyLogos', fileName)
+                    // console.log('AWS response:', element)
+                    companyLogoImg = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -246,12 +246,11 @@ exports.updateCompanyDetails = async (req, res) => {
 
                         const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
 
-                        let element = await cloudinary.uploader.upload(compressedBase64, {
-                            resource_type: "auto",
-                            folder: "companyLogos",
-                        });
-                        // console.log('Cloudinary response:', element);
-                        companyLogoImg = element?.secure_url
+                        const fileName = unique_Id()
+
+                        const element = await uploadToS3(compressedBase64, 'companyLogos', fileName)
+                        // console.log('AWS response:', element)
+                        companyLogoImg = element?.fileUrl
                     } else {
                         companyLogoImg = document
                     }
@@ -298,6 +297,16 @@ exports.deleteCompany = async (req, res) => {
             if (!company) {
                 return res.send({ status: 404, message: 'Company not found' })
             }
+
+            await Location.updateMany(
+                { companyId, isDeleted: { $ne: true } },
+                { $set: { isDeleted: true } }
+            )
+
+            await User.updateMany(
+                { companyId, isDeleted: { $ne: true } },
+                { $set: { isDeleted: true } }
+            )
 
             let deletedCompany = await Company.findByIdAndUpdate(companyId, {
                 $set: {

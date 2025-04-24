@@ -1,6 +1,6 @@
 const Candidate = require('../models/candidate')
 const RecruitmentJob = require('../models/recruitmentJob')
-const cloudinary = require('../utils/cloudinary')
+const { uploadToS3, unique_Id } = require('../utils/AWS_S3')
 const mongoose = require('mongoose')
 const moment = require('moment')
 
@@ -20,6 +20,11 @@ exports.applyForJob = async (req, res) => {
             return res.send({ status: 404, message: "Job post not found" })
         }
 
+        const existCandidate = await Candidate.findOne({ email, isDeleted: { $ne: true } })
+        if(existCandidate){
+            return res.send({ status: 202, message: "You've already applied for this position. We appreciate your interest!" })
+        }
+
         const todaysDate = moment().format('YYYY-MM-DD')
         if(moment(todaysDate).isAfter(jobPost?.jobApplyTo)){
             return res.send({ status: 410, message: 'This application has expired and is no longer available.' })
@@ -32,12 +37,11 @@ exports.applyForJob = async (req, res) => {
                 console.log(`Invalid or missing document for item`)
             }
             try {
-                let element = await cloudinary.uploader.upload(document, {
-                    resource_type: "auto",
-                    folder: "candidateResume",
-                });
-                // console.log('Cloudinary response:', element);
-                uploadedResume = element?.secure_url
+                let fileName = unique_Id()
+
+                let element = await uploadToS3(document, 'candidateResume', fileName)
+                // console.log('AWS response:', element)
+                uploadedResume = element?.fileUrl
             } catch (uploadError) {
                 console.error("Error occurred while uploading file:", uploadError);
                 return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });

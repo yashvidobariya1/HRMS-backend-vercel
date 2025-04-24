@@ -178,7 +178,7 @@ const User = require('../models/user')
 
 exports.createTask = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const {
                 taskName,

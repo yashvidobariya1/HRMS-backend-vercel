@@ -1,7 +1,6 @@
 const User = require("../models/user")
 const bcrypt = require('bcrypt')
 const { transporter } = require("../utils/nodeMailer");
-const cloudinary = require('../utils/cloudinary');
 const moment = require('moment')
 
 exports.addEmployee = async (req, res) => {

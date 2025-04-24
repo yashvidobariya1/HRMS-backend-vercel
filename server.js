@@ -31,7 +31,7 @@ app.listen(port, () => {
 });
 
 app.get("/", (req, res) => {
-  res.send('HRMS BACKEND')
+  res.send('City Clean London BACK-END')
 })
 
 module.exports = app

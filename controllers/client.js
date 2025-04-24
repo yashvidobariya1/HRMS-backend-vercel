@@ -482,7 +482,7 @@ exports.getReport = async (req, res) => {
                 status: emp.status
             })).slice(skip, skip + limit)
 
-            const totalEmployees = formattedEmployees.length
+            const totalEmployees = report.employees.length
 
             return res.send({
                 status: 200,

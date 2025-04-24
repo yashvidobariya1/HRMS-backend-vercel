@@ -1,7 +1,7 @@
 const Company = require('../models/company')
 const Location = require('../models/location')
 const RecruitmentJob = require('../models/recruitmentJob')
-const cloudinary = require('../utils/cloudinary')
+const { uploadToS3, unique_Id } = require('../utils/AWS_S3')
 const crypto = require('crypto')
 const moment = require('moment')
 const sharp = require('sharp')
@@ -75,13 +75,11 @@ exports.createJobPost = async (req, res) => {
                         .toBuffer()
 
                     const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
-
-                    let element = await cloudinary.uploader.upload(compressedBase64, {
-                        resource_type: "auto",
-                        folder: "jobPostImage",
-                    });
-                    // console.log('Cloudinary response:', element);
-                    jobPostImg = element?.secure_url
+                    
+                    const fileName = unique_Id()
+                    let element = await uploadToS3(compressedBase64, 'jobPostImages', fileName)
+                    
+                    jobPostImg = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
@@ -278,12 +276,10 @@ exports.updateJobPost = async (req, res) => {
 
                         const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
 
-                        let element = await cloudinary.uploader.upload(compressedBase64, {
-                            resource_type: "auto",
-                            folder: "jobPostImage",
-                        });
-                        // console.log('Cloudinary response:', element);
-                        jobPostImg = element?.secure_url
+                        const fileName = unique_Id()
+                        let element = await uploadToS3(compressedBase64, 'jobPostImages', fileName)
+                        
+                        jobPostImg = element?.fileUrl
                     } else {
                         jobPostImg = document
                     }

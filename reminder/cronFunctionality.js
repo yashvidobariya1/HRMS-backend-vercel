@@ -27,7 +27,7 @@ exports.leaveActionReminder = async (tomorrow) => {
                     html:`
                         <h2>Reminder for Leave Request :</h2>
                         <p>Dear ${assignManager?.personalDetails?.firstName} ${assignManager?.personalDetails?.lastName},<br><br>You have a pending leave request for <b>${leave?.userName}</b> ${ leave?.endDate ? `starting from <b>${leave?.startDate}</b> to <b>${leave?.endDate}</b>` : `on <b>${leave?.startDate}</b>` }. Please take action.</p>
-                        <p>Best Regards,<br>HRMS Team</p>
+                        <p>Best Regards,<br>City Clean London Team</p>
                     `
                 }                
                 transporter.sendMail(mailOptions)
@@ -95,7 +95,7 @@ exports.clockInOutReminder = async (type, today) => {
                     html: `
                         <h2>Reminder for missing Clock-in</h2>
                         <p>You haven't clocked in today for ${job?.jobTitle} Role.</p>
-                        <p>Best Regards,<br>HRMS Team</p>
+                        <p>Best Regards,<br>City Clean London Team</p>
                     `
                 }
                 transporter.sendMail(mailOptions)
@@ -118,7 +118,7 @@ exports.clockInOutReminder = async (type, today) => {
                     html: `
                         <h2>Reminder for missing Clock-out</h2>
                         <p>You haven't clocked out yet for ${job?.jobTitle} Role.</p>
-                        <p>Best Regards,<br>HRMS Team</p>
+                        <p>Best Regards,<br>City Clean London Team</p>
                     `
                 }
                 transporter.sendMail(mailOptions)
@@ -155,7 +155,7 @@ exports.visaExpiryReminder = async (targetDate) => {
                 <h2>Reminder for visa expired soon</h2>
                 <p>Hello ${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName},</p>
                 <p>Your visa will expire on <b>${targetDate}</b>. Please renew it as soon as possible.</p>
-                <p>Best Regards,<br>HRMS Team</p>
+                <p>Best Regards,<br>City Clean London Team</p>
             `
         }
         transporter.sendMail(mailOptions)

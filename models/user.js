@@ -55,9 +55,9 @@ const userSchema = new mongoose.Schema({
     sickLeavesAllow: Number,
     leavesAllow: Number,
     location: String,
-    assignManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    assignClient: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Templates' },
+    assignManager: { type: String },
+    assignClient: { type: String },
+    templateId: { type: String },
     isTemplateSigned: {
       type: Boolean,
       default: true
@@ -91,7 +91,7 @@ const userSchema = new mongoose.Schema({
     //   fileName: String,
     //   fileURL: String,
     // },
-    contractId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' }
+    contractId: { type: String }
   },
   userContractURL: String,
   password: String,

@@ -1,10 +1,9 @@
 const Template = require('../models/template');
 const User = require('../models/user');
 const Company = require('../models/company');
-const cloudinary = require('../utils/cloudinary');
-const axios = require("axios");
 const moment = require('moment');
 const mammoth = require('mammoth');
+const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -101,15 +100,11 @@ exports.addTemplate = async (req, res) => {
                     return res.send({ status: 400, message: "Invalid or missing template document." });
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
-                        resource_type: "auto",
-                        folder: "Templates",
-                        format: "docx"
-                    });
-                    // console.log('Cloudinary response:', element);
-                    documentURL = element.secure_url
+                    const fileName = unique_Id()
+                    let element = await uploadToS3(document, 'Templates', fileName)
+                    documentURL = element?.fileUrl
                 } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    console.error("Error occurred while uploading file to AWS:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             }
@@ -232,14 +227,12 @@ exports.updateTemplate = async (req, res) => {
                     console.log('Invalid or missing template document')
                 }
                 try {
-                    let element = await cloudinary.uploader.upload(document, {
-                        resource_type: "auto",
-                        folder: "Templates",
-                    });
-                    // console.log('Cloudinary response:', element);
-                    template = element.secure_url
+                    const fileName = unique_Id()
+                    let element = await uploadToS3(document, 'Templates', fileName)
+
+                    template = element?.fileUrl
                 } catch (uploadError) {
-                    console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                    console.error("Error occurred while uploading file to AWS:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
             } else {
@@ -368,22 +361,19 @@ exports.saveTemplateWithSignature = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            const result = await cloudinary.uploader.upload(base64OfTemplate, {
-                resource_type: "auto",
-                folder: 'userTemplates',
-                format: "docx"
-            })
+            const filename = unique_Id()
+            const result = await uploadToS3(base64OfTemplate, 'userTemplates', filename)
 
             existUser?.jobDetails.map(job => {
                 if(job._id.toString() === jobId){
                     job.isTemplateSigned = true
-                    job.signedTemplateURL = result?.secure_url
+                    job.signedTemplateURL = result?.fileUrl
                 }
             })
 
             await existUser.save()
 
-            return res.send({ status: 200, message: 'Signed template saved successfully', URL: result?.secure_url })
+            return res.send({ status: 200, message: 'Signed template saved successfully', URL: result?.fileUrl })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while saving signature:', error)

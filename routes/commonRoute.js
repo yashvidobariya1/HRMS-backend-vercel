@@ -75,7 +75,4 @@ commonRoute.post('/getAllTasks', auth, getAllTasks)
 commonRoute.post('/updateTask/:id', auth, updateTask)
 commonRoute.post('/cancelTask/:id', auth, canceledTask)
 
-
-commonRoute.post('/generateContractForEmployee', generateContractForEmployee)
-
 module.exports = commonRoute

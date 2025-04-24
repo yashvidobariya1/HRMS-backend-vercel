@@ -5,7 +5,6 @@ const Contract = require("../models/contract");
 const bcrypt = require("bcrypt");
 const { promisify } = require('util')
 const { transporter } = require("../utils/nodeMailer");
-const cloudinary = require('../utils/cloudinary');
 const moment = require('moment');
 const { default: axios } = require("axios");
 const PizZip = require('pizzip');
@@ -15,6 +14,7 @@ const streamifier = require('streamifier');
 const Template = require("../models/template");
 const Task = require("../models/task");
 const Timesheet = require("../models/timeSheet");
+const { unique_Id, uploadToS3, uploadBufferToS3 } = require("../utils/AWS_S3");
 
 // exports.login = async (req, res) => {
 //     try {
@@ -183,7 +183,7 @@ exports.emailVerification = async (req, res) => {
             let mailOptions = {
                 from: process.env.NODEMAILER_EMAIL,
                 to: findUser.personalDetails.email,
-                subject: "HRMS: Password recovery",
+                subject: "City Clean London: Password recovery",
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
                         <h2 style="text-align: center; color: #4CAF50;">OTP Verification</h2>
@@ -384,15 +384,12 @@ exports.updateProfileDetails = async (req, res) => {
                     }
                     try {
                         if(gettedDocument.startsWith('data:')){
-                            let element = await cloudinary.uploader.upload(gettedDocument, {
-                                resource_type: "auto",
-                                folder: "userDocuments",
-                            });
-                            // console.log('Cloudinary response:', element);
+                            const fileName = unique_Id()
+                            let element = await uploadToS3(gettedDocument, userDocuments, fileName)
                             documentDetailsFile.push({
                                 documentType: documentDetails[i].documentType,
                                 documentName: documentDetails[i].documentName,
-                                document: element.secure_url
+                                document: element?.fileUrl
                             })
                         } else {
                             documentDetailsFile.push({
@@ -402,7 +399,7 @@ exports.updateProfileDetails = async (req, res) => {
                             })
                         }
                     } catch (uploadError) {
-                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        console.error("Error occurred while uploading file to AWS:", uploadError);
                         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
@@ -478,17 +475,11 @@ const generateContractForUser = async (userData, contractId) => {
     }
 }
 
-const uploadBufferToCloudinary = (buffer, folder = 'contracts') => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-            { resource_type: 'raw', folder },
-            (error, result) => {
-                if (error) return reject(error)
-                resolve(result)
-            }
-        )
-        streamifier.createReadStream(buffer).pipe(uploadStream);
-    })
+const uploadBufferToAWS_S3 = async (buffer, folder = 'contracts') => {
+    let fileName = unique_Id()
+    const element = await uploadBufferToS3(buffer, folder, fileName)
+
+    return element?.fileUrl
 }
 
 async function generateUserId() {
@@ -579,18 +570,17 @@ exports.addUser = async (req, res) => {
                         console.log(`Invalid or missing document for item ${i}`)
                     }
                     try {
-                        let element = await cloudinary.uploader.upload(gettedDocument, {
-                            resource_type: "auto",
-                            folder: "userDocuments",
-                        });
-                        // console.log('Cloudinary response:', element);
+                        let fileName = unique_Id()
+
+                        let element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
+                        // console.log('AWS response:', element);
                         documentDetailsFile.push({
                             documentType: documentDetails[i].documentType,
                             documentName: documentDetails[i].documentName,
-                            document: element.secure_url
+                            document: element?.fileUrl
                         })
                     } catch (uploadError) {
-                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        console.error("Error occurred while uploading file to AWS:", uploadError);
                         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
@@ -637,29 +627,13 @@ exports.addUser = async (req, res) => {
             const pass = generatePass()
             const hashedPassword = await bcrypt.hash(pass, 10)
 
-            const newUser = {
-                personalDetails,
-                addressDetails,
-                kinDetails,
-                financialDetails,
-                jobDetails,
-                companyId,
-                locationId: locationIds,
-                immigrationDetails,
-                role: jobDetails[0]?.role,
-                password: hashedPassword,
-                documentDetails: documentDetailsFile,
-                contractDetails: contractDetailsFile,
-                createdBy: req.user.role,
-                creatorId: req.user._id,
-            }
-
             let userData = {
-                EMPLOYEE_NAME: `${newUser?.personalDetails?.firstName} ${newUser?.personalDetails?.lastName}`,
-                EMPLOYEE_EMAIL: newUser?.personalDetails?.email,
-                EMPLOYEE_CONTACT_NUMBER: newUser?.personalDetails?.phone,
+                EMPLOYEE_NAME: `${personalDetails?.firstName} ${personalDetails?.lastName}`,
+                EMPLOYEE_EMAIL: personalDetails?.email,
+                EMPLOYEE_CONTACT_NUMBER: personalDetails?.phone,
+                JOB_ROLE: 'JOB_ROLE',
                 JOB_START_DATE: 'START_DATE',
-                EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
+                JOB_TITLE: 'JOB_TITLE',
                 WEEKLY_HOURS: 'WEEKLY_HOURS',
                 ANNUAL_SALARY: 'ANNUAL_SALARY',
                 COMPANY_NAME: company?.companyDetails?.businessName
@@ -682,8 +656,25 @@ exports.addUser = async (req, res) => {
                 }
                 generatedContract = await generateContractForUser(userData, contractId)
 
-                contractURL = await uploadBufferToCloudinary(generatedContract)
-                // console.log('contractURL?.secure_url:', contractURL?.secure_url)
+                contractURL = await uploadBufferToAWS_S3(generatedContract)
+                // console.log('contractURL?.fileUrl:', contractURL?.fileUrl)
+            }
+
+            const newUser = {
+                personalDetails,
+                addressDetails,
+                kinDetails,
+                financialDetails,
+                jobDetails,
+                companyId,
+                locationId: locationIds,
+                immigrationDetails,
+                role: jobDetails[0]?.role,
+                password: hashedPassword,
+                documentDetails: documentDetailsFile,
+                contractDetails: contractDetailsFile,
+                createdBy: req.user.role,
+                creatorId: req.user._id,
             }
 
             if (personalDetails.sendRegistrationLink == true) {
@@ -692,11 +683,11 @@ exports.addUser = async (req, res) => {
                     let mailOptions = {
                         from: process.env.NODEMAILER_EMAIL,
                         to: newUser.personalDetails.email,
-                        subject: `Welcome to ${company?.companyDetails?.businessName}'s HRMS Portal`,
+                        subject: `Welcome to ${company?.companyDetails?.businessName}'s City Clean Portal`,
                         html: `
-                            <p>Welcome to HRMS Portal!</p>
+                            <p>Welcome to City Clean Portal!</p>
 
-                            <p>We are pleased to inform you that a new ${newUser.role} account has been successfully created by the Manager under your supervision in the HRMS portal. Below are the details:</p>
+                            <p>We are pleased to inform you that a new ${newUser.role} account has been successfully created by the Manager under your supervision in the City Clean portal. Below are the details:</p>
 
                             <ul>
                                 <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
@@ -705,10 +696,10 @@ exports.addUser = async (req, res) => {
                                 <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
                             </ul>
 
-                            <p>Please ensure the ${newUser.role} logs into the HRMS portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                            <p>Please ensure the ${newUser.role} logs into the City Cleam portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
                             <ul>
-                                <li><b>HRMS Portal Link:</b> <a href="https://example.com">HRMS Portal</a></li>
+                                <li><b>City Clean Portal Link:</b> <a href="${process.env.CLITY_CLEAN_PORTAL_LINK}">City Clean Portal</a></li>
                                 <li><b>Username/Email:</b> ${personalDetails.email}</li>
                                 <li><b>Temporary Password:</b> ${generatePass()}</li>
                             </ul>
@@ -717,9 +708,9 @@ exports.addUser = async (req, res) => {
 
                             <p>Looking forward to your journey with us!</p>
 
-                            <p>Best regards,<br>HRMS Team</p>
+                            <p>Best regards,<br>City Clean London Team</p>
                         `,
-                        attachments: [{ filename: attachedFileName, content: generatedContract }],
+                        attachments: [{ filename: attachedFileName, content: generatedContract ? generatedContract : '' }],
                     };
 
                     await transporter.sendMail(mailOptions);
@@ -733,7 +724,7 @@ exports.addUser = async (req, res) => {
             const user = await User.create({
                 ...newUser,
                 unique_ID,
-                userContractURL: contractURL?.secure_url
+                userContractURL: contractURL?.fileUrl
             })
 
             return res.send({ status: 200, message: `${newUser.role} created successfully.`, user })
@@ -763,7 +754,12 @@ exports.getUser = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            return res.send({ status: 200, message: 'User get successfully.', user })
+            const userDetails = {
+                ...user.toObject(),
+                contractDetails: { contractType: user?.contractDetails?.contractId }
+            }
+
+            return res.send({ status: 200, message: 'User get successfully.', user: userDetails })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting user:", error);
@@ -958,15 +954,14 @@ exports.updateUserDetails = async (req, res) => {
                     }
                     try {
                         if(gettedDocument.startsWith('data:')){
-                            let element = await cloudinary.uploader.upload(gettedDocument, {
-                                resource_type: "auto",
-                                folder: "userDocuments",
-                            });
-                            // console.log('Cloudinary response:', element);
+                            const fileName = unique_Id()
+                            
+                            const element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
+                            // console.log('AWS response:', element)
                             documentDetailsFile.push({
                                 documentType: documentDetails[i].documentType,
                                 documentName: documentDetails[i].documentName,
-                                document: element.secure_url
+                                document: element?.fileUrl
                             })
                         } else {
                             documentDetailsFile.push({
@@ -976,7 +971,7 @@ exports.updateUserDetails = async (req, res) => {
                             })
                         }
                     } catch (uploadError) {
-                        console.error("Error occurred while uploading file to Cloudinary:", uploadError);
+                        console.error("Error occurred while uploading file to AWS:", uploadError);
                         return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                     }
                 }
@@ -1168,7 +1163,7 @@ exports.sendMailToEmployee = async (req, res) => {
                 html: `
                     <p>Hello ${existEmployee?.personalDetails?.firstName} ${existEmployee?.personalDetails?.lastName},</p>
                     <p>${message}</p>
-                    <p>Best regards,<br>HRMS Team</p>
+                    <p>Best regards,<br>City Clean London Team</p>
                 `
             }
 

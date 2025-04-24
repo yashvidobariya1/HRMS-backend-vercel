@@ -4,7 +4,6 @@ const Timesheet = require("../models/timeSheet");
 const Notification = require("../models/notification");
 const Company = require("../models/company");
 const Location = require("../models/location");
-const cloudinary = require("../utils/cloudinary");
 const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
 const moment = require('moment');
@@ -15,7 +14,8 @@ const ExcelJS = require("exceljs")
 const path = require("path");
 const EmployeeReport = require("../models/employeeReport");
 const Task = require("../models/task");
-const sharp = require('sharp')
+const sharp = require('sharp');
+const { unique_Id, uploadToS3 } = require("../utils/AWS_S3");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -871,6 +871,10 @@ exports.getTimesheetReport = async (req, res) => {
             if(req.body?.startDate && req.body?.endDate){
                 startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
                 endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
+                if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
+                    startDate = moment(joiningDate).startOf('day').format('YYYY-MM-DD')
+                    endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
+                }
             } else {
                 if (year && month && month !== "All") {
                     startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
@@ -1979,10 +1983,8 @@ exports.generateQRcode = async (req, res) => {
 
             const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
 
-            let element = await cloudinary.uploader.upload(compressedBase64, {
-                resource_type: 'auto',
-                folder: 'QRCodes'
-            })
+            const fileName = unique_Id()
+            let element = await uploadToS3(compressedBase64, 'QRCodes', fileName)
 
             if(qrType == 'Company'){
                 const company = await Company.findOne({ _id: id, isDeleted: { $ne: true } })
@@ -1993,7 +1995,7 @@ exports.generateQRcode = async (req, res) => {
                     companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
                     isActive: true,
-                    qrURL: element.secure_url,
+                    qrURL: element?.fileUrl,
                     qrValue,
                     qrType
                 })
@@ -2017,7 +2019,7 @@ exports.generateQRcode = async (req, res) => {
                     locationId: id,
                     isLocationQR: true,
                     isActive: true,
-                    qrURL: element.secure_url,
+                    qrURL: element?.fileUrl,
                     qrValue,
                     qrType
                 })
