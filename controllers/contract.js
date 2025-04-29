@@ -87,18 +87,18 @@ exports.addContract = async (req, res) => {
                 return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
             }
 
-            // const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key));
+            const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
             // console.log('requiredKeys:', requiredKeys)
             const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
             // console.log('extraKeys:', extraKeys)
 
-            // if (missingKeys.length > 0 || extraKeys.length > 0) {
-            if (extraKeys.length > 0) {
+            if (missingKeys.length > 0 || extraKeys.length > 0) {
+            // if (extraKeys.length > 0) {
                 return res.send({
                     status: 400,
-                    message: "Contract file contains invalid placeholders.",
+                    message: `Contract file contains invalid placeholders. ${missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : ''}. ${extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : ''}.`,
                     // missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
-                    extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
+                    // extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
                 })
             }
 

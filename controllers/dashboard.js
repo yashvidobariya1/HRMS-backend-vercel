@@ -624,14 +624,21 @@ exports.dashboard = async (req, res) => {
                 const companyId = req.user.companyId
                 const locationId = req.user.locationId
 
-                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } }).populate('templates.templateId', 'templateName')
                 if(!existUser){
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
-                const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
-                if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
-                const isTemplateSigned = jobDetail?.isTemplateSigned
+                // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+                // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
+                // const isTemplateSigned = jobDetail?.isTemplateSigned
+                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                    _id: template._id,
+                    templateId: template.templateId._id,
+                    templateName: template.templateId.templateName,
+                    isTemplateSigned: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead
+                }))
 
                 const managerUsers = await User.find({ role: "Manager", companyId, locationId: { $elemMatch: { $in: locationId } }, isDeleted: { $ne: true } }).select("_id")
                 const managerUsersIds = managerUsers.map(user => user._id)
@@ -685,7 +692,7 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
-                    isTemplateSigned,
+                    templates,
                     countOfLateClockIn,
                     unreadNotificationCount,
 
@@ -738,14 +745,21 @@ exports.dashboard = async (req, res) => {
                 const companyId = req.user.companyId
                 const locationId = req.user.locationId
 
-                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } }).populate('templates.templateId', 'templateName')
                 if(!existUser){
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
-                const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
-                if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
-                const isTemplateSigned = jobDetail?.isTemplateSigned
+                // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+                // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
+                // const isTemplateSigned = jobDetail?.isTemplateSigned
+                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                    _id: template._id,
+                    templateId: template.templateId._id,
+                    templateName: template.templateId.templateName,
+                    isTemplateSigned: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead
+                }))
 
                 const userGrowth = await user_Growth({ role: "Manager", companyId, locationId, userId: req.user._id })
                 const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
@@ -794,7 +808,7 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
-                    isTemplateSigned,
+                    templates,
                     countOfLateClockIn,
                     unreadNotificationCount,
                     
@@ -843,14 +857,21 @@ exports.dashboard = async (req, res) => {
                 const companyId = req.user.companyId
                 const locationId = req.user.locationId
 
-                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } })
+                const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } }).populate('templates.templateId', 'templateName')
                 if(!existUser){
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
-                const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
-                if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
-                const isTemplateSigned = jobDetail?.isTemplateSigned
+                // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+                // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
+                // const isTemplateSigned = jobDetail?.isTemplateSigned
+                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                    _id: template._id,
+                    templateId: template.templateId._id,
+                    templateName: template.templateId.templateName,
+                    isTemplateSigned: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead
+                }))
 
                 const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
@@ -876,7 +897,7 @@ exports.dashboard = async (req, res) => {
                 ])
 
                 responseData = {
-                    isTemplateSigned,
+                    templates,
                     countOfLateClockIn,
                     unreadNotificationCount,
 

@@ -14,7 +14,7 @@ exports.addClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId || req.user.companyId
-            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode } = req.body
+            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode, latitude, longitude, radius, breakTime, graceTime } = req.body
 
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             // if(!location){
@@ -39,7 +39,10 @@ exports.addClient = async (req, res) => {
                 companyId,
                 // locationId,
                 creatorId: req.user._id,
-                createdBy: req.user.role
+                createdBy: req.user.role,
+                latitude,
+                longitude,
+                radius
             }
 
             const client = await Client.create(newClient)
@@ -201,7 +204,7 @@ exports.updateClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const clientId = req.params.id
-            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode } = req.body
+            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode, latitude, longitude, radius } = req.body
 
             const existClient = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
             if(!existClient){
@@ -219,7 +222,10 @@ exports.updateClient = async (req, res) => {
                         addressLine2,
                         city,
                         country,
-                        postCode
+                        postCode,
+                        latitude,
+                        longitude,
+                        radius
                     }
                 }, { new: true }
             )

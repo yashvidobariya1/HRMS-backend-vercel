@@ -16,18 +16,18 @@ exports.auth = async (req, res, next) => {
 
         const decoded = jwt.verify(token, JWT_SECRET)
         if (decoded.role !== "Client") {
-            // const user = await User.findOneAndUpdate(
-            //     { _id: decoded._id, token: token }, 
-            //     { lastTimeAccess: moment().toDate() },
-            //     { new: true, select: '_id personalDetails companyId locationId role' }
-            // )
-            const user = await User.findOne({ _id: decoded._id, token })
+            const user = await User.findOneAndUpdate(
+                { _id: decoded._id, token: token }, 
+                { lastTimeAccess: moment().toDate() },
+                { new: true, select: '_id personalDetails companyId locationId role' }
+            )
+            // const user = await User.findOne({ _id: decoded._id, token })
     
             if (!user) {
                 throw new Error("User not found or token is invalid")
             }
-            user.lastTimeAccess = moment().toDate()
-            await user.save()
+            // user.lastTimeAccess = moment().toDate()
+            // await user.save()
             req.user = user
         }
         req.token = decoded

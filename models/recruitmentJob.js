@@ -23,7 +23,8 @@ const RecruitmentJobSchema = new mongoose.Schema({
     },
     companyWebSite: String,
     companyEmail: String, // required
-    companyContactNumber: String,
+    // companyContactNumber: String,
+    email: String,
     totalApplicants: {
         type: Number,
         default: 0

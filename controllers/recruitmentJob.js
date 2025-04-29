@@ -19,7 +19,7 @@ exports.createJobPost = async (req, res) => {
                 jobStatus,
                 locationId,
                 companyWebSite,
-                companyContactNumber,
+                email,
             } = req.body
 
             const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
@@ -98,7 +98,7 @@ exports.createJobPost = async (req, res) => {
                 locationId,
                 companyWebSite,
                 companyEmail: company?.contactPersonEmail,
-                companyContactNumber,
+                email,
                 jobPostedLink: generatedUrl,
                 jobUniqueKey: uniqueId,
                 creatorId: req.user._id,
@@ -161,7 +161,8 @@ exports.getJobPostForPublic = async (req, res) => {
             jobStatus: jobPost?.jobStatus,
             companyWebSite: jobPost?.companyWebSite,
             companyEmail: jobPost?.companyEmail,
-            companyContactNumber: jobPost?.companyContactNumber,
+            email: jobPost?.email,
+            // companyContactNumber: jobPost?.companyContactNumber,
         }
 
         return res.send({ status: 200, message: 'Job details fetched successfully', jobDetails })
@@ -204,7 +205,8 @@ exports.getAllJobPosts = async (req, res) => {
                         jobTitle: JP?.jobTitle,
                         jobDescription: JP?.jobDescription,
                         locationName: location?.locationName,
-                        companyContactNumber: JP?.companyContactNumber || '',
+                        // companyContactNumber: JP?.companyContactNumber || '',
+                        email: JP?.email || '',
                         // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobCategory: JP?.jobCategory,
                         jobApplyTo: JP?.jobApplyTo,

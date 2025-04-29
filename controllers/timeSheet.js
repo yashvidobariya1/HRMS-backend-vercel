@@ -16,6 +16,7 @@ const EmployeeReport = require("../models/employeeReport");
 const Task = require("../models/task");
 const sharp = require('sharp');
 const { unique_Id, uploadToS3 } = require("../utils/AWS_S3");
+const Client = require("../models/client");
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -33,14 +34,14 @@ exports.clockInFunc = async (req, res) => {
                 let companyId = existUser?.companyId.toString()
                 // let locationId = existUser?.locationId.toString()
 
-                const qrCode = await QR.findOne({
+                const locationQRCode = await QR.findOne({
                     qrValue,
                     companyId,
                     isActive: { $ne: false },
                     locationId: { $in: existUser?.locationId },
                 })
                 
-                if (!qrCode) {
+                if (!locationQRCode) {
                     return res.send({ status: 400, message: 'Invalid QR code' })
                 }
             }
@@ -82,7 +83,7 @@ exports.clockInFunc = async (req, res) => {
             let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
 
             const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate, isDeleted: { $ne: true } })
-            if(!assignedTask){
+            if(!assignedTask && req.user.role == 'Employee'){
                 return res.send({ status: 404, message: "You don't have any tasks assigned for today!" })
             }
             
@@ -822,6 +823,41 @@ exports.getAllTimeSheets = async (req, res) => {
     }
 }
 
+function getStartAndEndDate({ year, month, week, joiningDate, startDate, endDate }) {
+    let start, end
+
+    if (startDate && endDate) {
+        start = moment(startDate).startOf('day')
+        end = moment(endDate).endOf('day')
+    } else if (year && month && month !== "All") {
+        start = moment({ year: parseInt(year), month: parseInt(month) - 1 }).startOf('month')
+        end = moment({ year: parseInt(year), month: parseInt(month) - 1 }).endOf('month')
+    } else if (year && month === "All") {
+        start = moment({ year: parseInt(year) }).startOf('year')
+        end = moment({ year: parseInt(year) }).endOf('year')
+    } else if (year && week) {
+        start = moment().year(parseInt(year)).week(parseInt(week)).startOf('week')
+        end = moment().year(parseInt(year)).week(parseInt(week)).endOf('week')
+    } else if (week) {
+        const currentYear = moment().year()
+        start = moment().year(currentYear).week(parseInt(week)).startOf('week')
+        end = moment().year(currentYear).week(parseInt(week)).endOf('week')
+    } else {
+        const now = moment()
+        start = now.startOf('month')
+        end = now.endOf('month')
+    }
+
+    if (joiningDate && start.isBefore(joiningDate)) {
+        start = moment(joiningDate).startOf('day')
+    }
+
+    return {
+        startDate: start.format('YYYY-MM-DD'),
+        endDate: end.format('YYYY-MM-DD')
+    }
+}
+
 exports.getTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
@@ -864,72 +900,8 @@ exports.getTimesheetReport = async (req, res) => {
             }
 
             const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
-            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
 
-            let startDate, endDate
-
-            if(req.body?.startDate && req.body?.endDate){
-                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
-                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
-                if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
-                    startDate = moment(joiningDate).startOf('day').format('YYYY-MM-DD')
-                    endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
-                }
-            } else {
-                if (year && month && month !== "All") {
-                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                    if(year === joiningYear && month === joiningDate.format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                    }
-                } else if (year && month === "All") {
-                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                    if(year === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (year && week) {
-                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
-                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
-                } else if (year) {
-                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                    if(year === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (month && month !== "All") {
-                    const currentYear = moment().year();
-                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                    }
-                } else if (month === "All") {
-                    const currentYear = moment().year();
-                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
-                    if(currentYear === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (week) {
-                    const currentYear = moment().year();
-                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
-                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
-                } else {
-                    startDate = moment().startOf('month').format('YYYY-MM-DD');
-                    endDate = moment().endOf('month').format('YYYY-MM-DD');
-                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment().endOf('month').format('YYYY-MM-DD')
-                    }
-                }
-            }
-        
+            const { startDate, endDate } = getStartAndEndDate({ year, month, week, joiningDate, startDate: req.body.startDate, endDate: req.body.endDate })        
 
             // 1. Fetch timesheet entries (Check-ins/outs)
             // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: moment(startDate).toDate(), $lte: moment(endDate).toDate() } })
@@ -1133,67 +1105,8 @@ exports.getAbsenceReport = async (req, res) => {
             }
 
             const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
-            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
 
-            let startDate, endDate
-
-            if(req.body?.startDate && req.body?.endDate){
-                startDate = moment(req.body.startDate).startOf('day').format('YYYY-MM-DD')
-                endDate = moment(req.body.endDate).endOf('day').format('YYYY-MM-DD')
-            } else {
-                if (year && month && month !== "All") {
-                    startDate = moment({ year, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                    endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                    if(year === joiningYear && month === joiningDate.format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                    }
-                } else if (year && month === "All") {
-                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                    if(year === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (year && week) {
-                    startDate = moment().year(year).week(week).startOf('week').format('YYYY-MM-DD');
-                    endDate = moment().year(year).week(week).endOf('week').format('YYYY-MM-DD');
-                } else if (year) {
-                    startDate = moment({ year }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year }).endOf('year').format('YYYY-MM-DD');
-                    if(year === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (month && month !== "All") {
-                    const currentYear = moment().year();
-                    startDate = moment({ year: currentYear, month: month - 1 }).startOf('month').format('YYYY-MM-DD');
-                    endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD');
-                    if(currentYear === joiningYear && month === joiningDate.format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year: currentYear, month: month - 1 }).endOf('month').format('YYYY-MM-DD')
-                    }
-                } else if (month === "All") {
-                    const currentYear = moment().year();
-                    startDate = moment({ year: currentYear }).startOf('year').format('YYYY-MM-DD');
-                    endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD');
-                    if(currentYear === joiningYear){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment({ year: currentYear }).endOf('year').format('YYYY-MM-DD')
-                    }
-                } else if (week) {
-                    const currentYear = moment().year();
-                    startDate = moment().year(currentYear).week(week).startOf('week').format('YYYY-MM-DD');
-                    endDate = moment().year(currentYear).week(week).endOf('week').format('YYYY-MM-DD');
-                } else {
-                    startDate = moment().startOf('month').format('YYYY-MM-DD');
-                    endDate = moment().endOf('month').format('YYYY-MM-DD');
-                    if(joiningYear === moment().year() && joiningDate.format('MM') === moment().format('MM')){
-                        startDate = moment(joiningDate).format('YYYY-MM-DD')
-                        endDate = moment().endOf('month').format('YYYY-MM-DD')
-                    }
-                }
-            }
+            const { startDate, endDate } = getStartAndEndDate({ year, month, week, joiningDate, startDate: req.body.startDate, endDate: req.body.endDate })
         
 
             // 1. Fetch timesheet entries (Check-ins/outs)
@@ -1958,16 +1871,16 @@ exports.generateQRcode = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
-            const id = req.params.id
+            const { companyId, locationId, clientId } = req.query
             const {
-                qrType,
+                // qrType,
                 qrCode,
                 qrValue
             } = req.body
 
-            const types = ['Company', 'Location']
-            if(!types.includes(qrType)){
-                return res.send({ status: 400, message: 'QR type is undefined, please enter valid type.' })
+            const idsPassed = [companyId, locationId, clientId].filter(Boolean)
+            if (idsPassed.length !== 1) {
+                return res.send({ status: 400, message: 'Please provide exactly one of companyId, locationId, or clientId.' })
             }
 
             const matches = qrCode.match(/^data:(image\/\w+);base64,(.+)$/)
@@ -1986,23 +1899,29 @@ exports.generateQRcode = async (req, res) => {
             const fileName = unique_Id()
             let element = await uploadToS3(compressedBase64, 'QRCodes', fileName)
 
-            if(qrType == 'Company'){
-                const company = await Company.findOne({ _id: id, isDeleted: { $ne: true } })
+            if (!element?.fileUrl) {
+                return res.send({ status: 500, message: 'Failed to upload QR code to storage.' })
+            }
+
+            let qrData = {
+                qrURL: element?.fileUrl,
+                qrValue,
+                isActive: true
+            }
+
+            if(companyId){
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
                 if(!company) return res.send({ status: 404, message: 'Company not found' })
-                
-                const QRCode = await QR.create({
-                    companyId: id,
+
+                qrData = {
+                    ...qrData,
+                    companyId,
                     companyName: company?.companyDetails?.businessName,
                     isCompanyQR: true,
-                    isActive: true,
-                    qrURL: element?.fileUrl,
-                    qrValue,
-                    qrType
-                })
-    
-                return res.send({ status: 200, message: 'Company QR generated successfully.', QRCode })
-            } else if(qrType == 'Location'){
-                const location = await Location.findOne({ _id: id, isDeleted: { $ne: true } })
+                    qrType: 'Company'
+                }
+            } else if(locationId){
+                const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
                 if(!location) return res.send({ status: 404, message: 'Location not found' })
 
                 if(location.latitude == "" || location.longitude == "" || location.radius == ""){
@@ -2011,21 +1930,44 @@ exports.generateQRcode = async (req, res) => {
 
                 const company = await Company.findOne({ _id: location?.companyId, isDeleted: { $ne: true } })
                 if(!company) return res.send({ status: 404, message: 'Company not found' })
-                
-                const QRCode = await QR.create({
+
+                qrData = {
+                    ...qrData,
                     companyId: location.companyId,
                     companyName: company?.companyDetails?.businessName,
                     locationName: location?.locationName,
-                    locationId: id,
+                    locationId,
                     isLocationQR: true,
-                    isActive: true,
-                    qrURL: element?.fileUrl,
-                    qrValue,
-                    qrType
-                })
-    
-                return res.send({ status: 200, message: 'Location QR generated successfully.', QRCode })
+                    qrType: 'Location'
+                }
+            } else if(clientId){
+                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+
+                if(client.latitude == "" || client.longitude == "" || client.radius == ""){
+                    return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this client before proceeding.' })
+                }
+
+                const company = await Company.findOne({ _id: client?.companyId, isDeleted: { $ne: true } })
+                if(!company) return res.send({ status: 404, message: 'Company not found' })
+
+                client.QRCodeImage = element?.fileUrl
+
+                qrData = {
+                    ...qrData,
+                    clientName: client?.clientName,
+                    companyId: client?.companyId,
+                    companyName: company?.companyDetails?.businessName,
+                    clientId,
+                    isClientQR: true,
+                    qrType: 'Client'
+                }
             }
+
+            const QRCode = await QR.create(qrData)
+            return res.send({ status: 200, message: `${qrData?.qrType} QR generated successfully.`, QRCode })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occured while generating QR code:', error)

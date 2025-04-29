@@ -6,10 +6,11 @@ const { addContract, getAllContract, getAllContractOfCompany, getContract, updat
 const { generateQRcode, getAllQRCodes, inactivateQRCode } = require('../controllers/timeSheet')
 const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } = require('../controllers/holiday')
 const { addClient, getClient, getAllClient, updateClient, deleteClient, generateLinkForClient, getCompanyClients } = require('../controllers/client')
-const { addTemplate, getTemplate, getAllTemplates, updateTemplate, deleteTemplate } = require('../controllers/templates')
+const { addTemplate, getTemplate, getAllTemplates, updateTemplate, deleteTemplate, assignTemplateToUsers } = require('../controllers/templates')
 const { activateDeactivateUser } = require('../controllers/common')
 const { createJobPost, getJobPost, getAllJobPosts, updateJobPost, deleteJobPost, getJobPostForPublic, getCompanyLocationsForJobPost } = require('../controllers/recruitmentJob')
 const { applyForJob, getCandidateDetails, getAllCandidates } = require('../controllers/candidate')
+const { createJobTitle, getJobTitle, getAllJobTitles, updateJobTitle, deleteJobTitle } = require('../controllers/jobTitle')
 
 const superAdminRoute = Router()
 
@@ -35,7 +36,7 @@ superAdminRoute.get('/getContract/:id', auth, getContract)
 superAdminRoute.post('/updateContract/:id', auth, updateContract)
 superAdminRoute.post('/deleteContract/:id', auth, deleteContract)
 // generate QR code for location
-superAdminRoute.post('/generateQR/:id', auth, generateQRcode)
+superAdminRoute.post('/generateQR', auth, generateQRcode)
 superAdminRoute.get('/getAllQRCodes/:id', auth, getAllQRCodes)
 superAdminRoute.post('/inactivateQRCode/:id', auth, inactivateQRCode)
 // holiday
@@ -57,6 +58,7 @@ superAdminRoute.get('/getTemplate/:id', auth, getTemplate)
 superAdminRoute.get('/getAllTemplates', auth, getAllTemplates)
 superAdminRoute.post('/updateTemplate/:id', auth, updateTemplate)
 superAdminRoute.post('/deleteTemplate/:id', auth, deleteTemplate)
+superAdminRoute.post('/assignTemplate', auth, assignTemplateToUsers)
 // generate link for client
 superAdminRoute.post('/generateLink', auth, generateLinkForClient)
 // activate or deactivate 
@@ -73,5 +75,11 @@ superAdminRoute.get('/getCompanyLocationsForJobPost', auth, getCompanyLocationsF
 superAdminRoute.post('/applyForJob/:key', applyForJob)
 superAdminRoute.get('/getCandidateDetails/:id', auth, getCandidateDetails)
 superAdminRoute.get('/getAllCandidates', auth, getAllCandidates)
+// job titles
+superAdminRoute.post('/createJobTitle', auth, createJobTitle)
+superAdminRoute.get('/getJobTitle/:id', auth, getJobTitle)
+superAdminRoute.get('/getAllJobTitles', auth, getAllJobTitles)
+superAdminRoute.post('/updateJobTitle/:id', auth, updateJobTitle)
+superAdminRoute.post('/deleteJobTitle/:id', auth, deleteJobTitle)
 
 module.exports = superAdminRoute

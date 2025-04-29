@@ -14,6 +14,12 @@ const clientSchema = new mongoose.Schema({
     city: String,
     country: String,
     postCode: String,
+    latitude: String,
+    longitude: String,
+    radius: String,
+    QRCodeImage: String,
+    breakTime: Number,
+    graceTime: Number,
     companyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'

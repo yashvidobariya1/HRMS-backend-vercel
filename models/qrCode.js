@@ -14,6 +14,10 @@ const QRCodeSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isClientQR: {
+        type: Boolean,
+        default: false
+    },
     companyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'
@@ -24,6 +28,11 @@ const QRCodeSchema = new mongoose.Schema({
         ref: 'Location'
     },
     locationName: String,
+    clientId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Client'
+    },
+    clientName: String,
     qrURL: String,
     qrValue: String,
     qrType: String,

@@ -55,14 +55,14 @@ const userSchema = new mongoose.Schema({
     sickLeavesAllow: Number,
     leavesAllow: Number,
     location: String,
-    assignManager: { type: String },
-    assignClient: { type: String },
-    templateId: { type: String },
-    isTemplateSigned: {
-      type: Boolean,
-      default: true
-    },
-    signedTemplateURL: String,
+    assignManager: { type: String, ref: 'User' },
+    assignClient: { type: String, ref: 'Client' },
+    // templateId: { type: String, ref: 'Templates' },
+    // isTemplateSigned: {
+    //   type: Boolean,
+    //   default: true
+    // },
+    // signedTemplateURL: String,
     role: String
   }],
   immigrationDetails: {
@@ -111,6 +111,12 @@ const userSchema = new mongoose.Schema({
     latitude: String,
     longitude: String
   },
+  templates: [{
+    templateId: { type: String, ref: 'Templates'},
+    isTemplateSigned: Boolean,
+    isTemplateRead: Boolean,
+    signedTemplateURL: String
+  }],
   otp: {
     type: Number
   },

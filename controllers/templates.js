@@ -78,18 +78,18 @@ exports.addTemplate = async (req, res) => {
                 return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
             }
 
-            // const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key));
+            const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
             // console.log('requiredKeys:', requiredKeys)
             const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
             // console.log('extraKeys:', extraKeys)
 
-            // if (missingKeys.length > 0 || extraKeys.length > 0) {
-            if (extraKeys.length > 0) {
+            if (missingKeys.length > 0 || extraKeys.length > 0) {
+            // if (extraKeys.length > 0) {
                 return res.send({
                     status: 400,
-                    message: "Template file contains invalid placeholders.",
+                    message: `Template file contains invalid placeholders. ${missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : ''}. ${extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : ''}.`,
                     // missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
-                    extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
+                    // extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
                 })
             }
 
@@ -295,7 +295,7 @@ exports.previewTemplate = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const { jobId } = req.body
+            const { jobId, templateId } = req.body
             const userId = req.user._id
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -313,7 +313,7 @@ exports.previewTemplate = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            const templateId = jobDetail?.templateId
+            // const templateId = jobDetail?.templateId
             const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
             if(!template){
                 return res.send({ status: 404, message: 'Template not found' })
@@ -344,7 +344,7 @@ exports.saveTemplateWithSignature = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const { jobId, base64OfTemplate } = req.body
+            const { templateId, base64OfTemplate } = req.body
             const userId = req.user._id
 
             if(!base64OfTemplate){
@@ -356,18 +356,31 @@ exports.saveTemplateWithSignature = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            const jobDetail = existUser.jobDetails.find(job => job._id.toString() === jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
+            const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
+            if(!template){
+                return res.send({ status: 404, message: 'Template not found' })
             }
+
+            // const jobDetail = existUser.jobDetails.find(job => job._id.toString() === jobId)
+            // if(!jobDetail){
+            //     return res.send({ status: 404, message: 'JobTitle not found' })
+            // }
 
             const filename = unique_Id()
             const result = await uploadToS3(base64OfTemplate, 'userTemplates', filename)
 
-            existUser?.jobDetails.map(job => {
-                if(job._id.toString() === jobId){
-                    job.isTemplateSigned = true
-                    job.signedTemplateURL = result?.fileUrl
+            // existUser?.jobDetails.map(job => {
+            //     if(job._id.toString() === jobId){
+            //         job.isTemplateSigned = true
+            //         job.signedTemplateURL = result?.fileUrl
+            //     }
+            // })
+
+            existUser?.templates.map(temp => {
+                if(templateId == temp?.templateId){
+                    temp.isTemplateSigned = true
+                    temp.isTemplateRead = true
+                    temp.signedTemplateURL = result?.fileUrl
                 }
             })
 
@@ -378,5 +391,45 @@ exports.saveTemplateWithSignature = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while saving signature:', error)
         return res.send({ status: 500, message: 'Error occurred while saving signature!' })
+    }
+}
+
+exports.assignTemplateToUsers = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administartor']
+        if(allowedRoles.includes(req.user.role)){
+            const { templateId, userIds, signatureRequired } = req.body
+
+            if (!templateId) {
+                return res.send({ status: 400, message: 'Template ID and User IDs are required.' })
+            }
+
+            if(!Array.isArray(userIds) || userIds.length === 0){
+                return res.send({ status: 400, message: 'Atleast select one user for assigned template.' })
+            }
+
+            const existTemplate = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
+            if(!existTemplate){
+                return res.send({ status: 404, message: 'Template not found' })
+            }
+
+            await User.updateMany(
+                { _id: { $in: userIds } },
+                {
+                    $addToSet: {
+                        templates: {
+                            templateId: templateId,
+                            isTemplateSigned: signatureRequired === true ? false : true,
+                            isTemplateRead: false
+                        }
+                    }
+                }
+            )
+
+            return res.send({ status: 200, message: 'Template assigned successfully to users.' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while assigning template:', error)
+        return res.send({ status: 500, message: 'Error occurred while assigning template!' })
     }
 }
