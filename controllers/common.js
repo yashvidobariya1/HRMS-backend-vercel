@@ -699,7 +699,7 @@ exports.addUser = async (req, res) => {
                             <p>Please ensure the ${newUser.role} logs into the City Cleam portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
                             <ul>
-                                <li><b>City Clean Portal Link:</b> <a href="${process.env.CLITY_CLEAN_PORTAL_LINK}">City Clean Portal</a></li>
+                                <li><b>City Clean Portal Link:</b> <a href="${process.env.FRONTEND_URL}">City Clean Portal</a></li>
                                 <li><b>Username/Email:</b> ${personalDetails.email}</li>
                                 <li><b>Temporary Password:</b> ${generatePass()}</li>
                             </ul>

@@ -1,28 +1,47 @@
-name: Node.js CI
+name: Deploy Backend to EC2
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    branches:
+      - main
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x, 22.x]
 
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
         with:
-          node-version: ${{ matrix.node-version }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Ensure NVM is loaded and Node.js version is set
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 22  # Ensure Node.js version 22 is being used
 
-      - name: Install dependencies
-        run: npm install
+            # Load shell environment for non-interactive sessions
+            source ~/.bashrc  # or ~/.bash_profile depending on the shell
+            export PATH=$PATH:$(npm bin -g)
 
-      - name: Run tests
-        run: npm test
+            # Navigate to the project directory and pull the latest changes
+            cd ~/cityclean-api
+            git pull origin main
+
+            # Install dependencies in production mode
+            npm install --production
+
+            # Try restarting the PM2 process or start it if it's not running
+            pm2 restart citycleanlondon-api || pm2 start server.js --name citycleanlondon-api
+
+          port: 22
+          protocol: tcp
+          timeout: 30s
+          command_timeout: 10m
+          proxy_port: 22
+          proxy_protocol: tcp
+          proxy_timeout: 30s
+          curl_insecure: false
+          capture_stdout: false
