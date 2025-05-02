@@ -52,8 +52,22 @@ const userSchema = new mongoose.Schema({
     joiningDate: String,
     socCode: String, // only four digit
     modeOfTransfer: String,
-    sickLeavesAllow: Number,
-    leavesAllow: Number,
+    sickLeavesAllow: {
+      leaveType: {
+        type: String,
+        enum: ['Day', 'Hour']
+      },
+      allowedLeavesCounts: Number
+    },
+    leavesAllow: {
+      leaveType: {
+        type: String,
+        enum: ['Day', 'Hour']
+      },
+      allowedLeavesCounts: Number
+    },
+    // pimimys@mailinator.com
+    
     location: String,
     assignManager: { type: String, ref: 'User' },
     assignClient: { type: String, ref: 'Client' },
@@ -80,10 +94,17 @@ const userSchema = new mongoose.Schema({
     rightToWorkCheckDate: String,
     rightToWorkEndDate: String
   },
+  // documentDetails: [{
+  //   documentType: String,
+  //   documentName: String,
+  //   document: String
+  // }],
   documentDetails: [{
     documentType: String,
-    documentName: String,
-    document: String
+    documents: [{
+      documentName: String,
+      document: String
+    }]
   }],
   contractDetails: {
     // contractType: String,
@@ -91,7 +112,7 @@ const userSchema = new mongoose.Schema({
     //   fileName: String,
     //   fileURL: String,
     // },
-    contractId: { type: String }
+    contractId: { type: String, ref: 'Contract' }
   },
   userContractURL: String,
   password: String,
@@ -106,7 +127,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     ref: 'Location'
   }],
-  password: String,
   lastKnownLocation: {
     latitude: String,
     longitude: String
@@ -115,7 +135,9 @@ const userSchema = new mongoose.Schema({
     templateId: { type: String, ref: 'Templates'},
     isTemplateSigned: Boolean,
     isTemplateRead: Boolean,
-    signedTemplateURL: String
+    signedTemplateURL: String,
+    isTemplateVerify: Boolean,
+    isSignActionRequired: Boolean,
   }],
   otp: {
     type: Number
@@ -128,7 +150,8 @@ const userSchema = new mongoose.Schema({
     type: String
   },
   creatorId: {
-    type: mongoose.Schema.Types.ObjectId
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   isEmailVerified: {
     type: Boolean,

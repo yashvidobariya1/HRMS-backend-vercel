@@ -562,27 +562,72 @@ exports.addUser = async (req, res) => {
             }
 
             let documentDetailsFile = []
+            // if (documentDetails && Array.isArray(documentDetails)) {
+            //     for (let i = 0; i < documentDetails.length; i++) {
+            //         const gettedDocument = documentDetails[i].document;
+
+            //         if (!gettedDocument || typeof gettedDocument !== 'string') {
+            //             console.log(`Invalid or missing document for item ${i}`)
+            //         }
+            //         try {
+            //             let fileName = unique_Id()
+
+            //             let element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
+            //             // console.log('AWS response:', element);
+            //             documentDetailsFile.push({
+            //                 documentType: documentDetails[i].documentType,
+            //                 documentName: documentDetails[i].documentName,
+            //                 document: element?.fileUrl
+            //             })
+            //         } catch (uploadError) {
+            //             console.error("Error occurred while uploading file to AWS:", uploadError);
+            //             return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //         }
+            //     }
+            // }
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
-                    const gettedDocument = documentDetails[i].document;
-
-                    if (!gettedDocument || typeof gettedDocument !== 'string') {
-                        console.log(`Invalid or missing document for item ${i}`)
+                    const currentItem = documentDetails[i];
+            
+                    if (!Array.isArray(currentItem.documents)) {
+                        console.log(`Invalid documents structure at index ${i}`);
+                        return res.status(400).send({ status: 400, message: `Invalid document structure at index ${i}` });
                     }
-                    try {
-                        let fileName = unique_Id()
-
-                        let element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
-                        // console.log('AWS response:', element);
-                        documentDetailsFile.push({
-                            documentType: documentDetails[i].documentType,
-                            documentName: documentDetails[i].documentName,
-                            document: element?.fileUrl
-                        })
-                    } catch (uploadError) {
-                        console.error("Error occurred while uploading file to AWS:", uploadError);
-                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            
+                    const documentGroup = {
+                        documentType: currentItem.documentType,
+                        documents: []
+                    };
+            
+                    for (let j = 0; j < currentItem.documents.length; j++) {
+                        const docItem = currentItem.documents[j];
+            
+                        if (
+                            !docItem ||
+                            typeof docItem !== 'object' ||
+                            !docItem.document ||
+                            typeof docItem.document !== 'string' ||
+                            !docItem.documentName
+                        ) {
+                            console.log(`Invalid or missing document at item ${i}, file ${j}`);
+                            continue;
+                        }
+            
+                        try {
+                            let fileName = unique_Id(); // Generate unique filename
+                            let uploaded = await uploadToS3(docItem.document, 'userDocuments', fileName);
+            
+                            documentGroup.documents.push({
+                                documentName: docItem.documentName,
+                                document: uploaded?.fileUrl
+                            });
+                        } catch (uploadError) {
+                            console.error(`Error uploading file at item ${i}, file ${j}:`, uploadError);
+                            return res.status(400).send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                        }
                     }
+            
+                    documentDetailsFile.push(documentGroup);
                 }
             }
 
@@ -804,6 +849,7 @@ exports.getAllUsers = async (req, res) => {
             const limit = parseInt(req.query.limit) || 50
             // const timePeriod = parseInt(req.query.timePeriod)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
@@ -817,16 +863,23 @@ exports.getAllUsers = async (req, res) => {
             // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
             let baseQuery = { isDeleted: { $ne: true } }
 
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery.companyId = companyId
+            } else if(req.user.role !== 'Superadmin'){
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.companyId = req.user.companyId
+            }
+
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
             } else if (req.user.role === 'Administrator') {
-                baseQuery.companyId = req.user.companyId
-                baseQuery.locationId = { $in: req.user.locationId }
+                // baseQuery.companyId = req.user.companyId
+                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
             } else if(req.user.role === 'Manager') {
-                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
-                baseQuery.companyId = req.user.companyId
-                baseQuery.locationId = { $in: req.user.locationId }
+                // baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
+                // baseQuery.companyId = req.user.companyId
+                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
             }
 
@@ -889,18 +942,57 @@ exports.getAllUsers = async (req, res) => {
 
             return res.send({
                 status: 200,
-                message: 'Users got successfully.',
+                message: 'Users fetched successfully.',
                 users,
                 totalUsers,
                 totalPages: Math.ceil(totalUsers / limit) || 1,
                 currentPage: page || 1
             })
-        } else {
-            return res.send({ status: 403, message: "Access denied" })
-        }
+        } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting users:", error);
         return res.send({ status: 500, message: "Something went wrong while getting users!" })
+    }
+}
+
+exports.getUsers = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const companyId = req.query.companyId
+
+            let baseQuery = { isDeleted: { $ne: true } }
+
+            // if(companyId){
+                baseQuery.companyId = companyId
+            // }
+
+            if(!companyId){
+                baseQuery.companyId = ""
+            }
+
+            if (req.user.role === 'Superadmin') {
+                baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
+            } else if (req.user.role === 'Administrator') {
+                baseQuery.role = { $in: ["Manager", "Employee"] }
+            } else if(req.user.role === 'Manager') {
+                baseQuery.role = { $in: ["Employee"] }
+            }
+
+            const userList = await User.find(baseQuery)
+
+            const users = userList.map(user => ({
+                _id: user._id,
+                userName: user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`
+            }))
+
+            console.log('length:', users.length)
+
+            return res.send({ status: 200, message: 'Users fetched successfully.', users })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching users:', error)
+        return res.send({ status: 500, message: 'Error occurred while fetching users!' })
     }
 }
 
@@ -945,35 +1037,133 @@ exports.updateUserDetails = async (req, res) => {
             }
 
             let documentDetailsFile = []
+            // if (documentDetails && Array.isArray(documentDetails)) {
+            //     for (let i = 0; i < documentDetails.length; i++) {
+            //         const gettedDocument = documentDetails[i].document;
+
+            //         if (!gettedDocument || typeof gettedDocument !== 'string') {
+            //             console.log(`Invalid or missing document for item ${i}`)
+            //         }
+            //         try {
+            //             if(gettedDocument.startsWith('data:')){
+            //                 const fileName = unique_Id()
+                            
+            //                 const element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
+            //                 // console.log('AWS response:', element)
+            //                 documentDetailsFile.push({
+            //                     documentType: documentDetails[i].documentType,
+            //                     documentName: documentDetails[i].documentName,
+            //                     document: element?.fileUrl
+            //                 })
+            //             } else {
+            //                 documentDetailsFile.push({
+            //                     documentType: documentDetails[i].documentType,
+            //                     documentName: documentDetails[i].documentName,
+            //                     document: gettedDocument
+            //                 })
+            //             }
+            //         } catch (uploadError) {
+            //             console.error("Error occurred while uploading file to AWS:", uploadError);
+            //             return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //         }
+            //     }
+            // }
+
+            // if (documentDetails && Array.isArray(documentDetails)) {            
+            //     for (let i = 0; i < documentDetails.length; i++) {
+            //         const currentItem = documentDetails[i];
+            
+            //         if ( !Array.isArray(currentItem.documents) || !Array.isArray(currentItem.documentNames) || currentItem.documents.length !== currentItem.documentNames.length ) {
+            //             console.log(`Invalid document array format at index ${i}`);
+            //             return res.send({ status: 400, message: `Invalid document structure at index ${i}` });
+            //         }
+            
+            //         const documentGroup = {
+            //             documentType: currentItem.documentType,
+            //             documents: []
+            //         };
+            
+            //         for (let j = 0; j < currentItem.documents.length; j++) {
+            //             const fileData = currentItem.documents[j];
+            //             const fileName = currentItem.documentNames[j];
+            
+            //             try {
+            //                 if (fileData.startsWith('data:')) {
+            //                     const uniqueFileName = unique_Id();
+            //                     const uploaded = await uploadToS3(fileData, 'userDocuments', uniqueFileName);
+            //                     documentGroup.documents.push({
+            //                         documentName: fileName,
+            //                         document: uploaded?.fileUrl
+            //                     });
+            //                     console.log('documentGroup:', documentGroup)
+            //                 } else {
+            //                     documentGroup.documents.push({
+            //                         documentName: fileName,
+            //                         document: fileData
+            //                     });
+            //                     console.log('documentGroup first:', documentGroup)
+            //                 }
+            //             } catch (uploadError) {
+            //                 console.error(`Error uploading file at index ${i}, file ${j}:`, uploadError);
+            //                 return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //             }
+            //         }
+            //         console.log('documentGroup second:', documentGroup)
+            //         documentDetailsFile.push(documentGroup);
+            //         console.log('documentDetailsFiles:', documentDetailsFile[0].documents)
+            //     }
+            // }
+
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
-                    const gettedDocument = documentDetails[i].document;
-
-                    if (!gettedDocument || typeof gettedDocument !== 'string') {
-                        console.log(`Invalid or missing document for item ${i}`)
+                    const currentItem = documentDetails[i];
+            
+                    if (!Array.isArray(currentItem.documents)) {
+                        console.log(`Invalid documents structure at index ${i}`);
+                        return res.send({ status: 400, message: `Invalid document structure at index ${i}` });
                     }
-                    try {
-                        if(gettedDocument.startsWith('data:')){
-                            const fileName = unique_Id()
-                            
-                            const element = await uploadToS3(gettedDocument, 'userDocuments', fileName)
-                            // console.log('AWS response:', element)
-                            documentDetailsFile.push({
-                                documentType: documentDetails[i].documentType,
-                                documentName: documentDetails[i].documentName,
-                                document: element?.fileUrl
-                            })
-                        } else {
-                            documentDetailsFile.push({
-                                documentType: documentDetails[i].documentType,
-                                documentName: documentDetails[i].documentName,
-                                document: gettedDocument
-                            })
+            
+                    const documentGroup = {
+                        documentType: currentItem.documentType,
+                        documents: []
+                    };
+            
+                    for (let j = 0; j < currentItem.documents.length; j++) {
+                        const docItem = currentItem.documents[j];
+            
+                        if (
+                            !docItem ||
+                            typeof docItem !== 'object' ||
+                            !docItem.documentName ||
+                            !docItem.document
+                        ) {
+                            console.log(`Invalid document object at item ${i}, file ${j}`);
+                            continue;
                         }
-                    } catch (uploadError) {
-                        console.error("Error occurred while uploading file to AWS:", uploadError);
-                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            
+                        try {
+                            // Check if it's a new file (base64) or existing URL
+                            if (docItem.document.startsWith('data:')) {
+                                const uniqueFileName = unique_Id();
+                                const uploaded = await uploadToS3(docItem.document, 'userDocuments', uniqueFileName);
+                                documentGroup.documents.push({
+                                    documentName: docItem.documentName,
+                                    document: uploaded?.fileUrl
+                                });
+                            } else {
+                                // Already uploaded, retain existing URL
+                                documentGroup.documents.push({
+                                    documentName: docItem.documentName,
+                                    document: docItem.document
+                                });
+                            }
+                        } catch (uploadError) {
+                            console.error(`Error uploading file at index ${i}, file ${j}:`, uploadError);
+                            return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                        }
                     }
+            
+                    documentDetailsFile.push(documentGroup);
                 }
             }
 
@@ -1120,18 +1310,29 @@ exports.getUserJobTitles = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const userId = req.query.EmployeeId || req.user._id
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } }).populate('templates.templateId', 'templateName')
             if(!user){
                 return res.send({ status: 404, message: 'User not found' })
             }
+
             const jobTitles = []
             user?.jobDetails.map((job) => {
                 jobTitles.push({ jobId: job._id, jobName: job.jobTitle })
             })
+
+            const templates = user?.templates.map(template => ({
+                _id: template._id,
+                templateId: template.templateId._id,
+                templateName: template.templateId.templateName,
+                isTemplateSigned: template.isTemplateSigned,
+                isTemplateRead: template.isTemplateRead
+            }))
+
             if(jobTitles.length > 1){
-                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: true, jobTitles })
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: true, jobTitles, templates })
             } else {
-                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: false, jobTitles })
+                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: false, jobTitles, templates })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {

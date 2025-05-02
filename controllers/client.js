@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken')
 const { default: axios } = require("axios")
 const EmployeeReport = require("../models/employeeReport")
 const { transporter } = require("../utils/nodeMailer");
+const { default: mongoose } = require("mongoose")
 
 
 exports.addClient = async (req, res) => {
@@ -76,7 +77,7 @@ exports.getClient = async (req, res) => {
 
 exports.getAllClient = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
@@ -88,8 +89,9 @@ exports.getAllClient = async (req, res) => {
             let baseQuery = { isDeleted: { $ne: true } }
 
             if (req.user.role === 'Superadmin' && companyId) {
-                baseQuery.companyId = companyId
-            } else if (req.user.role === 'Administrator') {
+                // baseQuery.companyId = companyId
+                baseQuery.companyId = new mongoose.Types.ObjectId(String(companyId))
+            } else if (req.user.role !== 'Superadmin') {
                 baseQuery.companyId = req.user.companyId
             }
 

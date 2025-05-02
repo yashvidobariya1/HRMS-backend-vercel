@@ -12,13 +12,13 @@ const RecruitmentJobSchema = new mongoose.Schema({
 
     jobCategory: String,
     jobApplyTo: String,
-    jobStatus: String, // required
+    // jobStatus: String, // required
     companyId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: 'Company'
     },
     locationId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: 'Location'
     },
     companyWebSite: String,

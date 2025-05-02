@@ -4,6 +4,9 @@ const Company = require('../models/company');
 const moment = require('moment');
 const mammoth = require('mammoth');
 const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
+const axios = require('axios');
+const path = require('path');
+const pdfParse = require('pdf-parse');
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -37,8 +40,10 @@ exports.addTemplate = async (req, res) => {
                     return res.send({ status: 409, message: `A template with the name ${templateName} already exists.` });
                 }
             }
-
-            const requiredKeys = process.env.REQUIRED_KEY_FOR_TEMPLATE.split(',').map(key => key.trim())
+    
+            const requiredKeys = process.env.REQUIRED_KEY_FOR_TEMPLATE.split(',')
+                .map(key => key.replace(/^{|}$/g, '').trim().toUpperCase())
+    
             let extractedKeys = []
 
             const document = template
@@ -56,7 +61,11 @@ exports.addTemplate = async (req, res) => {
                         throw new Error("PDF extraction failed: No text found.")
                     }
 
-                    extractedKeys = extractPlaceholders(pdfData.text)
+                    extractedKeys = extractPlaceholders(pdfData.text).map(key => key.replace(/^{|}$/g, '').trim().toUpperCase())
+
+                    if (pdfData.text.includes('SIGNATURE')) {
+                        extractedKeys.push('SIGNATURE');
+                    }    
                 } catch (pdfError) {
                     console.error("PDF Parsing Error:", pdfError)
                     return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
@@ -68,8 +77,12 @@ exports.addTemplate = async (req, res) => {
                     if (!value) {
                         throw new Error("DOCX extraction failed: No text found.")
                     }
-
-                    extractedKeys = extractPlaceholders(value)
+    
+                    extractedKeys = extractPlaceholders(value).map(key => key.replace(/^{|}$/g, '').trim().toUpperCase())
+    
+                    if (value.includes('SIGNATURE')) {
+                        extractedKeys.push('SIGNATURE')
+                    }    
                 } catch (docxError) {
                     console.error("DOCX Parsing Error:", docxError)
                     return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
@@ -77,9 +90,11 @@ exports.addTemplate = async (req, res) => {
             } else {
                 return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
             }
-
+    
+            extractedKeys = [...new Set(extractedKeys)]
+    
             const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
-            // console.log('requiredKeys:', requiredKeys)
+            // console.log('missingKeys:', missingKeys)
             const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
             // console.log('extraKeys:', extraKeys)
 
@@ -87,9 +102,9 @@ exports.addTemplate = async (req, res) => {
             // if (extraKeys.length > 0) {
                 return res.send({
                     status: 400,
-                    message: `Template file contains invalid placeholders. ${missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : ''}. ${extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : ''}.`,
-                    // missingKeys: missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : null,
-                    // extraKeys: extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : null
+                    message: `Template file contains invalid placeholders.` +
+                        (missingKeys.length > 0 ? ` Missing keys: ${missingKeys.join(", ")}.` : '') +
+                        (extraKeys.length > 0 ? ` Extra keys: ${extraKeys.join(", ")}.` : '')
                 })
             }
 
@@ -122,7 +137,7 @@ exports.addTemplate = async (req, res) => {
                 // companyName: company?.companyDetails?.businessName
             }
             // console.log('new templateForm', templateForm)
-            let newTemplate = await Template.create(templateForm)
+            const newTemplate = await Template.create(templateForm)
 
             return res.send({ status: 200, message: `Template form created successfully.`, newTemplate })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -221,22 +236,66 @@ exports.updateTemplate = async (req, res) => {
                 }
             }
 
+            const requiredKeys = process.env.REQUIRED_KEY_FOR_TEMPLATE.split(',').map(key => key.trim())
+            let extractedKeys = []
+
+            let documentURL = isExist?.template;
+
             if (template && template.startsWith('data:')) {
                 const document = template
                 if (!document || typeof document !== 'string') {
                     console.log('Invalid or missing template document')
+                    return res.send({ status: 400, message: "Invalid or missing template document." })
                 }
+
+                const base64Data = template.split(',')[1]
+                const buffer = Buffer.from(base64Data, 'base64')
+
+                if (templateFileName.endsWith('.pdf')) {
+                    try {
+                        const pdfData = await pdfParse(buffer)
+                        if (!pdfData || !pdfData.text) {
+                            throw new Error("PDF extraction failed: No text found.")
+                        }
+                        extractedKeys = extractPlaceholders(pdfData.text)
+                    } catch (pdfError) {
+                        console.error("PDF Parsing Error:", pdfError)
+                        return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                    }
+                } else if (templateFileName.endsWith('.docx')) {
+                    try {
+                        const { value } = await mammoth.extractRawText({ buffer })
+                        if (!value) {
+                            throw new Error("DOCX extraction failed: No text found.")
+                        }
+                        extractedKeys = extractPlaceholders(value)
+                    } catch (docxError) {
+                        console.error("DOCX Parsing Error:", docxError)
+                        return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                    }
+                } else {
+                    return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
+                }
+
+                const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
+                const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
+
+                if (missingKeys.length > 0 || extraKeys.length > 0) {
+                    return res.send({
+                        status: 400,
+                        message: `Template file contains invalid placeholders. ${missingKeys.length > 0 ? `Missing keys: ${missingKeys.join(", ")}` : ''} ${extraKeys.length > 0 ? `Extra keys: ${extraKeys.join(", ")}` : ''}`,
+                    })
+                }
+
                 try {
                     const fileName = unique_Id()
                     let element = await uploadToS3(document, 'Templates', fileName)
 
-                    template = element?.fileUrl
+                    documentURL = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to AWS:", uploadError);
                     return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
                 }
-            } else {
-                template = isExist?.template
             }
 
             const updatedTemplate = await Template.findByIdAndUpdate(
@@ -244,7 +303,7 @@ exports.updateTemplate = async (req, res) => {
                 {
                     $set: {
                         templateName,
-                        template,
+                        template: documentURL,
                         templateFileName,
                         updatedAt: moment().toDate()
                     }
@@ -291,6 +350,36 @@ exports.deleteTemplate = async (req, res) => {
     }
 }
 
+// async function checkPlaceholdersInTemplate(url, placeholders) {
+//     const response = await axios.get(url, { responseType: 'arraybuffer' });
+//     const buffer = Buffer.from(response.data);
+//     const ext = path.extname(url).toLowerCase();
+  
+//     let text = '';
+  
+//     if (ext === '.docx') {
+//         const result = await mammoth.extractRawText({ buffer });
+//         text = result.value;
+//     } else if (ext === '.pdf') {
+//         const result = await pdfParse(buffer);
+//         text = result.text;
+//     } else {
+//         throw new Error('Unsupported file format');
+//     }
+
+//     const result = {};
+//     placeholders.forEach(key => {
+//         if (key === 'Signature') {
+//             result.isSignatureRequired = text.includes(key);
+//             console.log(`Signature ${result.isSignatureRequired ? 'found' : 'not found'} in template`);
+//         } else {
+//             result[key] = text.includes(key);
+//         }
+//     })
+  
+//     return result;
+// }
+
 exports.previewTemplate = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
@@ -303,15 +392,18 @@ exports.previewTemplate = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
+            const existTemplate = existUser?.templates.find(temp => temp?.templateId.toString() == templateId)
+
+
             const company = await Company.findOne({ _id: existUser?.companyId.toString(), isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            const jobDetail = existUser?.jobDetails.find(job => job?._id.toString() == jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
-            }
+            // const jobDetail = existUser?.jobDetails.find(job => job?._id.toString() == jobId)
+            // if(!jobDetail){
+            //     return res.send({ status: 404, message: 'JobTitle not found' })
+            // }
 
             // const templateId = jobDetail?.templateId
             const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
@@ -324,19 +416,82 @@ exports.previewTemplate = async (req, res) => {
                 EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
                 EMPLOYEE_EMAIL: `${existUser?.personalDetails?.email}`,
                 EMPLOYEE_CONTACT_NUMBER: `${existUser?.personalDetails?.phone}`,
-                JOB_START_DATE: `${jobDetail?.joiningDate}`,
-                EMPLOYEE_JOB_TITLE: `${jobDetail?.jobTitle}`,
-                EMPLOYEE_JOB_ROLE: `${jobDetail?.role}`,
-                WEEKLY_HOURS: `${jobDetail?.weeklyWorkingHours}`,
-                ANNUAL_SALARY: `${jobDetail?.annualSalary}`,
+                // JOB_START_DATE: `${jobDetail?.joiningDate}`,
+                // EMPLOYEE_JOB_TITLE: `${jobDetail?.jobTitle}`,
+                // EMPLOYEE_JOB_ROLE: `${jobDetail?.role}`,
+                // WEEKLY_HOURS: `${jobDetail?.weeklyWorkingHours}`,
+                // ANNUAL_SALARY: `${jobDetail?.annualSalary}`,
                 COMPANY_NAME: `${company?.companyDetails?.businessName}`
             }
 
-            return res.send({ status: 200, templateUrl, userData })
+            // if(existTemplate?.isSignActionRequired == true){
+            //     return res.send({
+            //         status: 200,
+            //         templateUrl, userData,
+            //         isSignActionRequired: existTemplate?.isSignActionRequired,
+            //         // isTemplateReadActionRequired: existTemplate?.isTemplateRead,
+            //         isTemplateVerify: existTemplate?.isTemplateVerify
+            //     })                
+            // } else {
+            //     return res.send({
+            //         status: 200,
+            //         templateUrl, userData,
+            //         // isSignActionRequired: existTemplate?.isSignActionRequired,
+            //         isTemplateReadActionRequired: existTemplate?.isTemplateRead == true ? false : true,
+            //         isTemplateVerify: existTemplate?.isTemplateVerify
+            //     })
+            // }
+            const response = {
+                status: 200,
+                templateUrl,
+                userData,
+                isTemplateVerify: existTemplate?.isTemplateVerify
+            }
+            
+            if (existTemplate?.isSignActionRequired) {
+                response.isSignActionRequired = true
+            } else {
+                response.isTemplateReadActionRequired = !existTemplate?.isTemplateRead
+            }
+            
+            return res.send(response)
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while showing template:', error)
         return res.send({ status: 500, message: 'Error occurred while showing template!' })
+    }
+}
+
+exports.readTemplate = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { templateId } = req.body
+
+            const template = await Template.findOne({ _id: templateId, isDeleted: { $ne: true } })
+            if(!template){
+                return res.send({ status: 404, message:' Template not found' })
+            }
+
+            const existUser = await User.findOne({ _id: req.user._id, isDeleted: { $ne: true } }).select('templates')
+            if(!existUser){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            existUser?.templates.map(temp => {
+                if(temp.templateId.toString() == templateId){
+                    temp.isTemplateRead = true
+                    temp.isTemplateVerify = true
+                }
+            })
+
+            await existUser.save()
+
+            return res.send({ status: 200, message: 'Template read successfully.', existUser })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while reading template:', error)
+        return res.send({ status: 500, message: 'Error occurred while reading template!' })
     }
 }
 
@@ -380,6 +535,8 @@ exports.saveTemplateWithSignature = async (req, res) => {
                 if(templateId == temp?.templateId){
                     temp.isTemplateSigned = true
                     temp.isTemplateRead = true
+                    temp.isSignActionRequired = false
+                    temp.isTemplateVerify = true
                     temp.signedTemplateURL = result?.fileUrl
                 }
             })
@@ -413,18 +570,31 @@ exports.assignTemplateToUsers = async (req, res) => {
                 return res.send({ status: 404, message: 'Template not found' })
             }
 
-            await User.updateMany(
-                { _id: { $in: userIds } },
-                {
-                    $addToSet: {
-                        templates: {
-                            templateId: templateId,
-                            isTemplateSigned: signatureRequired === true ? false : true,
-                            isTemplateRead: false
+            const usersWithTemplate = await User.find({
+                _id: { $in: userIds },
+                templates: { $elemMatch: { templateId: templateId } }
+            }).select('_id')
+
+            const userIdsWithTemplate = usersWithTemplate.map(user => user._id.toString())
+
+            const usersToAssign = userIds.filter(id => !userIdsWithTemplate.includes(id))
+
+            if (usersToAssign.length > 0) {
+                await User.updateMany(
+                    { _id: { $in: usersToAssign } },
+                    {
+                        $addToSet: {
+                            templates: {
+                                templateId: templateId,
+                                isTemplateSigned: signatureRequired === true ? false : true,
+                                isTemplateRead: false,
+                                isTemplateVerify: false,
+                                isSignActionRequired: signatureRequired,
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
 
             return res.send({ status: 200, message: 'Template assigned successfully to users.' })
         } else return res.send({ status: 403, message: 'Access denied' })

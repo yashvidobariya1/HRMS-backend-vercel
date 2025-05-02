@@ -88,10 +88,15 @@ exports.getAllLocation = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
             let baseQuery = { isDeleted: { $ne: true } }
+
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery.companyId = companyId
+            }
 
             if(searchQuery){
                 baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }

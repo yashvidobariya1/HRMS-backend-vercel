@@ -149,14 +149,21 @@ exports.getAllContract = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Administrator' || req.user.role === 'Manager'){
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery.companyId = companyId
+            } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId
             }
+
+            // if(req.user.role === 'Administrator' || req.user.role === 'Manager'){
+            //     baseQuery.companyId = req.user.companyId
+            // }
 
             if (searchQuery) {
                 baseQuery["contractName"] = { $regex: searchQuery, $options: "i" }

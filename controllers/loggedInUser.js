@@ -8,6 +8,7 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
             const limit = parseInt(req.query.limit) || 50
             const timePeriod = parseInt(req.query.timePeriod)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
@@ -20,16 +21,23 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
 
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery.companyId = companyId
+            } else if(req.user.role !== 'Superadmin'){
+                baseQuery.locationId = { $in: req.user.locationId }
+                baseQuery.companyId = req.user.companyId
+            }
+
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
             } else if (req.user.role === 'Administrator') {
-                baseQuery.companyId = req.user.companyId
-                baseQuery.locationId = { $in: req.user.locationId }
+                // baseQuery.companyId = req.user.companyId
+                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
             } else if(req.user.role === 'Manager') {
-                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
-                baseQuery.companyId = req.user.companyId
-                baseQuery.locationId = { $in: req.user.locationId }
+                // baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
+                // baseQuery.companyId = req.user.companyId
+                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
             }
 
@@ -41,13 +49,14 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
 
             const users = await User.find(baseQuery).skip(skip).limit(limit)
             const formattedUsers = users.length > 0 ? users.map(user => ({
-                userName: `${user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`}`,
-                lastTimeLoggedIn: user?.lastTimeLoggedIn,
-                lastTimeAccess: user?.lastTimeAccess,
-                status: user?.isLoggedIn,
+                _id: user._id,
+                userName: `${user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`}` || "",
+                lastTimeLoggedIn: user?.lastTimeLoggedIn || "",
+                lastTimeAccess: user?.lastTimeAccess || "",
+                status: user?.isLoggedIn || "",
                 role: user?.role,
-                browser: user?.usedBrowser,
-                clientIp: user?.userIPAddess
+                browser: user?.usedBrowser || "",
+                clientIp: user?.userIPAddess || "",
             })) : []
             const totalUsers = await User.find(baseQuery).countDocuments()
 

@@ -132,6 +132,49 @@ const user_Growth = async ({ role, companyId = null, locationId = null, userId =
 // find total of available leave for administartor, manager and employee
 const getAvailableLeaves = async (userId, jobId) => {
     try {
+        // const result = await User.aggregate([
+        //     { $match: { _id: new mongoose.Types.ObjectId(String(userId)) } },
+        //     { 
+        //         $project: {
+        //             jobDetails: {
+        //                 $filter: {
+        //                     input: "$jobDetails",
+        //                     as: "job",
+        //                     cond: { $eq: ["$$job._id", new mongoose.Types.ObjectId(String(jobId))] }
+        //                 }
+        //             }
+        //         }
+        //     },
+        //     { $unwind: "$jobDetails" },
+        //     {
+        //         $lookup: {
+        //             from: "leaves",
+        //             let: { userId: userId, jobId: new mongoose.Types.ObjectId(String(jobId)) },
+        //             pipeline: [
+        //                 { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
+        //                 { $match: { $expr: { $eq: ["$jobId", "$$jobId"] } } },
+        //                 { $match: { status: "Approved" } },
+        //                 { $unwind: "$dates" },
+        //                 { $group: { _id: null, usedLeaveDays: { $sum: 1 } } }
+        //             ],
+        //             as: "usedLeaves"
+        //         }
+        //     },
+        //     {
+        //         $project: {
+        //             totalAllowedLeave: "$jobDetails.leavesAllow",
+        //             totalSickLeave: "$jobDetails.sickLeavesAllow",
+        //             usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
+        //         }
+        //     },
+        //     {
+        //         $project: {
+        //             _id: 0,
+        //             availableLeave: { $subtract: ["$totalAllowedLeave", "$usedLeaveDays"] },
+        //             totalSickLeave: 1
+        //         }
+        //     }
+        // ])
         const result = await User.aggregate([
             { $match: { _id: new mongoose.Types.ObjectId(String(userId)) } },
             { 
@@ -146,36 +189,70 @@ const getAvailableLeaves = async (userId, jobId) => {
                 }
             },
             { $unwind: "$jobDetails" },
+            // {
+            //     $lookup: {
+            //         from: "LeaveRequest",
+            //         let: { userId: userId, jobId: new mongoose.Types.ObjectId(String(jobId)) },
+            //         pipeline: [
+            //             { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
+            //             { $match: { $expr: { $eq: ["$jobId", "$$jobId"] } } },
+            //             { $match: { status: "Approved" } },
+            //             { $unwind: "$dates" },
+            //             { $group: { _id: null, usedLeaveDays: { $sum: 1 } } }
+            //         ],
+            //         as: "usedLeaves"
+            //     }
+            // },
             {
                 $lookup: {
-                    from: "leaves",
-                    let: { userId: userId, jobId: new mongoose.Types.ObjectId(String(jobId)) },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
-                        { $match: { $expr: { $eq: ["$jobId", "$$jobId"] } } },
-                        { $match: { status: "approved" } },
-                        { $unwind: "$dates" },
-                        { $group: { _id: null, usedLeaveDays: { $sum: 1 } } }
-                    ],
-                    as: "usedLeaves"
+                  from: "leaves",
+                  let: { userId: new mongoose.Types.ObjectId(String(userId)), jobId: new mongoose.Types.ObjectId(String(jobId)) },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: ["$userId", "$$userId"] },
+                            { $eq: ["$jobId", "$$jobId"] },
+                            { $eq: ["$status", "Approved"] }
+                          ]
+                        }
+                      }
+                    },
+                    // { $unwind: "$leaves" },  // fix this to match actual structure
+                    // {
+                    //   $group: {
+                    //     _id: null,
+                    //     usedLeaveDays: { $sum: 1 }  // assuming 1 per leave item
+                    //   }
+                    // }
+                  ],
+                  as: "usedLeaves"
                 }
             },
-            {
-                $project: {
-                    totalAllowedLeave: "$jobDetails.leavesAllow",
-                    totalSickLeave: "$jobDetails.sickLeavesAllow",
-                    usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    availableLeave: { $subtract: ["$totalAllowedLeave", "$usedLeaveDays"] },
-                    totalSickLeave: 1
-                }
-            }
+            // {
+            //     $project: {
+            //         totalAllowedLeave: "$jobDetails.leavesAllow",
+            //         totalSickLeave: "$jobDetails.sickLeavesAllow",
+            //         usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
+            //     }
+            // },
+            // // {
+            // //     $project: {
+            // //         totalAllowedLeave: "$jobDetails.leavesAllow.allowedLeavesCounts",
+            // //         totalSickLeave: "$jobDetails.sickLeavesAllow.allowedLeavesCounts",
+            // //         usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
+            // //     }
+            // // },
+            // {
+            //     $project: {
+            //         _id: 0,
+            //         availableLeave: { $subtract: ["$totalAllowedLeave", "$usedLeaveDays"] },
+            //         totalSickLeave: 1
+            //     }
+            // }
         ])
-        // console.log('result:', result)  
+        console.log('result:', result)  
         return result.length > 0 ? result[0] : { availableLeave: 0, totalSickLeave: 0 }
     } catch (error) {
         console.error('Error occurred while fetching count of available leaves:', error)
@@ -629,22 +706,36 @@ exports.dashboard = async (req, res) => {
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
+                const company = await Company.findOne({ _id: companyId.toString(), isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
                 // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
                 // const isTemplateSigned = jobDetail?.isTemplateSigned
-                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                const templates = existUser?.templates.filter(template => !template.isTemplateVerify ).map(template => ({
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSigned: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead
-                }))
+                    isTemplateSignRequied: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead,
+                    isTemplateVerify: template.isTemplateVerify,
+                    isSignActionRequired: template.isSignActionRequired
+                })).filter(template => !template.isTemplateVerify)
+
+                const userData = {
+                    EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+                    EMPLOYEE_EMAIL: `${existUser?.personalDetails?.email}`,
+                    EMPLOYEE_CONTACT_NUMBER: `${existUser?.personalDetails?.phone}`,
+                    COMPANY_NAME: `${company?.companyDetails?.businessName}`
+                }
 
                 const managerUsers = await User.find({ role: "Manager", companyId, locationId: { $elemMatch: { $in: locationId } }, isDeleted: { $ne: true } }).select("_id")
                 const managerUsersIds = managerUsers.map(user => user._id)
                 
                 const userGrowth = await user_Growth({ role: "Administrator", companyId, locationId })
-                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -693,6 +784,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     templates,
+                    userData,
                     countOfLateClockIn,
                     unreadNotificationCount,
 
@@ -732,7 +824,7 @@ exports.dashboard = async (req, res) => {
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
-                    totalAvailableLeave,
+                    // totalAvailableLeave,
                     userGrowth,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
@@ -750,6 +842,11 @@ exports.dashboard = async (req, res) => {
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
+                const company = await Company.findOne({ _id: companyId.toString(), isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
                 // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
                 // const isTemplateSigned = jobDetail?.isTemplateSigned
@@ -757,12 +854,21 @@ exports.dashboard = async (req, res) => {
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSigned: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead
-                }))
+                    isTemplateSignRequied: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead,
+                    isTemplateVerify: template.isTemplateVerify,
+                    isSignActionRequired: template.isSignActionRequired
+                })).filter(template => !template.isTemplateVerify)
+
+                const userData = {
+                    EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+                    EMPLOYEE_EMAIL: `${existUser?.personalDetails?.email}`,
+                    EMPLOYEE_CONTACT_NUMBER: `${existUser?.personalDetails?.phone}`,
+                    COMPANY_NAME: `${company?.companyDetails?.businessName}`
+                }
 
                 const userGrowth = await user_Growth({ role: "Manager", companyId, locationId, userId: req.user._id })
-                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -809,6 +915,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     templates,
+                    userData,
                     countOfLateClockIn,
                     unreadNotificationCount,
                     
@@ -845,7 +952,7 @@ exports.dashboard = async (req, res) => {
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
-                    totalAvailableLeave,
+                    // totalAvailableLeave,
                     userGrowth,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
@@ -862,6 +969,11 @@ exports.dashboard = async (req, res) => {
                     return res.send({ status: 404, message: 'User not found' })
                 }
 
+                const company = await Company.findOne({ _id: companyId.toString(), isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
                 // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
                 // const isTemplateSigned = jobDetail?.isTemplateSigned
@@ -869,11 +981,20 @@ exports.dashboard = async (req, res) => {
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSigned: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead
-                }))
+                    isTemplateSignRequied: template.isTemplateSigned,
+                    isTemplateRead: template.isTemplateRead,
+                    isTemplateVerify: template.isTemplateVerify,
+                    isSignActionRequired: template.isSignActionRequired
+                })).filter(template => !template.isTemplateVerify)
 
-                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                const userData = {
+                    EMPLOYEE_NAME: `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}`,
+                    EMPLOYEE_EMAIL: `${existUser?.personalDetails?.email}`,
+                    EMPLOYEE_CONTACT_NUMBER: `${existUser?.personalDetails?.phone}`,
+                    COMPANY_NAME: `${company?.companyDetails?.businessName}`
+                }
+
+                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -898,6 +1019,7 @@ exports.dashboard = async (req, res) => {
 
                 responseData = {
                     templates,
+                    userData,
                     countOfLateClockIn,
                     unreadNotificationCount,
 
@@ -914,7 +1036,7 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
-                    totalAvailableLeave,
+                    // totalAvailableLeave,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
                     todaysClocking,

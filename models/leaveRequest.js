@@ -12,11 +12,14 @@ const leaveRequestSchema = new mongoose.Schema({
     startDate: String,
     endDate: String,
     totalLeaveDays: Number,
+    totalLeaveHours: Number,
     numberOfApproveLeaves: Number,
+    numberOfApproveLeaveHours: Number,
     leaves: [{
         leaveDate: String,
         leaveType: String,
         isPaidLeave: Boolean,
+        isHourlyLeave: Boolean,
         isHalfPaidLeave: Boolean,
         isApproved: { type: Boolean, default: false }
     }],

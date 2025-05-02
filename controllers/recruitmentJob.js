@@ -16,21 +16,26 @@ exports.createJobPost = async (req, res) => {
                 jobDescription,
                 jobCategory,
                 jobApplyTo,
-                jobStatus,
+                // jobStatus,
                 locationId,
                 companyWebSite,
                 email,
             } = req.body
 
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            if(!location){
-                return res.send({ status: 404, message: 'Location not found' })
-            }
+            let location
+            let company
 
-            const companyId = location?.companyId.toString()
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found' })
+            if(locationId){
+                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+
+                const companyId = location?.companyId.toString()
+                company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
             }
 
             let uniqueId;
@@ -90,11 +95,11 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto: jobPostImg,
                 jobTitle,
                 jobDescription,
-                jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                jobLocation: locationId !== "" ? `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }` : "",
                 jobCategory,
                 jobApplyTo,
-                jobStatus,
-                companyId,
+                // jobStatus,
+                companyId: company?._id,
                 locationId,
                 companyWebSite,
                 companyEmail: company?.contactPersonEmail,
@@ -141,9 +146,13 @@ exports.getJobPostForPublic = async (req, res) => {
             return res.send({ status: 404, message: 'Job post not found' })
         }
 
-        const location = await Location.findOne({ _id: jobPost.locationId, isDeleted: { $ne: true } })
-        if(!location){
-            return res.send({ status: 404, message: 'Location not found' })
+        let location
+
+        if(jobPost?.locationId){
+            location = await Location.findOne({ _id: jobPost?.locationId, isDeleted: { $ne: true } })
+            if(!location){
+                return res.send({ status: 404, message: 'Location not found' })
+            }
         }
 
         const todaysDate = moment().format('YYYY-MM-DD')
@@ -155,10 +164,11 @@ exports.getJobPostForPublic = async (req, res) => {
             jobPhoto: jobPost?.jobPhoto,
             jobTitle: jobPost?.jobTitle,
             jobDescription: jobPost?.jobDescription,
-            jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+            // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+            jobLocation: `${ location ? location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` : '' }`,
             jobCategory: jobPost?.jobCategory,
             jobApplyTo: jobPost?.jobApplyTo,
-            jobStatus: jobPost?.jobStatus,
+            // jobStatus: jobPost?.jobStatus,
             companyWebSite: jobPost?.companyWebSite,
             companyEmail: jobPost?.companyEmail,
             email: jobPost?.email,
@@ -179,15 +189,23 @@ exports.getAllJobPosts = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role !== 'Superadmin'){
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery.companyId = companyId
+            } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId
                 baseQuery.locationId = { $in: req.user.locationId }
             }
+
+            // if(req.user.role !== 'Superadmin'){
+            //     baseQuery.companyId = req.user.companyId
+            //     baseQuery.locationId = { $in: req.user.locationId }
+            // }
 
             if (searchQuery) {
                 baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
@@ -198,19 +216,23 @@ exports.getAllJobPosts = async (req, res) => {
 
             let filteredData = await Promise.all(
                 (jobPost || []).map(async (JP) => {
-                    const location = await Location.findOne({ _id: JP.locationId, isDeleted: { $ne: true } })
+                    let location
+                    if(JP?.locationId){
+                        location = await Location.findOne({ _id: JP.locationId, isDeleted: { $ne: true } })
+                    }
         
                     return {
                         _id: JP?._id,
                         jobTitle: JP?.jobTitle,
                         jobDescription: JP?.jobDescription,
-                        locationName: location?.locationName,
+                        locationName: location?.locationName || '',
                         // companyContactNumber: JP?.companyContactNumber || '',
                         email: JP?.email || '',
                         // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobCategory: JP?.jobCategory,
                         jobApplyTo: JP?.jobApplyTo,
-                        jobStatus: JP?.jobStatus,
+                        email: JP?.email,
+                        // jobStatus: JP?.jobStatus,
                         jobPostedLink: JP?.jobPostedLink,
                     }
                 })
@@ -242,7 +264,8 @@ exports.updateJobPost = async (req, res) => {
                 jobDescription,
                 jobCategory,
                 jobApplyTo,
-                jobStatus,
+                // jobStatus,
+                email,
                 locationId,
                 companyWebSite,
             } = req.body
@@ -252,9 +275,13 @@ exports.updateJobPost = async (req, res) => {
                 return res.send({ status: 404, message: 'Job post not found' })
             }
 
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            if(!location){
-                return res.send({ status: 404, message: 'Location not found' })
+            let location
+
+            if(locationId){
+                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
             }
 
             let jobPostImg
@@ -297,11 +324,13 @@ exports.updateJobPost = async (req, res) => {
                     $set: {
                         jobPhoto: jobPostImg,
                         jobTitle,
-                        jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                        // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
+                        jobLocation: `${ location ? location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` : '' }`,
                         jobDescription,
                         jobCategory,
                         jobApplyTo,
-                        jobStatus,
+                        // jobStatus,
+                        email,
                         locationId,
                         companyWebSite,
                     }

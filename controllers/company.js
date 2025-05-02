@@ -110,7 +110,7 @@ exports.getCompany = async (req, res) => {
 
 exports.getAllCompany = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
@@ -120,7 +120,7 @@ exports.getAllCompany = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if (req.user.role === 'Administrator') {
+            if (req.user.role !== 'Superadmin') {
                 baseQuery._id = req.user.companyId
             }
 

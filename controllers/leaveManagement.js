@@ -267,8 +267,16 @@ exports.leaveRequest = async (req, res) => {
                 return res.send(leaveCountResponse)
             }
 
-            const remainingLeaves = leaveCountResponse.leaveCount
-            let paidLeaveBalance = remainingLeaves[leaveType] || 0
+            let paidLeaveBalance
+
+            leaveCountResponse?.leaveCount.map(leaveCount => {
+                if(leaveCount?.leaveType == leaveType){
+                    paidLeaveBalance = leaveCount?.count
+                }
+            })
+
+            // const remainingLeaves = leaveCountResponse.leaveCount
+            // let paidLeaveBalance = remainingLeaves[leaveType].count || 0
 
             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
@@ -329,11 +337,16 @@ exports.leaveRequest = async (req, res) => {
             }
 
             let leaveDays
+            let leaveHours
             if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
                 leaveDays = 0.5
             } else if (selectionDuration === 'Multiple') {
                 leaveDays = effectiveLeaveDays
-            } else leaveDays = 1
+            } else if(selectionDuration === 'Full-Day'){
+                leaveDays = 1
+            } else {
+                leaveHours = parseInt(selectionDuration)
+            }
 
             let usedPaidLeave = 0
             let usedHalfPaidLeave = 0
@@ -390,7 +403,7 @@ exports.leaveRequest = async (req, res) => {
                         });
                 
                         break; // Stop after adding a single half-day leave entry
-                    } else {
+                    } else if(selectionDuration === 'Full-Day' || selectionDuration === 'Multiple') {
                         if (paidLeaveBalance >= 1) {
                             isPaidLeave = true;
                             paidLeaveBalance -= 1;
@@ -410,6 +423,22 @@ exports.leaveRequest = async (req, res) => {
                             isHalfPaidLeave,
                             isApproved: false
                         });
+                    } else {
+                        if(paidLeaveBalance > 0){
+                            isPaidLeave = true;
+                            paidLeaveBalance -= parseInt(selectionDuration);
+                            usedPaidLeave += parseInt(selectionDuration);
+                        } else {
+                            usedPaidLeave += parseInt(selectionDuration);
+                        }
+
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave,
+                            isHourlyLeave: true,
+                            isApproved: false
+                        });
                     }
                 }
             }
@@ -426,7 +455,9 @@ exports.leaveRequest = async (req, res) => {
                 startDate,
                 endDate,
                 totalLeaveDays: leaveDays,
+                totalLeaveHours: leaveHours,
                 numberOfApproveLeaves: 0,
+                numberOfApproveLeaveHours: 0,
                 leaves,
                 reasonOfLeave,
                 status: 'Pending',
@@ -564,8 +595,10 @@ exports.getAllOwnLeaves = async (req, res) => {
 
             const allLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).populate('userId', 'personalDetails.firstName personalDetails.lastName').sort({ createdAt: -1 }).skip(skip).limit(limit)
 
+            let selectionDurationType = ['First-Half', 'Second-Half', 'Multiple', 'Full-Day']
             const formattedLeaves = allLeaves.map(leave => ({
                 ...leave.toObject(),
+                selectionDuration: selectionDurationType.includes(leave?.selectionDuration) ? leave?.selectionDuration : `${leave?.selectionDuration} Hours`,
                 userName: `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}`,
                 userId: leave?.userId?._id
             }))
@@ -618,15 +651,22 @@ exports.getAllowLeaveCount = async (req, res) => {
 
             const leaveCountByType = allLeavesOfUser.reduce((acc, leave) => {
                 const leaveDays = parseFloat(leave.totalLeaveDays)
+                const leaveHours = parseInt(leave.totalLeaveHours)
                 if (leaveDays > 0) {
                     leave.leaves.forEach(day => {
-                        if (day.isApproved === true) {
+                        // if (day.isApproved === true) {
                             if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
                                 acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
                             } else {
                                 acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
                             }
-                        }
+                        // }
+                    });
+                } else if(leaveHours > 0) {
+                    leave.leaves.forEach(day => {
+                        // if (day.isApproved === true) {
+                            acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.totalLeaveHours
+                        // }
                     });
                 }
                 return acc;
@@ -635,16 +675,56 @@ exports.getAllowLeaveCount = async (req, res) => {
             let jobDetails = user.jobDetails.find(job => job._id.toString() === jobId) || user.jobDetails[0]
             // console.log('jobDetails/..', jobDetails)
 
-            const totalSickLeaves = jobDetails?.sickLeavesAllow
-            const totalAllowLeaves = jobDetails?.leavesAllow
+            // const totalSickLeaves = jobDetails?.sickLeavesAllow
+            // const totalAllowLeaves = jobDetails?.leavesAllow
 
-            const casualLeaves = totalAllowLeaves - (leaveCountByType?.Casual || 0)
-            const sickLeaves = totalSickLeaves - (leaveCountByType?.Sick || 0)
-
-            let leaveCount = {
-                Casual: casualLeaves > 0 ? casualLeaves : 0,
-                Sick: sickLeaves > 0 ? sickLeaves : 0
+            const totalLeaves = {
+                Casual: jobDetails?.leavesAllow,
+                Sick: jobDetails?.sickLeavesAllow
             }
+
+            // const casualLeaves = totalAllowLeaves?.allowedLeavesCounts - (leaveCountByType?.Casual || 0)
+            // const sickLeaves = totalSickLeaves?.allowedLeavesCounts - (leaveCountByType?.Sick || 0)
+
+            // let leaveCount = {
+            //     Casual: {
+            //         count: casualLeaves > 0 ? casualLeaves : 0,
+            //         type: `${totalAllowLeaves?.leaveType}`
+            //     },
+            //     Sick: {
+            //         count: sickLeaves > 0 ? sickLeaves : 0,
+            //         type: `${totalSickLeaves?.leaveType}`
+            //     }
+            // }
+
+            let leaveCount = []
+
+            for (let leaveType in totalLeaves) {
+                const total = totalLeaves[leaveType]?.allowedLeavesCounts || 0;
+                const used = leaveCountByType?.[leaveType] || 0;
+                const remaining = total - used;
+            
+                if (totalLeaves[leaveType]) {
+                    leaveCount.push({
+                        leaveType: leaveType,
+                        count: remaining > 0 ? remaining : 0,
+                        type: totalLeaves[leaveType]?.leaveType
+                    });
+                }
+            }
+
+            // let leaveCount = [
+            //     {
+            //         leaveType: 'Casual',
+            //         count: casualLeaves > 0 ? casualLeaves : 0,
+            //         type: `${totalAllowLeaves?.leaveType}`
+            //     },
+            //     {
+            //         leaveType: 'Sick',
+            //         count: sickLeaves > 0 ? sickLeaves : 0,
+            //         type: `${totalSickLeaves?.leaveType}`
+            //     }
+            // ]
             
             return res.send({ status: 200, leaveCount })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -661,6 +741,7 @@ exports.getAllLeaveRequest = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = ( page - 1 ) * limit
 
@@ -668,21 +749,29 @@ exports.getAllLeaveRequest = async (req, res) => {
             let totalLeaveRequests = 0
 
             let baseQuery = { isDeleted: { $ne: true } }
+
+            if(req.user.role === 'Superadmin' && companyId){
+                baseQuery['companyId'] = companyId
+            } else if(req.user.role !== 'Superadmin'){
+                baseQuery['locationId'] = { $in: req.user.locationId }
+                baseQuery['companyId'] = req.user.companyId
+            }
             
             if(req.user.role == 'Superadmin'){
-                baseQuery['userId'] = { $in: await User.find({ role: 'Administrator', isDeleted: { $ne: true } }).distinct('_id') }
+                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
             } else if(req.user.role == 'Administrator'){
-                baseQuery['companyId'] = req.user.companyId
-                baseQuery['locationId'] = { $in: req.user.locationId }
-                baseQuery['userId'] = { $in: await User.find({ role: 'Manager', isDeleted: { $ne: true } }).distinct('_id') }
+                // baseQuery['companyId'] = req.user.companyId
+                // baseQuery['locationId'] = { $in: req.user.locationId }
+                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Manager', 'Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
             } else if(req.user.role == 'Manager'){
-                const employees = await User.find({
-                    jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
-                    isDeleted: { $ne: true }
-                }).select('_id')
-                baseQuery['userId'] = { $in: employees.map(emp => emp._id) }
-                baseQuery['companyId'] = req.user.companyId
-                baseQuery['locationId'] = { $in: req.user.locationId }
+                // const employees = await User.find({
+                //     jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
+                //     isDeleted: { $ne: true }
+                // }).select('_id')
+                // baseQuery['userId'] = { $in: employees.map(emp => emp._id) }
+                // baseQuery['companyId'] = req.user.companyId
+                // baseQuery['locationId'] = { $in: req.user.locationId }
+                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
             }
 
             let leaveRequests = await Leave.find(baseQuery)
@@ -701,8 +790,10 @@ exports.getAllLeaveRequest = async (req, res) => {
             totalLeaveRequests = leaveRequests.length
             allLeaveRequests = leaveRequests.slice(skip, skip + limit)
 
+            let selectionDurationType = ['First-Half', 'Second-Half', 'Multiple', 'Full-Day']
             const formattedLeaves = allLeaveRequests.length > 0 ? allLeaveRequests.map(leave => ({
                 ...leave.toObject(),
+                selectionDuration: selectionDurationType.includes(leave?.selectionDuration) ? leave?.selectionDuration : `${leave?.selectionDuration} Hours`,
                 userName: `${leave?.userId?.personalDetails?.lastName ? `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}` : `${leave?.userId?.personalDetails?.firstName}`}`,
                 userId: leave?.userId?._id
             })) : []
@@ -836,8 +927,16 @@ exports.updateLeaveRequest = async (req, res) => {
                 return res.send(leaveCountResponse)
             }
 
-            const remainingLeaves = leaveCountResponse.leaveCount
-            let paidLeaveBalance = remainingLeaves[leaveType] || 0
+            let paidLeaveBalance
+
+            leaveCountResponse?.leaveCount.map(leaveCount => {
+                if(leaveCount?.leaveType == leaveType){
+                    paidLeaveBalance = leaveCount?.count
+                }
+            })
+
+            // const remainingLeaves = leaveCountResponse.leaveCount
+            // let paidLeaveBalance = remainingLeaves[leaveType].count || 0
 
             const holidays = await Holiday.find({
                 companyId: user.companyId,
@@ -881,11 +980,16 @@ exports.updateLeaveRequest = async (req, res) => {
             }
 
             let leaveDays
+            let leaveHours
             if (selectionDuration === 'First-Half' || selectionDuration === 'Second-Half') {
                 leaveDays = 0.5
             } else if (selectionDuration === 'Multiple') {
                 leaveDays = effectiveLeaveDays
-            } else leaveDays = 1
+            } else if(selectionDuration === 'Full-Day'){
+                leaveDays = 1
+            } else {
+                leaveHours = parseInt(selectionDuration)
+            }
 
             let usedPaidLeave = 0
             let usedHalfPaidLeave = 0
@@ -917,7 +1021,7 @@ exports.updateLeaveRequest = async (req, res) => {
                         });
                 
                         break; // Stop after adding a single half-day leave entry
-                    } else {
+                    } else if(selectionDuration === 'Full-Day' || selectionDuration === 'Multiple') {
                         if (paidLeaveBalance >= 1) {
                             isPaidLeave = true;
                             paidLeaveBalance -= 1;
@@ -937,6 +1041,22 @@ exports.updateLeaveRequest = async (req, res) => {
                             isHalfPaidLeave,
                             isApproved: false
                         });
+                    } else {
+                        if(paidLeaveBalance > 0){
+                            isPaidLeave = true;
+                            paidLeaveBalance -= parseInt(selectionDuration);
+                            usedPaidLeave += parseInt(selectionDuration);
+                        } else {
+                            usedPaidLeave += parseInt(selectionDuration);
+                        }
+
+                        leaves.push({
+                            leaveDate,
+                            leaveType,
+                            isPaidLeave,
+                            isHourlyLeave: true,
+                            isApproved: false
+                        });
                     }
                 }
             }
@@ -950,6 +1070,7 @@ exports.updateLeaveRequest = async (req, res) => {
                         startDate,
                         endDate,
                         totalLeaveDays: leaveDays,
+                        totalLeaveHours: leaveHours,
                         leaves,
                         reasonOfLeave,
                     }
@@ -994,7 +1115,7 @@ exports.approveLeaveRequest = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const leaveRequestId = req.params.id
-            const { leaves, approvalReason } = req.body
+            const { leaves, approvalReason, approvedLeaveHours } = req.body
 
             // if(!approvalReason){
             //     return res.send({ status: 400, message: 'Approval reason is required' })
@@ -1024,7 +1145,7 @@ exports.approveLeaveRequest = async (req, res) => {
                 if(LR.isApproved == true){
                     if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
                         approvedLeavesCount += 0.5
-                    } else {
+                    } else if(leave.selectionDuration === 'Full-Day') {
                         approvedLeavesCount += 1
                     }
                 }
@@ -1033,6 +1154,7 @@ exports.approveLeaveRequest = async (req, res) => {
 
             leave.status = 'Approved'
             leave.numberOfApproveLeaves = approvedLeavesCount
+            leave.numberOfApproveLeaveHours = approvedLeaveHours ? approvedLeaveHours : isNaN(parseInt(leave.selectionDuration)) ? 0 : parseInt(leave.selectionDuration)
             leave.approvalReason = approvalReason
             leave.approverId = req.user._id
             leave.approverRole = req.user.role
