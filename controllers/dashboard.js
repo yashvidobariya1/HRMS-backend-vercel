@@ -718,8 +718,7 @@ exports.dashboard = async (req, res) => {
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSignRequied: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead,
+                    // isTemplateSignRequied: template.isTemplateSigned,
                     isTemplateVerify: template.isTemplateVerify,
                     isSignActionRequired: template.isSignActionRequired
                 })).filter(template => !template.isTemplateVerify)
@@ -850,12 +849,11 @@ exports.dashboard = async (req, res) => {
                 // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
                 // const isTemplateSigned = jobDetail?.isTemplateSigned
-                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                const templates = existUser?.templates.filter(template => !template.isTemplateVerify ).map(template => ({
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSignRequied: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead,
+                    // isTemplateSignRequied: template.isTemplateSigned,
                     isTemplateVerify: template.isTemplateVerify,
                     isSignActionRequired: template.isSignActionRequired
                 })).filter(template => !template.isTemplateVerify)
@@ -977,12 +975,11 @@ exports.dashboard = async (req, res) => {
                 // const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
                 // if(!jobDetail) return res.send({ status: 404, message: 'JobTitle not found' })
                 // const isTemplateSigned = jobDetail?.isTemplateSigned
-                const templates = existUser?.templates.filter(template => !template.isTemplateSigned || !template.isTemplateRead ).map(template => ({
+                const templates = existUser?.templates.filter(template => !template.isTemplateVerify ).map(template => ({
                     _id: template._id,
                     templateId: template.templateId._id,
                     templateName: template.templateId.templateName,
-                    isTemplateSignRequied: template.isTemplateSigned,
-                    isTemplateRead: template.isTemplateRead,
+                    // isTemplateSignRequied: template.isTemplateSigned,
                     isTemplateVerify: template.isTemplateVerify,
                     isSignActionRequired: template.isSignActionRequired
                 })).filter(template => !template.isTemplateVerify)

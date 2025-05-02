@@ -1326,7 +1326,6 @@ exports.getUserJobTitles = async (req, res) => {
                 templateId: template.templateId._id,
                 templateName: template.templateId.templateName,
                 isTemplateSigned: template.isTemplateSigned,
-                isTemplateRead: template.isTemplateRead
             }))
 
             if(jobTitles.length > 1){

@@ -134,7 +134,6 @@ const userSchema = new mongoose.Schema({
   templates: [{
     templateId: { type: String, ref: 'Templates'},
     isTemplateSigned: Boolean,
-    isTemplateRead: Boolean,
     signedTemplateURL: String,
     isTemplateVerify: Boolean,
     isSignActionRequired: Boolean,

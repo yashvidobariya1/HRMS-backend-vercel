@@ -423,38 +423,14 @@ exports.previewTemplate = async (req, res) => {
                 // ANNUAL_SALARY: `${jobDetail?.annualSalary}`,
                 COMPANY_NAME: `${company?.companyDetails?.businessName}`
             }
-
-            // if(existTemplate?.isSignActionRequired == true){
-            //     return res.send({
-            //         status: 200,
-            //         templateUrl, userData,
-            //         isSignActionRequired: existTemplate?.isSignActionRequired,
-            //         // isTemplateReadActionRequired: existTemplate?.isTemplateRead,
-            //         isTemplateVerify: existTemplate?.isTemplateVerify
-            //     })                
-            // } else {
-            //     return res.send({
-            //         status: 200,
-            //         templateUrl, userData,
-            //         // isSignActionRequired: existTemplate?.isSignActionRequired,
-            //         isTemplateReadActionRequired: existTemplate?.isTemplateRead == true ? false : true,
-            //         isTemplateVerify: existTemplate?.isTemplateVerify
-            //     })
-            // }
-            const response = {
+            
+            return res.send({
                 status: 200,
                 templateUrl,
                 userData,
-                isTemplateVerify: existTemplate?.isTemplateVerify
-            }
-            
-            if (existTemplate?.isSignActionRequired) {
-                response.isSignActionRequired = true
-            } else {
-                response.isTemplateReadActionRequired = !existTemplate?.isTemplateRead
-            }
-            
-            return res.send(response)
+                isSignActionRequired: existTemplate?.isSignActionRequired,
+                isTemplateReadActionRequired: existTemplate?.isSignActionRequired ? false : true
+            })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while showing template:', error)
@@ -480,7 +456,6 @@ exports.readTemplate = async (req, res) => {
 
             existUser?.templates.map(temp => {
                 if(temp.templateId.toString() == templateId){
-                    temp.isTemplateRead = true
                     temp.isTemplateVerify = true
                 }
             })
@@ -534,7 +509,6 @@ exports.saveTemplateWithSignature = async (req, res) => {
             existUser?.templates.map(temp => {
                 if(templateId == temp?.templateId){
                     temp.isTemplateSigned = true
-                    temp.isTemplateRead = true
                     temp.isSignActionRequired = false
                     temp.isTemplateVerify = true
                     temp.signedTemplateURL = result?.fileUrl
@@ -587,7 +561,6 @@ exports.assignTemplateToUsers = async (req, res) => {
                             templates: {
                                 templateId: templateId,
                                 isTemplateSigned: signatureRequired === true ? false : true,
-                                isTemplateRead: false,
                                 isTemplateVerify: false,
                                 isSignActionRequired: signatureRequired,
                             }
