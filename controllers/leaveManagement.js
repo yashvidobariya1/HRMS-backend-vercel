@@ -468,53 +468,64 @@ exports.leaveRequest = async (req, res) => {
             // ---------------send notification---------------
             let notifiedId = []
             let readBy = []
-            if (req.user.role === 'Employee') {
-                if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-                    // console.log('assignManager', assignManager)
-                    notifiedId.push(jobDetail.assignManager);
-                    readBy.push({
-                        userId: jobDetail.assignManager,
-                        role: assignManager?.role
-                    })
-                    // console.log('readBy1/..', readBy)
-                }
+            // if (req.user.role === 'Employee') {
+            //     if (jobDetail && jobDetail.assignManager) {
+            //         const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+            //         // console.log('assignManager', assignManager)
+            //         notifiedId.push(jobDetail.assignManager);
+            //         readBy.push({
+            //             userId: jobDetail.assignManager,
+            //             role: assignManager?.role
+            //         })
+            //         // console.log('readBy1/..', readBy)
+            //     }
 
-                // const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
-                // // console.log('administrator', administrator)
-                // if (administrator.length > 0) {
-                //     notifiedId.push(administrator[0]._id);
-                //     readBy.push({
-                //         userId: administrator[0]._id,
-                //         role: administrator[0].role
-                //     })
-                // }
-            } else if (req.user.role === 'Manager') {
-                const administrator = await User.findOne({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
-                if (administrator.length > 0) {
-                    notifiedId.push(administrator?._id);
+            //     // const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+            //     // // console.log('administrator', administrator)
+            //     // if (administrator.length > 0) {
+            //     //     notifiedId.push(administrator[0]._id);
+            //     //     readBy.push({
+            //     //         userId: administrator[0]._id,
+            //     //         role: administrator[0].role
+            //     //     })
+            //     // }
+            // } else if (req.user.role === 'Manager') {
+            //     const administrator = await User.findOne({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+            //     if (administrator.length > 0) {
+            //         notifiedId.push(administrator?._id);
+            //         readBy.push({
+            //             userId: administrator?._id,
+            //             role: administrator?.role
+            //         })
+            //     }
+            // } else if (req.user.role === 'Administrator' && user?.creatorId) {
+            //     notifiedId.push(user?.creatorId);
+            //     readBy.push({
+            //         userId: user?.creatorId,
+            //         role: user?.createdBy
+            //     })
+            // }
+
+            if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+                const administrators = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
+                administrators.map((admin) => {
+                    notifiedId.push(admin?._id)
                     readBy.push({
-                        userId: administrator?._id,
-                        role: administrator?.role
+                        userId: admin?._id,
+                        role: admin?.role
                     })
-                }
-            } else if (req.user.role === 'Administrator' && user?.creatorId) {
-                notifiedId.push(user?.creatorId);
-                readBy.push({
-                    userId: user?.creatorId,
-                    role: user?.createdBy
                 })
             }
 
-            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            const superAdmins = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            // superAdmin.map((sa) => {
-            //     notifiedId.push(sa?._id)
-            //     readBy.push({
-            //         userId: sa?._id,
-            //         role: sa?.role
-            //     })
-            // })
+            superAdmins.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
 
             const firstName = user?.personalDetails?.firstName || ""
             const lastName = user?.personalDetails?.lastName || ""
@@ -522,6 +533,7 @@ exports.leaveRequest = async (req, res) => {
             const notification = new Notification({
                 userId,
                 // userName: `${firstName} ${lastName}`,
+                companyId: user.companyId,
                 notifiedId,
                 type: 'Leave Request',
                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
@@ -750,7 +762,7 @@ exports.getAllLeaveRequest = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery['companyId'] = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery['locationId'] = { $in: req.user.locationId }
@@ -793,9 +805,11 @@ exports.getAllLeaveRequest = async (req, res) => {
             let selectionDurationType = ['First-Half', 'Second-Half', 'Multiple', 'Full-Day']
             const formattedLeaves = allLeaveRequests.length > 0 ? allLeaveRequests.map(leave => ({
                 ...leave.toObject(),
-                selectionDuration: selectionDurationType.includes(leave?.selectionDuration) ? leave?.selectionDuration : `${leave?.selectionDuration} Hours`,
+                userId: leave?.userId?._id,
                 userName: `${leave?.userId?.personalDetails?.lastName ? `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}` : `${leave?.userId?.personalDetails?.firstName}`}`,
-                userId: leave?.userId?._id
+                selectionDuration: selectionDurationType.includes(leave?.selectionDuration) ? leave?.selectionDuration : `${leave?.selectionDuration} Hours`,
+                totalRequestedLeaves: selectionDurationType.includes(leave?.selectionDuration) ? leave?.totalLeaveDays : leave?.totalLeaveHours,
+                totalApprovedLeaves: selectionDurationType.includes(leave?.selectionDuration) ? leave?.numberOfApproveLeaves : leave?.numberOfApproveLeaveHours,
             })) : []
 
             return res.send({
@@ -1178,16 +1192,6 @@ exports.approveLeaveRequest = async (req, res) => {
                 role: existingUser?.role
             })
 
-            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
-
-            // superAdmin.map((sa) => {
-            //     notifiedId.push(sa?._id)
-            //     readBy.push({
-            //         userId: sa?._id,
-            //         role: sa?.role
-            //     })
-            // })
-
             let notificationMessage = `${firstName} ${lastName} has approved your ${leave.leaveType} leave request.${ approvalReason ? `( Reason: ${approvalReason} )` : '' }`
             if (approvedLeavesCount < leave?.totalLeaveDays) {
                 notificationMessage = `${firstName} ${lastName} has partially approved your ${leave.leaveType} leave request [ Approved : ${approvedLeavesCount} and Rejected : ${leave?.totalLeaveDays - approvedLeavesCount} ]. ${ approvalReason ? ` ( Reason: ${approvalReason} )` : '' }`
@@ -1196,6 +1200,7 @@ exports.approveLeaveRequest = async (req, res) => {
             const notification = new Notification({
                 userId: req.user._id,
                 // userName: `${firstName} ${lastName}`,
+                companyId: leave?.companyId,
                 notifiedId,
                 type: 'Leave Request Approveral',
                 message: notificationMessage,
@@ -1264,19 +1269,10 @@ exports.rejectLeaveRequest = async (req, res) => {
                 role: existingUser?.role
             })
 
-            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
-
-            // superAdmin.map((sa) => {
-            //     notifiedId.push(sa?._id)
-            //     readBy.push({
-            //         userId: sa?._id,
-            //         role: sa?.role
-            //     })
-            // })
-
             const notification = new Notification({
                 userId: req.user._id,
                 // userName: `${firstName} ${lastName}`,
+                companyId: leave?.companyId,
                 notifiedId,
                 type: 'Leave Request Reject',
                 message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ( Reason: ${rejectionReason} )`,

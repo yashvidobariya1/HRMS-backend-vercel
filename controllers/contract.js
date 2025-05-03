@@ -155,7 +155,7 @@ exports.getAllContract = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId

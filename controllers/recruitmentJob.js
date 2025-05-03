@@ -1,3 +1,4 @@
+const Client = require('../models/client')
 const Company = require('../models/company')
 const Location = require('../models/location')
 const RecruitmentJob = require('../models/recruitmentJob')
@@ -16,26 +17,27 @@ exports.createJobPost = async (req, res) => {
                 jobDescription,
                 jobCategory,
                 jobApplyTo,
-                // jobStatus,
-                locationId,
                 companyWebSite,
                 email,
+                companyId,
+                clientId,
             } = req.body
 
-            let location
+            let client
             let company
 
-            if(locationId){
-                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-                if(!location){
-                    return res.send({ status: 404, message: 'Location not found' })
+            if(clientId){
+                client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
                 }
-
-                const companyId = location?.companyId.toString()
+                company = await Company.findOne({ _id: client?.companyId.toString(), isDeleted: { $ne: true } })
+            } else {
                 company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-                if(!company){
-                    return res.send({ status: 404, message: 'Company not found' })
-                }
+            }
+            
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
             }
 
             let uniqueId;
@@ -95,12 +97,11 @@ exports.createJobPost = async (req, res) => {
                 jobPhoto: jobPostImg,
                 jobTitle,
                 jobDescription,
-                jobLocation: locationId !== "" ? `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }` : "",
+                jobLocation: clientId !== "" ? `${ client?.addressLine2 ? `${client?.address} ${client?.addressLine2}` : `${client?.address}` }` : "",
                 jobCategory,
                 jobApplyTo,
-                // jobStatus,
                 companyId: company?._id,
-                locationId,
+                clientId,
                 companyWebSite,
                 companyEmail: company?.contactPersonEmail,
                 email,
@@ -146,12 +147,12 @@ exports.getJobPostForPublic = async (req, res) => {
             return res.send({ status: 404, message: 'Job post not found' })
         }
 
-        let location
+        let client
 
-        if(jobPost?.locationId){
-            location = await Location.findOne({ _id: jobPost?.locationId, isDeleted: { $ne: true } })
-            if(!location){
-                return res.send({ status: 404, message: 'Location not found' })
+        if(jobPost?.clientId){
+            client = await Client.findOne({ _id: jobPost?.clientId, isDeleted: { $ne: true } })
+            if(!client){
+                return res.send({ status: 404, message: 'Client not found' })
             }
         }
 
@@ -164,15 +165,12 @@ exports.getJobPostForPublic = async (req, res) => {
             jobPhoto: jobPost?.jobPhoto,
             jobTitle: jobPost?.jobTitle,
             jobDescription: jobPost?.jobDescription,
-            // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
-            jobLocation: `${ location ? location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` : '' }`,
+            jobLocation: `${ client ? client?.addressLine2 ? `${client?.address} ${client?.addressLine2}` : `${client?.address}` : '' }`,
             jobCategory: jobPost?.jobCategory,
             jobApplyTo: jobPost?.jobApplyTo,
-            // jobStatus: jobPost?.jobStatus,
             companyWebSite: jobPost?.companyWebSite,
             companyEmail: jobPost?.companyEmail,
             email: jobPost?.email,
-            // companyContactNumber: jobPost?.companyContactNumber,
         }
 
         return res.send({ status: 200, message: 'Job details fetched successfully', jobDetails })
@@ -195,17 +193,11 @@ exports.getAllJobPosts = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId
-                baseQuery.locationId = { $in: req.user.locationId }
             }
-
-            // if(req.user.role !== 'Superadmin'){
-            //     baseQuery.companyId = req.user.companyId
-            //     baseQuery.locationId = { $in: req.user.locationId }
-            // }
 
             if (searchQuery) {
                 baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
@@ -216,23 +208,20 @@ exports.getAllJobPosts = async (req, res) => {
 
             let filteredData = await Promise.all(
                 (jobPost || []).map(async (JP) => {
-                    let location
-                    if(JP?.locationId){
-                        location = await Location.findOne({ _id: JP.locationId, isDeleted: { $ne: true } })
+                    let client
+                    if(JP?.clientId){
+                        client = await Client.findOne({ _id: JP.clientId, isDeleted: { $ne: true } })
                     }
         
                     return {
                         _id: JP?._id,
                         jobTitle: JP?.jobTitle,
                         jobDescription: JP?.jobDescription,
-                        locationName: location?.locationName || '',
-                        // companyContactNumber: JP?.companyContactNumber || '',
+                        clientName: client?.clientName || '',
                         email: JP?.email || '',
-                        // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
                         jobCategory: JP?.jobCategory,
                         jobApplyTo: JP?.jobApplyTo,
                         email: JP?.email,
-                        // jobStatus: JP?.jobStatus,
                         jobPostedLink: JP?.jobPostedLink,
                     }
                 })
@@ -264,9 +253,8 @@ exports.updateJobPost = async (req, res) => {
                 jobDescription,
                 jobCategory,
                 jobApplyTo,
-                // jobStatus,
                 email,
-                locationId,
+                clientId,
                 companyWebSite,
             } = req.body
 
@@ -275,12 +263,12 @@ exports.updateJobPost = async (req, res) => {
                 return res.send({ status: 404, message: 'Job post not found' })
             }
 
-            let location
+            let client
 
-            if(locationId){
-                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-                if(!location){
-                    return res.send({ status: 404, message: 'Location not found' })
+            if(clientId){
+                client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
                 }
             }
 
@@ -324,14 +312,12 @@ exports.updateJobPost = async (req, res) => {
                     $set: {
                         jobPhoto: jobPostImg,
                         jobTitle,
-                        // jobLocation: `${ location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` }`,
-                        jobLocation: `${ location ? location?.addressLine2 ? `${location?.address} ${location?.addressLine2}` : `${location?.address}` : '' }`,
+                        jobLocation: `${ client ? client?.addressLine2 ? `${client?.address} ${client?.addressLine2}` : `${client?.address}` : '' }`,
                         jobDescription,
                         jobCategory,
                         jobApplyTo,
-                        // jobStatus,
                         email,
-                        locationId,
+                        clientId,
                         companyWebSite,
                     }
                 }, { new: true }
@@ -378,12 +364,24 @@ exports.getCompanyLocationsForJobPost = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
+            const companyId = req.query.companyId
+
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
             
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role !== 'Superadmin'){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
+                baseQuery.companyId = companyId
+            } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId.toString()
             }
+
+            // if(req.user.role !== 'Superadmin'){
+            //     baseQuery.companyId = req.user.companyId.toString()
+            // }
             
             const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
 
@@ -392,14 +390,22 @@ exports.getCompanyLocationsForJobPost = async (req, res) => {
                 locationName: `${loc.locationName} (${loc.companyId?.companyDetails?.businessName})`
             }))
 
+            const clients = await Client.find(baseQuery)
+
+            const formattedClients = clients.map(client => ({
+                _id: client?._id,
+                clientName: client?.clientName
+            }))
+
             return res.send({
                 status: 200,
                 message: "Company's locations fetched successfully.",
-                locations: formattedLocations
+                locations: formattedLocations,
+                clients: formattedClients,
             });
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {
-        console.error("Error occurred while fetching locations:", error);
-        return res.send({ status: 500, message: "Something went wrong while fetching locations!" });
+        console.error("Error occurred while fetching locations and clients:", error);
+        return res.send({ status: 500, message: "Something went wrong while fetching locations and clients!" });
     }
 }

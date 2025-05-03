@@ -125,59 +125,71 @@ exports.clockInFunc = async (req, res) => {
             //------entry notification-----------
             let notifiedId = []
             let readBy = []
-            if (existUser.role === 'Employee') {
-                if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-                    // console.log('assignManager', assignManager)
-                    notifiedId.push(jobDetail.assignManager);
-                    readBy.push({
-                        userId: jobDetail.assignManager,
-                        role: assignManager?.role
-                    })
-                    // console.log('readBy1/..', readBy)
-                }
+            // if (existUser.role === 'Employee') {
+            //     if (jobDetail && jobDetail.assignManager) {
+            //         const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+            //         // console.log('assignManager', assignManager)
+            //         notifiedId.push(jobDetail.assignManager);
+            //         readBy.push({
+            //             userId: jobDetail.assignManager,
+            //             role: assignManager?.role
+            //         })
+            //         // console.log('readBy1/..', readBy)
+            //     }
 
-                // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                // // console.log('administrator', administrator)
-                // if (administrator.length > 0) {
-                //     notifiedId.push(administrator[0]._id);
-                //     readBy.push({
-                //         userId: administrator[0]._id,
-                //         role: administrator[0].role
-                //     })
-                // }
-            } else if (existUser.role === 'Manager') {
-                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator) {
-                    notifiedId.push(administrator?._id);
+            //     // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+            //     // // console.log('administrator', administrator)
+            //     // if (administrator.length > 0) {
+            //     //     notifiedId.push(administrator[0]._id);
+            //     //     readBy.push({
+            //     //         userId: administrator[0]._id,
+            //     //         role: administrator[0].role
+            //     //     })
+            //     // }
+            // } else if (existUser.role === 'Manager') {
+            //     const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+            //     if (administrator) {
+            //         notifiedId.push(administrator?._id);
+            //         readBy.push({
+            //             userId: administrator?._id,
+            //             role: administrator?.role
+            //         })
+            //     }
+            // } else if (existUser.role === 'Administrator') {
+            //     notifiedId.push(existUser.creatorId)
+            //     readBy.push({
+            //         userId: existUser?.creatorId,
+            //         role: existUser?.createdBy
+            //     })
+            // }
+
+            if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+                const administrators = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                administrators.map((admin) => {
+                    notifiedId.push(admin?._id)
                     readBy.push({
-                        userId: administrator?._id,
-                        role: administrator?.role
+                        userId: admin?._id,
+                        role: admin?.role
                     })
-                }
-            } else if (existUser.role === 'Administrator') {
-                notifiedId.push(existUser.creatorId)
-                readBy.push({
-                    userId: existUser?.creatorId,
-                    role: existUser?.createdBy
                 })
             }
 
-            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            const superAdmins = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            // superAdmin.map((sa) => {
-            //     notifiedId.push(sa?._id)
-            //     readBy.push({
-            //         userId: sa?._id,
-            //         role: sa?.role
-            //     })
-            // })
+            superAdmins.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
 
             const firstName = existUser.personalDetails?.firstName || ""
             const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
                 // userName: `${firstName} ${lastName}`,
+                companyId: existUser?.companyId,
                 notifiedId,
                 type: 'Clock In',
                 message: `${firstName} ${lastName} clocked in successfully at ${currentDate}`,
@@ -447,59 +459,71 @@ exports.clockOutFunc = async (req, res) => {
             //------exit notification-----------
             let notifiedId = []
             let readBy = []
-            if (existUser.role === 'Employee') {
-                if (jobDetail && jobDetail.assignManager) {
-                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-                    // console.log('assignManager', assignManager)
-                    notifiedId.push(jobDetail.assignManager);
-                    readBy.push({
-                        userId: jobDetail.assignManager,
-                        role: assignManager?.role
-                    })
-                    // console.log('readBy1/..', readBy)
-                }
+            // if (existUser.role === 'Employee') {
+            //     if (jobDetail && jobDetail.assignManager) {
+            //         const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+            //         // console.log('assignManager', assignManager)
+            //         notifiedId.push(jobDetail.assignManager);
+            //         readBy.push({
+            //             userId: jobDetail.assignManager,
+            //             role: assignManager?.role
+            //         })
+            //         // console.log('readBy1/..', readBy)
+            //     }
 
-                // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                // // console.log('administrator', administrator)
-                // if (administrator.length > 0) {
-                //     notifiedId.push(administrator[0]._id);
-                //     readBy.push({
-                //         userId: administrator[0]._id,
-                //         role: administrator[0].role
-                //     })
-                // }
-            } else if (existUser.role === 'Manager') {
-                const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
-                if (administrator) {
-                    notifiedId.push(administrator?._id);
+            //     // const administrator = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+            //     // // console.log('administrator', administrator)
+            //     // if (administrator.length > 0) {
+            //     //     notifiedId.push(administrator[0]._id);
+            //     //     readBy.push({
+            //     //         userId: administrator[0]._id,
+            //     //         role: administrator[0].role
+            //     //     })
+            //     // }
+            // } else if (existUser.role === 'Manager') {
+            //     const administrator = await User.findOne({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+            //     if (administrator) {
+            //         notifiedId.push(administrator?._id);
+            //         readBy.push({
+            //             userId: administrator?._id,
+            //             role: administrator?.role
+            //         })
+            //     }
+            // } else if (existUser.role === 'Administrator') {
+            //     notifiedId.push(existUser?.creatorId)
+            //     readBy.push({
+            //         userId: existUser?.creatorId,
+            //         role: existUser?.createdBy
+            //     })
+            // }
+
+            if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+                const administrators = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
+                administrators.map((admin) => {
+                    notifiedId.push(admin?._id)
                     readBy.push({
-                        userId: administrator?._id,
-                        role: administrator?.role
+                        userId: admin?._id,
+                        role: admin?.role
                     })
-                }
-            } else if (existUser.role === 'Administrator') {
-                notifiedId.push(existUser?.creatorId)
-                readBy.push({
-                    userId: existUser?.creatorId,
-                    role: existUser?.createdBy
                 })
             }
 
-            // const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
+            const superAdmins = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
 
-            // superAdmin.map((sa) => {
-            //     notifiedId.push(sa?._id)
-            //     readBy.push({
-            //         userId: sa?._id,
-            //         role: sa?.role
-            //     })
-            // })
+            superAdmins.map((sa) => {
+                notifiedId.push(sa?._id)
+                readBy.push({
+                    userId: sa?._id,
+                    role: sa?.role
+                })
+            })
 
             const firstName = existUser.personalDetails?.firstName || ""
             const lastName = existUser.personalDetails?.lastName || ""
             const notification = new Notification({
                 userId,
                 // userName: `${firstName} ${lastName}`,
+                companyId: existUser?.companyId,
                 notifiedId,
                 type: 'Clock Out',
                 message: `${firstName} ${lastName} clocked out successfully at ${currentDate}`,

@@ -101,7 +101,7 @@ exports.getAllCandidates = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery['jobPost.companyId'] = new mongoose.Types.ObjectId(String(companyId))
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery['jobPost.companyId'] = new mongoose.Types.ObjectId(String(req.user.companyId))

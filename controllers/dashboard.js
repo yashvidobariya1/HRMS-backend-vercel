@@ -132,52 +132,9 @@ const user_Growth = async ({ role, companyId = null, locationId = null, userId =
 // find total of available leave for administartor, manager and employee
 const getAvailableLeaves = async (userId, jobId) => {
     try {
-        // const result = await User.aggregate([
-        //     { $match: { _id: new mongoose.Types.ObjectId(String(userId)) } },
-        //     { 
-        //         $project: {
-        //             jobDetails: {
-        //                 $filter: {
-        //                     input: "$jobDetails",
-        //                     as: "job",
-        //                     cond: { $eq: ["$$job._id", new mongoose.Types.ObjectId(String(jobId))] }
-        //                 }
-        //             }
-        //         }
-        //     },
-        //     { $unwind: "$jobDetails" },
-        //     {
-        //         $lookup: {
-        //             from: "leaves",
-        //             let: { userId: userId, jobId: new mongoose.Types.ObjectId(String(jobId)) },
-        //             pipeline: [
-        //                 { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
-        //                 { $match: { $expr: { $eq: ["$jobId", "$$jobId"] } } },
-        //                 { $match: { status: "Approved" } },
-        //                 { $unwind: "$dates" },
-        //                 { $group: { _id: null, usedLeaveDays: { $sum: 1 } } }
-        //             ],
-        //             as: "usedLeaves"
-        //         }
-        //     },
-        //     {
-        //         $project: {
-        //             totalAllowedLeave: "$jobDetails.leavesAllow",
-        //             totalSickLeave: "$jobDetails.sickLeavesAllow",
-        //             usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
-        //         }
-        //     },
-        //     {
-        //         $project: {
-        //             _id: 0,
-        //             availableLeave: { $subtract: ["$totalAllowedLeave", "$usedLeaveDays"] },
-        //             totalSickLeave: 1
-        //         }
-        //     }
-        // ])
         const result = await User.aggregate([
             { $match: { _id: new mongoose.Types.ObjectId(String(userId)) } },
-            { 
+            {
                 $project: {
                     jobDetails: {
                         $filter: {
@@ -189,71 +146,167 @@ const getAvailableLeaves = async (userId, jobId) => {
                 }
             },
             { $unwind: "$jobDetails" },
-            // {
-            //     $lookup: {
-            //         from: "LeaveRequest",
-            //         let: { userId: userId, jobId: new mongoose.Types.ObjectId(String(jobId)) },
-            //         pipeline: [
-            //             { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
-            //             { $match: { $expr: { $eq: ["$jobId", "$$jobId"] } } },
-            //             { $match: { status: "Approved" } },
-            //             { $unwind: "$dates" },
-            //             { $group: { _id: null, usedLeaveDays: { $sum: 1 } } }
-            //         ],
-            //         as: "usedLeaves"
-            //     }
-            // },
             {
                 $lookup: {
-                  from: "leaves",
-                  let: { userId: new mongoose.Types.ObjectId(String(userId)), jobId: new mongoose.Types.ObjectId(String(jobId)) },
-                  pipeline: [
-                    {
-                      $match: {
-                        $expr: {
-                          $and: [
-                            { $eq: ["$userId", "$$userId"] },
-                            { $eq: ["$jobId", "$$jobId"] },
-                            { $eq: ["$status", "Approved"] }
-                          ]
-                        }
-                      }
+                    from: "leaverequests", // Corrected collection name
+                    let: {
+                        uId: new mongoose.Types.ObjectId(String(userId)),
+                        jId: new mongoose.Types.ObjectId(String(jobId))
                     },
-                    // { $unwind: "$leaves" },  // fix this to match actual structure
-                    // {
-                    //   $group: {
-                    //     _id: null,
-                    //     usedLeaveDays: { $sum: 1 }  // assuming 1 per leave item
-                    //   }
-                    // }
-                  ],
-                  as: "usedLeaves"
+                    pipeline: [
+                        {
+                            $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$userId", "$$uId"] },
+                                    { $eq: ["$jobId", "$$jId"] }
+                                ]
+                            }
+                            }
+                        },
+                        {
+                            $addFields: {
+                                leaveStatus: {
+                                    $cond: {
+                                        if: { $eq: ["$status", "Approved"] },
+                                        then: "Approved",
+                                        else: "Pending"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalLeaveDaysUsed: {
+                                    $sum: {
+                                        $cond: [
+                                            { $eq: ["$leaveStatus", "Approved"] },
+                                            "$numberOfApproveLeaves", // Approved days
+                                            0 // If Pending, no leave is deducted yet
+                                        ]
+                                    }
+                                },
+                                totalLeaveHoursUsed: {
+                                    $sum: {
+                                        $cond: [
+                                            { $eq: ["$leaveStatus", "Approved"] },
+                                            "$numberOfApproveLeaveHours", // Approved hours
+                                            0 // If Pending, no leave is deducted yet
+                                        ]
+                                    }
+                                },
+                                totalLeaveDaysRequested: {
+                                    $sum: {
+                                        $cond: [
+                                            { $eq: ["$leaveStatus", "Pending"] },
+                                            "$totalLeaveDays", // Pending days
+                                            0 // If Approved, no need to add pending request
+                                        ]
+                                    }
+                                },
+                                totalLeaveHoursRequested: {
+                                    $sum: {
+                                        $cond: [
+                                            { $eq: ["$leaveStatus", "Pending"] },
+                                            "$totalLeaveHours", // Pending hours
+                                            0 // If Approved, no need to add pending request
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    as: "usedLeaves"
                 }
             },
-            // {
-            //     $project: {
-            //         totalAllowedLeave: "$jobDetails.leavesAllow",
-            //         totalSickLeave: "$jobDetails.sickLeavesAllow",
-            //         usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
-            //     }
-            // },
-            // // {
-            // //     $project: {
-            // //         totalAllowedLeave: "$jobDetails.leavesAllow.allowedLeavesCounts",
-            // //         totalSickLeave: "$jobDetails.sickLeavesAllow.allowedLeavesCounts",
-            // //         usedLeaveDays: { $ifNull: [{ $arrayElemAt: ["$usedLeaves.usedLeaveDays", 0] }, 0] }
-            // //     }
-            // // },
-            // {
-            //     $project: {
-            //         _id: 0,
-            //         availableLeave: { $subtract: ["$totalAllowedLeave", "$usedLeaveDays"] },
-            //         totalSickLeave: 1
-            //     }
-            // }
+            {
+                $project: {
+                    casualLeaveType: "$jobDetails.leavesAllow.leaveType",
+                    allowedCaualLeaves: "$jobDetails.leavesAllow.allowedLeavesCounts",
+                    sickLeaveType: "$jobDetails.sickLeavesAllow.leaveType",
+                    allowedSickLeaves: "$jobDetails.sickLeavesAllow.allowedLeavesCounts",
+                    usedLeaveDays: {
+                        $ifNull: [{ $arrayElemAt: ["$usedLeaves.totalLeaveDaysUsed", 0] }, 0]
+                    },
+                    usedLeaveHours: {
+                        $ifNull: [{ $arrayElemAt: ["$usedLeaves.totalLeaveHoursUsed", 0] }, 0]
+                    },
+                    pendingLeaveDays: {
+                        $ifNull: [{ $arrayElemAt: ["$usedLeaves.totalLeaveDaysRequested", 0] }, 0]
+                    },
+                    pendingLeaveHours: {
+                        $ifNull: [{ $arrayElemAt: ["$usedLeaves.totalLeaveHoursRequested", 0] }, 0]
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    casualLeaveType: 1,
+                    sickLeaveType: 1,
+                    allowedCaualLeaves: 1,
+                    allowedSickLeaves: 1,
+                    usedLeaveDays: 1,
+                    usedLeaveHours: 1,
+                    pendingLeaveDays: 1,
+                    pendingLeaveHours: 1,
+                    casualAvailableLeaves: {
+                        $cond: {
+                            if: { $eq: ["$casualLeaveType", "Day"] },
+                            then: {
+                                $subtract: [
+                                    { $subtract: ["$allowedCaualLeaves", "$usedLeaveDays"] },
+                                    "$pendingLeaveDays"
+                                ]
+                            },
+                            else: {
+                                $subtract: [
+                                    { $subtract: ["$allowedCaualLeaves", "$usedLeaveHours"] },
+                                    "$pendingLeaveHours"
+                                ]
+                            }
+                        }
+                    },
+                    sickAvailableLeaves: {
+                        $cond: {
+                            if: { $eq: ["$sickLeaveType", "Day"] },
+                            then: {
+                                $subtract: [
+                                    { $subtract: ["$allowedSickLeaves", "$usedLeaveDays"] },
+                                    "$pendingLeaveDays"
+                                ]
+                            },
+                            else: {
+                                $subtract: [
+                                    { $subtract: ["$allowedSickLeaves", "$usedLeaveHours"] },
+                                    "$pendingLeaveHours"
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
         ])
-        console.log('result:', result)  
-        return result.length > 0 ? result[0] : { availableLeave: 0, totalSickLeave: 0 }
+
+        const response = {
+            Casual: {
+                leaveType: result[0]?.casualLeaveType,
+                // allowLeaves: result[0]?.allowedCaualLeaves,
+                // usedLeaves: result[0]?.casualLeaveType === "Day" ? result[0]?.usedLeaveDays : result[0]?.usedLeaveHours,
+                // pendingLeaves: result[0]?.casualLeaveType === "Day" ? result[0]?.pendingLeaveDays : result[0]?.pendingLeaveHours,
+                availableLeaves: result[0]?.casualAvailableLeaves
+            },
+            Sick: {
+                leaveType: result[0]?.sickLeaveType,
+                // allowLeaves: result[0]?.allowedSickLeaves,
+                // usedLeaves: result[0]?.sickLeaveType === "Day" ? result[0]?.usedLeaveDays : result[0]?.usedLeaveHours,
+                // pendingLeaves: result[0]?.sickLeaveType === "Day" ? result[0]?.pendingLeaveDays : result[0]?.pendingLeaveHours,
+                availableLeaves: result[0]?.sickAvailableLeaves
+            }
+        }
+         
+        return response
     } catch (error) {
         console.error('Error occurred while fetching count of available leaves:', error)
     }
@@ -734,7 +787,7 @@ exports.dashboard = async (req, res) => {
                 const managerUsersIds = managerUsers.map(user => user._id)
                 
                 const userGrowth = await user_Growth({ role: "Administrator", companyId, locationId })
-                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -823,7 +876,7 @@ exports.dashboard = async (req, res) => {
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
-                    // totalAvailableLeave,
+                    totalAvailableLeave,
                     userGrowth,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
@@ -866,7 +919,7 @@ exports.dashboard = async (req, res) => {
                 }
 
                 const userGrowth = await user_Growth({ role: "Manager", companyId, locationId, userId: req.user._id })
-                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -950,7 +1003,7 @@ exports.dashboard = async (req, res) => {
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
                     absentUsers,
-                    // totalAvailableLeave,
+                    totalAvailableLeave,
                     userGrowth,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
@@ -991,7 +1044,7 @@ exports.dashboard = async (req, res) => {
                     COMPANY_NAME: `${company?.companyDetails?.businessName}`
                 }
 
-                // const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
+                const totalAvailableLeave = await getAvailableLeaves(req.user._id, jobId)
                 const absentInCurrentMonth = await getAbsentCount(req.user._id, jobId)
                 const totalHoursAndOverTime = await getCurrentMonthTotalHoursAndOverTime(req.user._id, jobId)
                 const todaysClocking = await getTodaysClocking(req.user._id, jobId)
@@ -1033,7 +1086,7 @@ exports.dashboard = async (req, res) => {
                     currentMonthTotalHolidays,
                     holidayGrowth: calculatePercentageGrowth(currentMonthTotalHolidays, previousMonthTotalHolidays),
 
-                    // totalAvailableLeave,
+                    totalAvailableLeave,
                     absentInCurrentMonth,
                     totalHoursAndOverTime,
                     todaysClocking,

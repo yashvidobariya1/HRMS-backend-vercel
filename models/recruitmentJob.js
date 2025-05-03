@@ -17,9 +17,13 @@ const RecruitmentJobSchema = new mongoose.Schema({
         type: String,
         ref: 'Company'
     },
-    locationId: {
+    // locationId: {
+    //     type: String,
+    //     ref: 'Location'
+    // },
+    clientId: {
         type: String,
-        ref: 'Location'
+        ref: 'Client'
     },
     companyWebSite: String,
     companyEmail: String, // required

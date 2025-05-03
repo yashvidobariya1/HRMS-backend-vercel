@@ -21,7 +21,7 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.locationId = { $in: req.user.locationId }

@@ -115,6 +115,7 @@ exports.getNotifications = async (req, res) => {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
             const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
@@ -133,6 +134,11 @@ exports.getNotifications = async (req, res) => {
                     }
                 }
             }
+
+            if (companyId && companyId !== 'allCompany') {
+                matchStage.companyId = new mongoose.Types.ObjectId(String(companyId))
+            }
+
             // console.log('matchStage', matchStage)
 
             let pipeline = [

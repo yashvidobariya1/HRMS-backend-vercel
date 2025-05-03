@@ -520,15 +520,15 @@ exports.addUser = async (req, res) => {
                 contractDetails
             } = req.body
 
-            let companyId
-            const locationId = jobDetails[0]?.location
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            companyId = location?.companyId
+            // let companyId
+            // const locationId = jobDetails[0]?.location
+            // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+            // companyId = location?.companyId
 
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found' })
-            }
+            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            // if(!company){
+            //     return res.send({ status: 404, message: 'Company not found' })
+            // }
 
             const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
             // console.log('allCompanysEmployees:', allCompanysEmployees)
@@ -546,19 +546,23 @@ exports.addUser = async (req, res) => {
 
             let locationIds = []
             if(jobDetails){
-                jobDetails.forEach(JD => {
-                    locationIds.push(JD.location)
-                })
-                // for check template assigned or not
                 jobDetails.forEach(async JD => {
-                    if(JD.templateId && JD.templateId !== ""){
-                        const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
-                        if(!template){
-                            return res.send({ status: 404, message: 'Template not found' })
-                        }
-                        JD.isTemplateSigned = false
+                    locationIds.push(JD.location)
+                    const existingClient = await Client.findOne({ _id: JD?.assignClient, isDeleted: { $ne: true } })
+                    if(!existingClient){
+                        return res.send({ status: 404, message: 'Client not found' })
                     }
                 })
+                // for check template assigned or not
+                // jobDetails.forEach(async JD => {                    
+                //     if(JD.templateId && JD.templateId !== ""){
+                //         const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
+                //         if(!template){
+                //             return res.send({ status: 404, message: 'Template not found' })
+                //         }
+                //         JD.isTemplateSigned = false
+                //     }
+                // })
             }
 
             let documentDetailsFile = []
@@ -863,7 +867,7 @@ exports.getAllUsers = async (req, res) => {
             // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId){
+            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.locationId = { $in: req.user.locationId }
@@ -919,12 +923,58 @@ exports.getAllUsers = async (req, res) => {
                     }
                 })
             )
-            const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
+
+            // const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
+            //     const firstName = user.personalDetails?.firstName || ''
+            //     const lastName = user.personalDetails?.lastName || ''
+            //     const userName = `${firstName} ${lastName}`.trim()
+
+            //     return {
+            //         userName,
+            //         _id: user?._id,
+            //         Id: user?.unique_ID,
+            //         position: user?.role,
+            //         email: user?.personalDetails?.email,
+            //         status: user?.isActive,
+            //         todaysTimesheet: user?.todaysTimesheet,
+            //         roleWisePoints: user.roleWisePoints,
+            //     }
+            // })
+
+            const users = []
+
+            for (const user of usersWithClockInStatus.slice(skip, skip + limit)) {
                 const firstName = user.personalDetails?.firstName || ''
                 const lastName = user.personalDetails?.lastName || ''
                 const userName = `${firstName} ${lastName}`.trim()
 
-                return {
+                let userTemplates = []
+                try {
+                    if (user?.templates?.length > 0) {
+                        for (const temp of user.templates) {
+                            const template = await Template.findOne({ _id: temp?.templateId })
+                            if (!template) {
+                                console.log('Template not found for ID:', temp?._id)
+                                continue
+                            }
+    
+                            const templateUrl =
+                                temp.isTemplateVerify && temp.isSignActionRequired && temp.isTemplateSigned
+                                ? temp.signedTemplateURL
+                                : template.template
+    
+                            userTemplates.push({
+                                _id: template._id,
+                                templateName: template.templateName,
+                                templateUrl
+                            })
+                        }
+                    }
+                } catch (error) {
+                    console.log('Error while fetching templates:', error)
+                }
+
+                users.push({
                     userName,
                     _id: user?._id,
                     Id: user?.unique_ID,
@@ -932,9 +982,11 @@ exports.getAllUsers = async (req, res) => {
                     email: user?.personalDetails?.email,
                     status: user?.isActive,
                     todaysTimesheet: user?.todaysTimesheet,
-                    roleWisePoints: user.roleWisePoints
-                }
-            })
+                    roleWisePoints: user.roleWisePoints,
+                    templates: userTemplates
+                })
+            }
+
             const totalUsers = usersWithClockInStatus.length
 
             // const users = updateUsers.slice(skip, skip + limit)
@@ -963,9 +1015,9 @@ exports.getUsers = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            // if(companyId){
+            if(companyId){
                 baseQuery.companyId = companyId
-            // }
+            }
 
             if(!companyId){
                 baseQuery.companyId = ""
@@ -985,8 +1037,6 @@ exports.getUsers = async (req, res) => {
                 _id: user._id,
                 userName: user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`
             }))
-
-            console.log('length:', users.length)
 
             return res.send({ status: 200, message: 'Users fetched successfully.', users })
         } else return res.send({ status: 403, message: 'Access denied' })
