@@ -528,7 +528,17 @@ exports.addUser = async (req, res) => {
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             // companyId = location?.companyId
 
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            let company
+            let FormFilled = true
+
+            if (companyId && companyId !== 'allCompany') {
+                company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            } else if (req.user.role !== 'Superadmin') {
+                company = await Company.findOne({ _id: req.user.companyId.toString(), isDeleted: { $ne: true } })
+            } else {
+                return res.send({ status: 400, message: 'Kindly select a specific company.' })
+            }
+
             if(!company){
                 return res.send({ status: 404, message: 'Company not found' })
             }
@@ -546,6 +556,21 @@ exports.addUser = async (req, res) => {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
             }
+
+            if(
+                !personalDetails.firstName || !personalDetails.lastName || !personalDetails.dateOfBirth || !personalDetails.gender || !personalDetails.maritalStatus || !personalDetails.phone || !personalDetails.email || !personalDetails.sendRegistrationLink ||
+                !addressDetails.address || !addressDetails.city || !addressDetails.postCode ||
+                !kinDetails.kinName || !kinDetails.postCode || !kinDetails.address || !kinDetails.emergencyContactNumber ||
+                !financialDetails.bankName || !financialDetails.holderName || !financialDetails.sortCode || !financialDetails.accountNumber || !financialDetails.payrollFrequency || !financialDetails.pension ||
+                !immigrationDetails.passportNumber || !immigrationDetails.countryOfIssue || !immigrationDetails.passportExpiry || !immigrationDetails.nationality || !immigrationDetails.rightToWorkCheckDate
+            ){
+                FormFilled = false
+            }
+
+            if(isFormFilled == true && FormFilled == true) FormFilled = true
+            else if(isFormFilled == false && FormFilled == false) FormFilled = false
+            else if(isFormFilled == false && FormFilled == true) FormFilled = true
+            else if(isFormFilled == true && FormFilled == false) FormFilled = false
 
             let locationIds = []
             if(jobDetails){
@@ -776,7 +801,7 @@ exports.addUser = async (req, res) => {
             const unique_ID = await generateUserId()
             const user = await User.create({
                 ...newUser,
-                isFormFilled,
+                isFormFilled: FormFilled,
                 unique_ID,
                 userContractURL: contractURL?.fileUrl
             })
@@ -872,7 +897,7 @@ exports.getAllUsers = async (req, res) => {
             // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
+            if(companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.locationId = { $in: req.user.locationId }
@@ -964,7 +989,7 @@ exports.getAllUsers = async (req, res) => {
                             }
     
                             const templateUrl =
-                                temp.isTemplateVerify && temp.isSignActionRequired && temp.isTemplateSigned
+                                temp.isTemplateVerify && temp.isSignActionRequired
                                 ? temp.signedTemplateURL
                                 : template.template
     
@@ -1261,7 +1286,7 @@ exports.updateUserDetails = async (req, res) => {
                 contractDetailsFile = {
                     contractId: user?.contractDetails?.contractId
                 }
-            } else {
+            } else if(contractDetails?.contractType) {
                 contractDetailsFile = {
                     contractId: contractDetails?.contractType,
                 }

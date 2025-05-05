@@ -88,7 +88,7 @@ exports.getAllClient = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if (req.user.role === 'Superadmin' && companyId) {
+            if (companyId && companyId !== 'allCompany') {
                 // baseQuery.companyId = companyId
                 baseQuery.companyId = new mongoose.Types.ObjectId(String(companyId))
             } else if (req.user.role !== 'Superadmin') {
@@ -421,7 +421,7 @@ exports.getGeneratedReports = async (req, res) => {
             const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
-            const { clientId } = req.query
+            const { clientId, companyId } = req.query
 
             if (!clientId || clientId == 'undefined' || clientId == 'null') {
                 return res.send({ status: 400, message: 'Client ID is required' })
@@ -430,6 +430,15 @@ exports.getGeneratedReports = async (req, res) => {
             const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
             if(!client){
                 return res.send({ status: 404, message: 'Client not found' })
+            }
+
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
+
+            if(company._id.toString() !== client.companyId.toString()){
+                return res.send({ status: 200, reports: [] })
             }
 
             const reports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
@@ -477,11 +486,23 @@ exports.getReport = async (req, res) => {
 
             const skip = (page - 1) * limit
             const reportId = req.params.id || req.token.reportId
+            const companyId = req.query.companyId
 
             const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).populate('employees.userId', 'personalDetails.firstName personalDetails.lastName')
 
             if (!report) {
                 return res.send({ status: 404, message: 'Report not found' })
+            }
+
+            if(allowedRoles.includes(req.user?.role)){
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+
+                if(companyId !== report?.companyId.toString()){
+                    return res.send({ status: 200, report: [] })
+                }
             }
 
             const formattedEmployees = report.employees.map(emp => ({
@@ -592,7 +613,7 @@ exports.getClientUsers = async (req, res) => {
 
     // } catch (error) {
     //     console.error("Error occurred while fetching clinet's users:", error)
-    return //     res.send({ status: 500, message: "Error occurred while fetching clinet's users!" })
+    //     return res.send({ status: 500, message: "Error occurred while fetching clinet's users!" })
     // }
 }
 

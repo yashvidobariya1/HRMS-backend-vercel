@@ -94,7 +94,7 @@ exports.getAllLocation = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){ 
+            if(companyId && companyId !== 'allCompany'){ 
                 baseQuery.companyId = companyId
             }
 
@@ -129,7 +129,7 @@ exports.getAllLocation = async (req, res) => {
 
 exports.getCompanyLocations = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId || req.user.companyId
 

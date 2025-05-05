@@ -101,7 +101,7 @@ exports.getAllCandidates = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
+            if(companyId && companyId !== 'allCompany'){
                 baseQuery['jobPost.companyId'] = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery['jobPost.companyId'] = req.user.companyId.toString()

@@ -26,6 +26,14 @@ exports.createJobPost = async (req, res) => {
             let client
             let company
 
+            if (companyId && companyId !== 'allCompany') {
+                company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            } else if (req.user.role !== 'Superadmin') {
+                company = await Company.findOne({ _id: req.user.companyId.toString(), isDeleted: { $ne: true } })
+            } else {
+                return res.send({ status: 400, message: 'Kindly select a specific company.' })
+            }
+
             if(clientId){
                 client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
                 if(!client){
@@ -193,7 +201,7 @@ exports.getAllJobPosts = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
+            if(companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId
@@ -366,17 +374,19 @@ exports.getCompanyLocationsForJobPost = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId
 
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found' })
-            }
-            
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(req.user.role === 'Superadmin' && companyId && companyId !== 'allCompany'){
+            if(companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
                 baseQuery.companyId = req.user.companyId.toString()
+            } else {
+                return res.send({ status: 404, message: 'Kindly select a specific company' })
+            }
+
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
             }
 
             // if(req.user.role !== 'Superadmin'){

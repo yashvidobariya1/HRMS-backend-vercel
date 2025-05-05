@@ -642,9 +642,16 @@ exports.dashboard = async (req, res) => {
             if(req.user.role === 'Superadmin'){
 
                 const companyId = req.query.companyId
-                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-                if(!company){
-                    return res.send({ status: 404, message: 'Company not found' })
+
+                let companyFilter = { isDeleted: { $ne: true } }
+
+                if (companyId && companyId !== 'allCompany') {
+                    const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                    if (!company) {
+                        return res.status(404).send({ status: 404, message: 'Company not found' })
+                    }
+
+                    companyFilter.companyId = companyId
                 }
 
                 const adminUsers = await User.find({ role: "Administrator", isDeleted: { $ne: true } }).select("_id")
@@ -664,40 +671,40 @@ exports.dashboard = async (req, res) => {
                     totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
                     totalPendingLR, currentMonthTotalPendingLR,
                 ] = await Promise.all([
-                    Company.countDocuments({ isDeleted: { $ne: true } }),
-                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
-                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
+                    Company.countDocuments(companyFilter),
+                    Company.countDocuments({ ...companyFilter, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Company.countDocuments({ ...companyFilter, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
-                    Client.countDocuments({ companyId, isDeleted: { $ne: true } }),
-                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
-                    Client.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
+                    Client.countDocuments(companyFilter),
+                    Client.countDocuments({ ...companyFilter, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Client.countDocuments({ ...companyFilter, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
-                    Contract.countDocuments({ companyId, isDeleted: { $ne: true } }),
-                    Contract.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Contract.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Contract.countDocuments(companyFilter),
+                    Contract.countDocuments({ ...companyFilter, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Contract.countDocuments({ ...companyFilter, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Location.countDocuments({ companyId, isDeleted: { $ne: true } }),
-                    Location.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Location.countDocuments({ companyId, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Location.countDocuments(companyFilter),
+                    Location.countDocuments({ ...companyFilter, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Location.countDocuments({ ...companyFilter, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
                     Template.countDocuments({ isDeleted: { $ne: true } }),
                     Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
                     Template.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }),
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    User.countDocuments({ companyId, role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    User.countDocuments({ ...companyFilter, role: { $in: ['Administrator', 'Manager', 'Employee'] }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true } }),
-                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
-                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Leave.countDocuments({ ...companyFilter, userId: { $in: adminUserIds } }),
+                    Leave.countDocuments({ ...companyFilter, userId: { $in: adminUserIds }, createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd } }),
+                    Leave.countDocuments({ ...companyFilter, userId: { $in: adminUserIds }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
 
-                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true } }),
-                    Leave.countDocuments({ companyId, userId: { $in: adminUserIds }, status: 'Pending', isDeleted: { $ne: true }, createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
+                    Leave.countDocuments({ ...companyFilter, userId: { $in: adminUserIds }, status: 'Pending' }),
+                    Leave.countDocuments({ ...companyFilter, userId: { $in: adminUserIds }, status: 'Pending', createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd } }),
                 ])
 
                 responseData = {
