@@ -164,6 +164,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isFormFilled: { type: Boolean, default: false},
   isLoggedIn: Boolean,
   usedBrowser: String,
   userIPAddess: String,

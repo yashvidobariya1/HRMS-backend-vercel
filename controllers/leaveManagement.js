@@ -506,7 +506,7 @@ exports.leaveRequest = async (req, res) => {
             //     })
             // }
 
-            if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+            if (req.user.role === 'Employee' || req.user.role === 'Manager') {
                 const administrators = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 administrators.map((admin) => {
                     notifiedId.push(admin?._id)
@@ -667,17 +667,25 @@ exports.getAllowLeaveCount = async (req, res) => {
                 if (leaveDays > 0) {
                     leave.leaves.forEach(day => {
                         // if (day.isApproved === true) {
-                            if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
-                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
+                            if(leave.status === 'Approved'){
+                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaves
                             } else {
-                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
+                                if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
+                                    acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
+                                } else {
+                                    acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
+                                }
                             }
                         // }
                     });
                 } else if(leaveHours > 0) {
                     leave.leaves.forEach(day => {
                         // if (day.isApproved === true) {
-                            acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.totalLeaveHours
+                            if(leave.status === 'Approved'){
+                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaveHours
+                            } else {
+                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.totalLeaveHours
+                            }
                         // }
                     });
                 }
@@ -1159,7 +1167,7 @@ exports.approveLeaveRequest = async (req, res) => {
                 if(LR.isApproved == true){
                     if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
                         approvedLeavesCount += 0.5
-                    } else if(leave.selectionDuration === 'Full-Day') {
+                    } else if(leave.selectionDuration === 'Full-Day' || leave.selectionDuration === 'Multiple') {
                         approvedLeavesCount += 1
                     }
                 }
@@ -1246,6 +1254,7 @@ exports.rejectLeaveRequest = async (req, res) => {
 
             leave.status = 'Rejected'
             leave.numberOfApproveLeaves = 0
+            leave.numberOfApproveLeaveHours = 0
             leave.rejectionReason = rejectionReason
             leave.rejectorId = req.user._id
             leave.rejectorRole = req.user.role

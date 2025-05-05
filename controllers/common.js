@@ -10,10 +10,10 @@ const { default: axios } = require("axios");
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const useragent = require("useragent");
-const streamifier = require('streamifier');
 const Template = require("../models/template");
 const Task = require("../models/task");
 const Timesheet = require("../models/timeSheet");
+const Client = require('../models/client')
 const { unique_Id, uploadToS3, uploadBufferToS3 } = require("../utils/AWS_S3");
 
 // exports.login = async (req, res) => {
@@ -92,7 +92,8 @@ exports.login = async (req, res) => {
                 isActive: 1,
                 personalDetails: 1,
                 role: 1,
-                createdAt: 1
+                createdAt: 1,
+                isFormFilled: 1
             }
         )
 
@@ -129,11 +130,12 @@ exports.login = async (req, res) => {
         const role = isExist?.role
         const createdAt = isExist?.createdAt
         const _id = isExist?._id
+        const isFormFilled = isExist?.isFormFilled
 
         return res.send({
             status: 200,
             message: "User login successfully",
-            user: { personalDetails, role, token, createdAt, _id },
+            user: { personalDetails, role, token, createdAt, _id, isFormFilled },
         })
 
     } catch (error) {
@@ -513,11 +515,12 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
-                // companyId,
+                companyId,
                 // locationId,
                 immigrationDetails,
                 documentDetails,
-                contractDetails
+                contractDetails,
+                isFormFilled
             } = req.body
 
             // let companyId
@@ -525,10 +528,10 @@ exports.addUser = async (req, res) => {
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             // companyId = location?.companyId
 
-            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            // if(!company){
-            //     return res.send({ status: 404, message: 'Company not found' })
-            // }
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
 
             const allCompanysEmployees = await User.find({ companyId, isDeleted: { $ne: false } }).countDocuments()
             // console.log('allCompanysEmployees:', allCompanysEmployees)
@@ -546,23 +549,24 @@ exports.addUser = async (req, res) => {
 
             let locationIds = []
             if(jobDetails){
-                jobDetails.forEach(async JD => {
-                    locationIds.push(JD.location)
-                    const existingClient = await Client.findOne({ _id: JD?.assignClient, isDeleted: { $ne: true } })
-                    if(!existingClient){
-                        return res.send({ status: 404, message: 'Client not found' })
-                    }
-                })
-                // for check template assigned or not
-                // jobDetails.forEach(async JD => {                    
-                //     if(JD.templateId && JD.templateId !== ""){
-                //         const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
-                //         if(!template){
-                //             return res.send({ status: 404, message: 'Template not found' })
-                //         }
-                //         JD.isTemplateSigned = false
-                //     }
-                // })
+                for (const JD of jobDetails) {
+                    locationIds.push(JD.location);
+                    
+                    if (JD?.assignClient && JD.assignClient !== "") {
+                        const existingClient = await Client.findOne({ _id: JD.assignClient, isDeleted: { $ne: true } });
+                        if (!existingClient) {
+                            return res.status(404).send({ status: 404, message: 'Client not found' });
+                        }
+                    }            
+                    // for check template assigned or not                   
+                    // if(JD.templateId && JD.templateId !== ""){
+                    //     const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
+                    //     if(!template){
+                    //         return res.send({ status: 404, message: 'Template not found' })
+                    //     }
+                    //     JD.isTemplateSigned = false
+                    // }
+                }
             }
 
             let documentDetailsFile = []
@@ -772,6 +776,7 @@ exports.addUser = async (req, res) => {
             const unique_ID = await generateUserId()
             const user = await User.create({
                 ...newUser,
+                isFormFilled,
                 unique_ID,
                 userContractURL: contractURL?.fileUrl
             })
@@ -1048,7 +1053,7 @@ exports.getUsers = async (req, res) => {
 
 exports.updateUserDetails = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const userId = req.params.id
 
@@ -1312,6 +1317,7 @@ exports.updateUserDetails = async (req, res) => {
                         immigrationDetails,
                         documentDetails: documentDetailsFile,
                         contractDetails: contractDetailsFile,
+                        isFormFilled: true,
                         updatedAt: moment().toDate()
                     }
                 }, { new: true }
