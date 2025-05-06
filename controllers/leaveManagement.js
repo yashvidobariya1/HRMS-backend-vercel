@@ -612,7 +612,9 @@ exports.getAllOwnLeaves = async (req, res) => {
                 ...leave.toObject(),
                 selectionDuration: selectionDurationType.includes(leave?.selectionDuration) ? leave?.selectionDuration : `${leave?.selectionDuration} Hours`,
                 userName: `${leave?.userId?.personalDetails?.firstName} ${leave?.userId?.personalDetails?.lastName}`,
-                userId: leave?.userId?._id
+                userId: leave?.userId?._id,
+                totalRequestedLeaves: selectionDurationType.includes(leave?.selectionDuration) ? leave?.totalLeaveDays : leave?.totalLeaveHours,
+                totalApprovedLeaves: selectionDurationType.includes(leave?.selectionDuration) ? leave?.numberOfApproveLeaves : leave?.numberOfApproveLeaveHours,
             }))
 
             const totalLeaves = await Leave.find({ userId, jobId, isDeleted: { $ne: true } }).countDocuments()
@@ -664,30 +666,22 @@ exports.getAllowLeaveCount = async (req, res) => {
             const leaveCountByType = allLeavesOfUser.reduce((acc, leave) => {
                 const leaveDays = parseFloat(leave.totalLeaveDays)
                 const leaveHours = parseInt(leave.totalLeaveHours)
-                if (leaveDays > 0) {
-                    leave.leaves.forEach(day => {
-                        // if (day.isApproved === true) {
-                            if(leave.status === 'Approved'){
-                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaves
-                            } else {
-                                if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
-                                    acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
-                                } else {
-                                    acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
-                                }
-                            }
-                        // }
-                    });
-                } else if(leaveHours > 0) {
-                    leave.leaves.forEach(day => {
-                        // if (day.isApproved === true) {
-                            if(leave.status === 'Approved'){
-                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaveHours
-                            } else {
-                                acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.totalLeaveHours
-                            }
-                        // }
-                    });
+                if (leaveDays > 0 && leave.status !== 'Rejected') {
+                    if(leave.status === 'Approved'){
+                        acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaves
+                    } else {
+                        if(leave.selectionDuration === 'First-Half' || leave.selectionDuration === 'Second-Half'){
+                            acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 0.5;
+                        } else if(leave.selectionDuration === 'Full-Day') {
+                            acc[leave.leaveType] = (acc[leave.leaveType] || 0) + 1;
+                        }
+                    }
+                } else if(leaveHours > 0 && leave.status !== 'Rejected') {
+                    if(leave.status === 'Approved'){
+                        acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.numberOfApproveLeaveHours
+                    } else {
+                        acc[leave.leaveType] = (acc[leave.leaveType] || 0) + leave.totalLeaveHours
+                    }
                 }
                 return acc;
             }, {});

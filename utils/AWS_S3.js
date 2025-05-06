@@ -1,6 +1,6 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
 const crypto = require('crypto')
-const { fileTypeFromBuffer } = require('file-type');
+// const { fileTypeFromBuffer } = require('file-type');
 
 const S3 = new S3Client({
     region: process.env.AWS_REGION,
@@ -11,6 +11,7 @@ const S3 = new S3Client({
 })
 
 const getFileExtensionFromBuffer = async (buffer) => {
+    const { fileTypeFromBuffer } = await import('file-type')
     const type = await fileTypeFromBuffer(buffer);
     return type?.ext;
 }

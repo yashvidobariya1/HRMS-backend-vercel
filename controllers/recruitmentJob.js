@@ -40,8 +40,6 @@ exports.createJobPost = async (req, res) => {
                     return res.send({ status: 404, message: 'Client not found' })
                 }
                 company = await Company.findOne({ _id: client?.companyId.toString(), isDeleted: { $ne: true } })
-            } else {
-                company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             }
             
             if(!company){

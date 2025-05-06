@@ -319,12 +319,21 @@ const getAbsentCount = async (userId, jobId) => {
         const month = String(now.month() + 1).padStart(2, "0")
         const year = now.year()
 
+        const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+        const jobDetail = existUser.jobDetails.find(job => job._id.toString() === jobId)
+        const joiningDate = moment(jobDetail.joiningDate)
+
+        if(joiningDate.isAfter(now, 'day')){
+            return 0
+        }
+
+        const startOfMonth = moment(`${year}-${month}-01`, "YYYY-MM-DD").startOf("day")
         const isCurrentMonth = now.month() + 1 === parseInt(month) && now.year() === year
 
-        const startDate = moment(`${year}-${month}-01`, "YYYY-MM-DD").startOf("day")
-        const endDate = isCurrentMonth ? now.endOf("day") : moment(startDate).endOf("month")
+        const startDate = moment.max(joiningDate.startOf("day"), startOfMonth)
+        const endDate = isCurrentMonth ? now.endOf("day") : moment(startOfMonth).endOf("month")
 
-        const totalDaysInMonth = endDate.date()
+        const totalDaysInMonth = endDate.diff(startDate, 'days') + 1
 
         const result = await Timesheet.aggregate([
             {

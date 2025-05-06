@@ -377,33 +377,83 @@ exports.updateProfileDetails = async (req, res) => {
             }
 
             let documentDetailsFile = []
+            // if (documentDetails && Array.isArray(documentDetails)) {
+            //     for (let i = 0; i < documentDetails.length; i++) {
+            //         const gettedDocument = documentDetails[i].document;
+
+            //         if (!gettedDocument || typeof gettedDocument !== 'string') {
+            //             console.log(`Invalid or missing document for item ${i}`)
+            //         }
+            //         try {
+            //             if(gettedDocument.startsWith('data:')){
+            //                 const fileName = unique_Id()
+            //                 let element = await uploadToS3(gettedDocument, userDocuments, fileName)
+            //                 documentDetailsFile.push({
+            //                     documentType: documentDetails[i].documentType,
+            //                     documentName: documentDetails[i].documentName,
+            //                     document: element?.fileUrl
+            //                 })
+            //             } else {
+            //                 documentDetailsFile.push({
+            //                     documentType: documentDetails[i].documentType,
+            //                     documentName: documentDetails[i].documentName,
+            //                     document: gettedDocument
+            //                 })
+            //             }
+            //         } catch (uploadError) {
+            //             console.error("Error occurred while uploading file to AWS:", uploadError);
+            //             return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            //         }
+            //     }
+            // }
             if (documentDetails && Array.isArray(documentDetails)) {
                 for (let i = 0; i < documentDetails.length; i++) {
-                    const gettedDocument = documentDetails[i].document;
-
-                    if (!gettedDocument || typeof gettedDocument !== 'string') {
-                        console.log(`Invalid or missing document for item ${i}`)
+                    const currentItem = documentDetails[i];
+            
+                    if (!Array.isArray(currentItem.documents)) {
+                        console.log(`Invalid documents structure at index ${i}`);
+                        return res.send({ status: 400, message: `Invalid document structure at index ${i}` });
                     }
-                    try {
-                        if(gettedDocument.startsWith('data:')){
-                            const fileName = unique_Id()
-                            let element = await uploadToS3(gettedDocument, userDocuments, fileName)
-                            documentDetailsFile.push({
-                                documentType: documentDetails[i].documentType,
-                                documentName: documentDetails[i].documentName,
-                                document: element?.fileUrl
-                            })
-                        } else {
-                            documentDetailsFile.push({
-                                documentType: documentDetails[i].documentType,
-                                documentName: documentDetails[i].documentName,
-                                document: gettedDocument
-                            })
+            
+                    const documentGroup = {
+                        documentType: currentItem.documentType,
+                        documents: []
+                    };
+            
+                    for (let j = 0; j < currentItem.documents.length; j++) {
+                        const docItem = currentItem.documents[j];
+            
+                        if (
+                            !docItem ||
+                            typeof docItem !== 'object' ||
+                            !docItem.documentName ||
+                            !docItem.document
+                        ) {
+                            console.log(`Invalid document object at item ${i}, file ${j}`);
+                            continue;
                         }
-                    } catch (uploadError) {
-                        console.error("Error occurred while uploading file to AWS:", uploadError);
-                        return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+            
+                        try {
+                            if (docItem.document.startsWith('data:')) {
+                                const uniqueFileName = unique_Id();
+                                const uploaded = await uploadToS3(docItem.document, 'userDocuments', uniqueFileName);
+                                documentGroup.documents.push({
+                                    documentName: docItem.documentName,
+                                    document: uploaded?.fileUrl
+                                });
+                            } else {
+                                documentGroup.documents.push({
+                                    documentName: docItem.documentName,
+                                    document: docItem.document
+                                });
+                            }
+                        } catch (uploadError) {
+                            console.error(`Error uploading file at index ${i}, file ${j}:`, uploadError);
+                            return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                        }
                     }
+            
+                    documentDetailsFile.push(documentGroup);
                 }
             }
 
@@ -744,7 +794,7 @@ exports.addUser = async (req, res) => {
                 kinDetails,
                 financialDetails,
                 jobDetails,
-                companyId,
+                companyId: company._id,
                 locationId: locationIds,
                 immigrationDetails,
                 role: jobDetails[0]?.role,
