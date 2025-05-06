@@ -133,6 +133,10 @@ exports.getCompanyLocations = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId || req.user.companyId
 
+            if(companyId == "allCompany" || companyId == 'undefined' || companyId == 'null'){
+                return res.send({ status: 404, message: 'Kindly select a specific company' })
+            }
+
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found!' })

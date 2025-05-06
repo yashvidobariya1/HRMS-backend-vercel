@@ -291,7 +291,7 @@ exports.leaveRequest = async (req, res) => {
                 // status: 'Pending'
             })
 
-            if (existLeave) {
+            if (existLeave && existLeave?.status !== "Rejected") {
                 return res.send({ status: 400, message: 'You already have a leave request for this period!' });
             }
 

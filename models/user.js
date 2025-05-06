@@ -65,9 +65,7 @@ const userSchema = new mongoose.Schema({
         enum: ['Day', 'Hour']
       },
       allowedLeavesCounts: Number
-    },
-    // pimimys@mailinator.com
-    
+    },    
     location: String,
     assignManager: { type: String, ref: 'User' },
     assignClient: { type: String, ref: 'Client' },

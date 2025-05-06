@@ -1039,7 +1039,7 @@ exports.getAllUsers = async (req, res) => {
                             }
     
                             const templateUrl =
-                                temp.isTemplateVerify && temp.isSignActionRequired
+                                temp.isTemplateVerify
                                 ? temp.signedTemplateURL
                                 : template.template
     
@@ -1095,7 +1095,7 @@ exports.getUsers = async (req, res) => {
 
             let baseQuery = { isDeleted: { $ne: true } }
 
-            if(companyId){
+            if(companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             }
 
@@ -1379,6 +1379,18 @@ exports.updateUserDetails = async (req, res) => {
                 await transporter.sendMail(mailOptions)
             }
 
+            let isFormFilled = true
+
+            if(
+                !personalDetails.firstName || !personalDetails.lastName || !personalDetails.dateOfBirth || !personalDetails.gender || !personalDetails.maritalStatus || !personalDetails.phone || !personalDetails.email || !personalDetails.sendRegistrationLink ||
+                !addressDetails.address || !addressDetails.city || !addressDetails.postCode ||
+                !kinDetails.kinName || !kinDetails.postCode || !kinDetails.address || !kinDetails.emergencyContactNumber ||
+                !financialDetails.bankName || !financialDetails.holderName || !financialDetails.sortCode || !financialDetails.accountNumber || !financialDetails.payrollFrequency || !financialDetails.pension ||
+                !immigrationDetails.passportNumber || !immigrationDetails.countryOfIssue || !immigrationDetails.passportExpiry || !immigrationDetails.nationality || !immigrationDetails.rightToWorkCheckDate
+            ){
+                isFormFilled = false
+            }
+
             let updatedUser = await User.findByIdAndUpdate(
                 { _id: userId },
                 {
@@ -1392,7 +1404,7 @@ exports.updateUserDetails = async (req, res) => {
                         immigrationDetails,
                         documentDetails: documentDetailsFile,
                         contractDetails: contractDetailsFile,
-                        isFormFilled: true,
+                        isFormFilled,
                         updatedAt: moment().toDate()
                     }
                 }, { new: true }
