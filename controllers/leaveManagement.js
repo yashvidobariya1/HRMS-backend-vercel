@@ -4,236 +4,6 @@ const Notification = require('../models/notification')
 const User = require('../models/user')
 const moment = require('moment')
 
-// exports.leaveRequest = async (req, res) => {
-//     try {
-//         const allowedRoles = ['Administrator', 'Manager', 'Employee']
-//         if(allowedRoles.includes(req.user.role)){
-//             const userId = req.user._id
-
-//             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-//             if(!user){
-//                 return res.send({ status: 404, message: 'User not found' })
-//             }
-
-//             const {
-//                 leaveType,
-//                 jobId,
-//                 selectionDuration,
-//                 startDate,
-//                 endDate,
-//                 leaveDays,
-//                 reasonOfLeave,
-//                 // isPaidLeave,
-//             } = req.body
-
-//             // const holidays = await Holiday.find({
-//             //     companyId: user.companyId,
-//             //     locationId: { $in: user.locationId },
-//             //     date: { 
-//             //         $gte: startDate,
-//             //         $lte: endDate ? endDate : startDate
-//             //     }
-//             // })
-
-//             // if (holidays.length > 0) {
-//             //     // const holidayDates = holidays.map(holiday => holiday.date);
-//             //     // return res.send({ 
-//             //     //     status: 400, 
-//             //     //     message: `The selected leave period already holidays on these dates: ${holidayDates.join(', ')}.` 
-//             //     // })
-
-//             //     let holidayDates = holidays.map(h => h.date).sort()
-
-//             //     function groupHolidayDates(dates) {
-//             //         let formattedDates = []
-//             //         let start = dates[0], end = dates[0]
-
-//             //         for (let i = 1; i < dates.length; i++) {
-//             //             let prevDate = moment(dates[i - 1], "YYYY-MM-DD")
-//             //             let currDate = moment(dates[i], "YYYY-MM-DD")
-
-//             //             if (currDate.diff(prevDate, "days") === 1) {
-//             //                 end = dates[i]
-//             //             } else {
-//             //                 formattedDates.push(start === end ? start : `${start} to ${end}`)
-//             //                 start = end = dates[i]
-//             //             }
-//             //         }
-
-//             //         formattedDates.push(start === end ? start : `${start} to ${end}`)
-//             //         return formattedDates.join(", ")
-//             //     }
-
-//             //     let holidayMessage = groupHolidayDates(holidayDates)
-
-//             //     return res.send({ 
-//             //         status: 400, 
-//             //         message: `The selected leave period includes holidays on following dates: ${holidayMessage}.` 
-//             //     })
-
-//             // }
-
-//             const mockReq = { body: { jobId }, user }
-//             // console.log('mockReq:', mockReq)
-//             const mockRes = { send: (response) => response }
-//             // console.log('mockRes:', mockRes)
-            
-//             const leaveCountResponse = await this.getAllowLeaveCount(mockReq, mockRes)
-//             // console.log('leaveCountResponse:', leaveCountResponse)
-//             if (leaveCountResponse.status !== 200) {
-//                 return res.send(leaveCountResponse)
-//             }
-
-//             const remainingLeaves = leaveCountResponse.leaveCount
-//             if(remainingLeaves[leaveType] !== 0){
-//                 if (remainingLeaves[leaveType] < leaveDays) {
-//                     return res.send({ status: 400, message: 'Leave limit exceeded for the selected leave type.' })
-//                 }
-//             }
-
-//             let jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
-//             if(!jobDetail){
-//                 return res.send({ status: 404, message: 'JobTitle not found' })
-//             }
-//             let locationId = jobDetail?.location
-
-//             const existLeave = await Leave.findOne({
-//                 userId,
-//                 jobId,
-//                 startDate,
-//                 status: 'Pending'
-//             })
-
-//             if (existLeave) {
-//                 return res.status(400).json({ status: 400, message: 'You already have a leave request for this period!' });
-//             }
-
-//             let firstName = req.user?.personalDetails?.firstName || ''
-//             let lastName = req.user?.personalDetails?.lastName || ''
-
-//             let leaves = [];
-//             if (selectionDuration === 'Multiple') {
-//                 const start = moment(startDate)
-//                 const end = moment(endDate)
-                
-//                 const totalDays = end.diff(start, 'days') + 1
-            
-//                 leaves = Array.from({ length: totalDays }, (_, index) => ({
-//                     leaveDate: start.clone().add(index, 'days').format('YYYY-MM-DD'),
-//                     leaveType,
-//                 }))
-//             } else {
-//                 leaves.push({
-//                     leaveDate: moment(startDate).format('YYYY-MM-DD'),
-//                     leaveType,
-//                 })
-//             }
-
-//             const newLeave = {
-//                 userId: req.user.id,
-//                 jobId,
-//                 userName: `${firstName} ${lastName}`,
-//                 userEmail: req.user?.personalDetails?.email,
-//                 companyId: req.user?.companyId,
-//                 locationId,
-//                 leaveType,
-//                 selectionDuration,
-//                 startDate,
-//                 endDate,
-//                 leaveDays,
-//                 leaves,
-//                 reasonOfLeave,
-//                 isPaidLeave,
-//                 status: 'Pending',
-//             }
-//             // const newLeave = await Leave.create({
-//             //     userId: req.user.id,
-//             //     jobId,
-//             //     userName: `${firstName} ${lastName}`,
-//             //     userEmail: req.user?.personalDetails?.email,
-//             //     companyId: req.user?.companyId,
-//             //     locationId,
-//             //     leaveType,
-//             //     selectionDuration,
-//             //     startDate,
-//             //     endDate,
-//             //     leaveDays,
-//             //     leaves,
-//             //     reasonOfLeave,
-//             //     isPaidLeave,
-//             //     status: 'Pending',
-//             // })
-
-//             // ---------------send notification---------------
-//             let notifiedId = []
-//             let readBy = []
-//             if (req.user.role === 'Employee') {
-//                 if (jobDetail && jobDetail.assignManager) {
-//                     const assignManager = await User.find({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
-//                     // console.log('assignManager', assignManager)
-//                     notifiedId.push(jobDetail.assignManager);
-//                     readBy.push({
-//                         userId: jobDetail.assignManager,
-//                         role: assignManager[0].role
-//                     })
-//                     // console.log('readBy1/..', readBy)
-//                 }
-
-//                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
-//                 // console.log('administrator', administrator)
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (req.user.role === 'Manager') {
-//                 const administrator = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
-//                 if (administrator.length > 0) {
-//                     notifiedId.push(administrator[0]._id);
-//                     readBy.push({
-//                         userId: administrator[0]._id,
-//                         role: administrator[0].role
-//                     })
-//                 }
-//             } else if (req.user.role === 'Administrator' && user?.creatorId) {
-//                 notifiedId.push(user.creatorId);
-//                 readBy.push({
-//                     userId: user.creatorId,
-//                     role: user.createdBy
-//                 })
-//             }
-
-//             const superAdmin = await User.find({ role: 'Superadmin', isDeleted: { $ne: true } })
-
-//             superAdmin.map((sa) => {
-//                 notifiedId.push(sa?._id)
-//                 readBy.push({
-//                     userId: sa?._id,
-//                     role: sa?.role
-//                 })
-//             })
-
-//             const notification = new Notification({
-//                 userId,
-//                 // userName: `${firstName} ${lastName}`,
-//                 notifiedId,
-//                 type: 'Leave request',
-//                 message: `${firstName} ${lastName} has submitted a ${leaveType} leave request ${endDate ? `from ${startDate} to ${endDate}.` : `on ${startDate}.`}`,
-//                 readBy
-//             });
-//             // console.log('notification/..', notification)
-//             // await notification.save();
-
-//             return res.send({ status:200, message: 'Leave request submitted.', newLeave })
-//         } else return res.send({ status: 403, message: 'Access denied' })
-//     } catch (error) {
-//         console.error('Error occurred while leaving request.', error)
-//         res.send({ message: 'Error occurred while leaving request!' })
-//     }
-// }
-
 exports.leaveRequest = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee']
@@ -297,7 +67,6 @@ exports.leaveRequest = async (req, res) => {
 
             const holidays = await Holiday.find({
                 companyId: user.companyId,
-                locationId: { $in: user.locationId },
                 date: { $gte: startDate, $lte: endDate ? endDate : startDate },
                 isDeleted: { $ne: true }
             });
@@ -507,6 +276,14 @@ exports.leaveRequest = async (req, res) => {
             // }
 
             if (req.user.role === 'Employee' || req.user.role === 'Manager') {
+                if (jobDetail && jobDetail?.assignManager) {
+                    const assignManager = await User.findOne({ _id: jobDetail?.assignManager, isDeleted: { $ne: true } })
+                    notifiedId.push(jobDetail?.assignManager);
+                    readBy.push({
+                        userId: jobDetail?.assignManager,
+                        role: assignManager?.role
+                    })
+                }
                 const administrators = await User.find({ role: 'Administrator', companyId: user?.companyId, isDeleted: { $ne: true } });
                 administrators.map((admin) => {
                     notifiedId.push(admin?._id)
@@ -726,19 +503,6 @@ exports.getAllowLeaveCount = async (req, res) => {
                     });
                 }
             }
-
-            // let leaveCount = [
-            //     {
-            //         leaveType: 'Casual',
-            //         count: casualLeaves > 0 ? casualLeaves : 0,
-            //         type: `${totalAllowLeaves?.leaveType}`
-            //     },
-            //     {
-            //         leaveType: 'Sick',
-            //         count: sickLeaves > 0 ? sickLeaves : 0,
-            //         type: `${totalSickLeaves?.leaveType}`
-            //     }
-            // ]
             
             return res.send({ status: 200, leaveCount })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -772,20 +536,20 @@ exports.getAllLeaveRequest = async (req, res) => {
             }
             
             if(req.user.role == 'Superadmin'){
-                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
+                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Administrator', 'Manager', 'Employee'] }, isDeleted: { $ne: true } }).select('_id') }
             } else if(req.user.role == 'Administrator'){
-                // baseQuery['companyId'] = req.user.companyId
+                baseQuery['companyId'] = req.user.companyId
                 // baseQuery['locationId'] = { $in: req.user.locationId }
-                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Manager', 'Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
+                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Manager', 'Employee'] }, isDeleted: { $ne: true } }).select('_id') }
             } else if(req.user.role == 'Manager'){
-                // const employees = await User.find({
-                //     jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
-                //     isDeleted: { $ne: true }
-                // }).select('_id')
-                // baseQuery['userId'] = { $in: employees.map(emp => emp._id) }
-                // baseQuery['companyId'] = req.user.companyId
+                const employees = await User.find({
+                    jobDetails: { $elemMatch: { assignManager: req.user._id.toString() } },
+                    isDeleted: { $ne: true }
+                }).select('_id')
+                baseQuery['userId'] = { $in: employees.map(emp => emp._id) }
+                baseQuery['companyId'] = req.user.companyId
                 // baseQuery['locationId'] = { $in: req.user.locationId }
-                baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Employee'] }, isDeleted: { $ne: true } }).distinct('_id') }
+                // baseQuery['userId'] = { $in: await User.find({ role: { $in: ['Employee'] }, isDeleted: { $ne: true } }).select('_id') }
             }
 
             let leaveRequests = await Leave.find(baseQuery)
@@ -956,7 +720,6 @@ exports.updateLeaveRequest = async (req, res) => {
 
             const holidays = await Holiday.find({
                 companyId: user.companyId,
-                locationId: { $in: user.locationId },
                 date: { $gte: startDate, $lte: endDate ? endDate : startDate },
                 isDeleted: { $ne: true }
             });
@@ -1278,7 +1041,7 @@ exports.rejectLeaveRequest = async (req, res) => {
                 companyId: leave?.companyId,
                 notifiedId,
                 type: 'Leave Request Reject',
-                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ( Reason: ${rejectionReason} )`,
+                message: `${firstName} ${lastName} has reject your ${leave.leaveType} leave request. ${rejectionReason ? `( Reason: ${rejectionReason} )` : ''}`,
                 readBy
             })
             // console.log('notification/..', notification)

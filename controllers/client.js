@@ -432,14 +432,14 @@ exports.getGeneratedReports = async (req, res) => {
                 return res.send({ status: 404, message: 'Client not found' })
             }
 
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found' })
-            }
+            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            // if(!company){
+            //     return res.send({ status: 404, message: 'Company not found' })
+            // }
 
-            if(company._id.toString() !== client.companyId.toString()){
-                return res.send({ status: 200, reports: [] })
-            }
+            // if(company._id.toString() !== client.companyId.toString()){
+            //     return res.send({ status: 200, reports: [] })
+            // }
 
             const reports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
             const totalReports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).countDocuments()
@@ -494,16 +494,16 @@ exports.getReport = async (req, res) => {
                 return res.send({ status: 404, message: 'Report not found' })
             }
 
-            if(allowedRoles.includes(req.user?.role)){
-                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-                if(!company){
-                    return res.send({ status: 404, message: 'Company not found' })
-                }
+            // if(allowedRoles.includes(req.user?.role)){
+            //     const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            //     if(!company){
+            //         return res.send({ status: 404, message: 'Company not found' })
+            //     }
 
-                if(companyId !== report?.companyId.toString()){
-                    return res.send({ status: 200, report: [] })
-                }
-            }
+            //     if(companyId !== report?.companyId.toString()){
+            //         return res.send({ status: 200, report: [] })
+            //     }
+            // }
 
             const formattedEmployees = report.employees.map(emp => ({
                 userName: `${emp.userId?.personalDetails?.firstName} ${emp.userId?.personalDetails?.lastName}`,

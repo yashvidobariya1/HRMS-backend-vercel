@@ -56,9 +56,9 @@ exports.clockInOutReminder = async (type, today) => {
     const allEmployees = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).lean()
 
     for(const employee of allEmployees){
-        const { _id, companyId, locationId, jobDetails } = employee
+        const { _id, companyId, jobDetails } = employee
 
-        const isHoliday = await Holiday.exists({ date: today, companyId, locationId: { $in: locationId }, isDeleted: { $ne: true } })
+        const isHoliday = await Holiday.exists({ date: today, companyId, isDeleted: { $ne: true } })
         if (isHoliday) continue
 
         for(const job of jobDetails){

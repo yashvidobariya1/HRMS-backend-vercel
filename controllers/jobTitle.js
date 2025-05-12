@@ -7,7 +7,7 @@ exports.createJobTitle = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const {
                 name,
-                status
+                // status
             } = req.body
 
             const sameName = await JobTitles.findOne({ name, isDeleted: { $ne: true } })
@@ -17,7 +17,7 @@ exports.createJobTitle = async (req, res) => {
 
             const newJobTitle = {
                 name,
-                status
+                // status
             }
 
             const jobTitle = await JobTitles.create(newJobTitle)
@@ -51,7 +51,7 @@ exports.getJobTitle = async (req, res) => {
 
 exports.getAllJobTitles = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
@@ -112,7 +112,7 @@ exports.updateJobTitle = async (req, res) => {
 
             const {
                 name,
-                status
+                // status
             } = req.body
 
             const duplicateName = await JobTitles.findOne({ _id: { $ne: jobTitleId }, name: name, isDeleted: { $ne: true } })
@@ -125,7 +125,7 @@ exports.updateJobTitle = async (req, res) => {
                 {
                     $set: {
                         name,
-                        status
+                        // status
                     }
                 },
                 { new: true }
@@ -136,6 +136,33 @@ exports.updateJobTitle = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while updating job title:', error)
         return res.send({ status: 500, message: 'Error occurred while updating job title!' })
+    }
+}
+
+exports.activeInactiveJobTitle = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const { jobTitleId } = req.query
+
+            const jobTitle = await JobTitles.findOne({ _id: jobTitleId, isDeleted: { $ne: true } })
+            if(!jobTitle){
+                return res.send({ status: 404, message: 'Job title not found' })
+            }
+
+            if(jobTitle.isActive){
+                jobTitle.isActive = false
+                await jobTitle.save()
+                return res.send({ status: 200, message: 'Job title deactivate successfully' })
+            } else {
+                jobTitle.isActive = true
+                await jobTitle.save()
+                return res.send({ status: 200, message: 'Job title activate successfully' })
+            }
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while Active/Inactive job title:', error)
+        return res.send({ status: 500, message: 'Error occurred while Active/Inactive job title!' })
     }
 }
 

@@ -607,6 +607,13 @@ exports.addUser = async (req, res) => {
                 }
             }
 
+            if (personalDetails && personalDetails.phone) {
+                const user = await User.findOne({ "personalDetails.phone": personalDetails.phone, isDeleted: { $ne: true } })
+                if (user) {
+                    return res.send({ status: 409, message: "Phone number already exists." });
+                }
+            }
+
             if(
                 !personalDetails.firstName || !personalDetails.lastName || !personalDetails.dateOfBirth || !personalDetails.gender || !personalDetails.maritalStatus || !personalDetails.phone || !personalDetails.email || !personalDetails.sendRegistrationLink ||
                 !addressDetails.address || !addressDetails.city || !addressDetails.postCode ||
@@ -625,14 +632,36 @@ exports.addUser = async (req, res) => {
             let locationIds = []
             if(jobDetails){
                 for (const JD of jobDetails) {
-                    locationIds.push(JD.location);
-                    
-                    if (JD?.assignClient && JD.assignClient !== "") {
-                        const existingClient = await Client.findOne({ _id: JD.assignClient, isDeleted: { $ne: true } });
-                        if (!existingClient) {
-                            return res.status(404).send({ status: 404, message: 'Client not found' });
+                    if(JD?.isWorkFromOffice){
+                        const location = await Location.findOne({ _id: JD?.location, companyId, isDeleted: { $ne: true } })
+                        if(!location){
+                            return res.send({ status: 404, message: 'Location not found' })
                         }
-                    }            
+                        locationIds.push(JD?.location)
+                    } else if(JD?.assignClient.length > 0){
+                        for (const clientId of JD?.assignClient) {
+                            const existingClient = await Client.findOne({ _id: clientId, companyId, isDeleted: { $ne: true } });
+                            if (!existingClient) {
+                                return res.status(404).send({ status: 404, message: 'Client not found' });
+                            }
+                        }
+                    }
+
+                    // if (JD?.assignClient && JD.assignClient !== "") {
+                    //     const existingClient = await Client.findOne({ _id: JD.assignClient, companyId, isDeleted: { $ne: true } });
+                    //     if (!existingClient) {
+                    //         return res.status(404).send({ status: 404, message: 'Client not found' });
+                    //     }
+                    //     clientIds.push(JD?.assignClient)
+                    //     JD.isAssignClient = true
+                    // } else if(JD?.location && JD.location !== ""){
+                    //     const location = await Location.findOne({ _id: JD?.location, companyId, isDeleted: { $ne: true } })
+                    //     if(!location){
+                    //         return res.send({ status: 404, message: 'Location not found' })
+                    //     }
+                    //     locationIds.push(JD?.location)
+                    //     JD.isAssignLocation = true
+                    // }            
                     // for check template assigned or not                   
                     // if(JD.templateId && JD.templateId !== ""){
                     //     const template = await Template.findOne({ _id: JD.templateId, isDeleted: { $ne: true } })
@@ -866,7 +895,7 @@ exports.addUser = async (req, res) => {
 
 exports.getUser = async (req, res) => {
     try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
             const userId = req.params.id
 
@@ -957,12 +986,12 @@ exports.getAllUsers = async (req, res) => {
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
             } else if (req.user.role === 'Administrator') {
-                // baseQuery.companyId = req.user.companyId
+                baseQuery.companyId = req.user.companyId
                 // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
             } else if(req.user.role === 'Manager') {
-                // baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
-                // baseQuery.companyId = req.user.companyId
+                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
+                baseQuery.companyId = req.user.companyId
                 // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
             }
@@ -1038,16 +1067,13 @@ exports.getAllUsers = async (req, res) => {
                                 continue
                             }
     
-                            const templateUrl =
-                                temp.isTemplateVerify
-                                ? temp.signedTemplateURL
-                                : template.template
-    
-                            userTemplates.push({
-                                _id: template._id,
-                                templateName: template.templateName,
-                                templateUrl
-                            })
+                            if(temp.isTemplateVerify){
+                                userTemplates.push({
+                                    _id: template._id,
+                                    templateName: template.templateName,
+                                    templateUrl: temp.templateURL
+                                })
+                            }
                         }
                     }
                 } catch (error) {
@@ -1159,11 +1185,32 @@ exports.updateUserDetails = async (req, res) => {
                 }
             }
 
+            if (personalDetails.phone && user.personalDetails.phone != personalDetails.phone) {
+                const user = await User.findOne({ "personalDetails.phone": personalDetails.phone, isDeleted: { $ne: true } })
+                if (user) {
+                    return res.send({ status: 409, message: "Phone number already exists." });
+                }
+            }
+
             let locationIds = []
+            const companyId = user?.companyId?.toString()
             if(jobDetails){
-                jobDetails.forEach(JD => {
-                    locationIds.push(JD.location)
-                })
+                for (const JD of jobDetails) {
+                    if(JD?.isWorkFromOffice){
+                        const location = await Location.findOne({ _id: JD?.location, companyId, isDeleted: { $ne: true } })
+                        if(!location){
+                            return res.send({ status: 404, message: 'Location not found' })
+                        }
+                        locationIds.push(JD?.location)
+                    } else if(JD?.assignClient.length > 0){
+                        for (const clientId of JD?.assignClient) {
+                            const existingClient = await Client.findOne({ _id: clientId, companyId, isDeleted: { $ne: true } });
+                            if (!existingClient) {
+                                return res.status(404).send({ status: 404, message: 'Client not found' });
+                            }
+                        }
+                    }
+                }
             }
 
             let documentDetailsFile = []

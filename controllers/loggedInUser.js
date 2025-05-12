@@ -31,12 +31,12 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
             } else if (req.user.role === 'Administrator') {
-                // baseQuery.companyId = req.user.companyId
+                baseQuery.companyId = req.user.companyId
                 // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
             } else if(req.user.role === 'Manager') {
-                // baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
-                // baseQuery.companyId = req.user.companyId
+                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
+                baseQuery.companyId = req.user.companyId
                 // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
             }

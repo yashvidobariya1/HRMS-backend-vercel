@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken')
 
 const userSchema = new mongoose.Schema({
-  unique_ID: Number,
+  unique_ID: { type: Number, unique: true },
   isDeleted: {
     type: Boolean, default: false
   },
@@ -13,9 +13,9 @@ const userSchema = new mongoose.Schema({
     dateOfBirth: String,
     gender: String,
     maritalStatus: String,
-    phone: String,
+    phone: { type: String, unique: true },
     homeTelephone: String,
-    email: String,
+    email: { type: String, unique: true },
     niNumber: String,
     sendRegistrationLink: Boolean,
   },
@@ -68,7 +68,8 @@ const userSchema = new mongoose.Schema({
     },    
     location: String,
     assignManager: { type: String, ref: 'User' },
-    assignClient: { type: String, ref: 'Client' },
+    assignClient: [{ type: String, ref: 'Client' }],
+    isWorkFromOffice: Boolean,
     // templateId: { type: String, ref: 'Templates' },
     // isTemplateSigned: {
     //   type: Boolean,
@@ -125,16 +126,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     ref: 'Location'
   }],
+  // clientId: [{
+  //   type: String,
+  //   ref: 'Client'
+  // }],
   lastKnownLocation: {
     latitude: String,
     longitude: String
   },
   templates: [{
     templateId: { type: String, ref: 'Templates'},
-    isTemplateSigned: Boolean,
-    signedTemplateURL: String,
+    isSignRequired: Boolean,
+    isReadRequired: Boolean,
+    templateURL: String,
     isTemplateVerify: Boolean,
-    isSignActionRequired: Boolean,
   }],
   otp: {
     type: Number

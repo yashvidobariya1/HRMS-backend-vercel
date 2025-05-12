@@ -428,8 +428,8 @@ exports.previewTemplate = async (req, res) => {
                 status: 200,
                 templateUrl,
                 userData,
-                isSignActionRequired: existTemplate?.isSignActionRequired,
-                isTemplateReadActionRequired: existTemplate?.isSignActionRequired ? false : true
+                isSignActionRequired: existTemplate?.isSignRequired,
+                isTemplateReadActionRequired: existTemplate?.isReadRequired
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -508,10 +508,8 @@ exports.saveTemplateWithSignature = async (req, res) => {
 
             existUser?.templates.map(temp => {
                 if(templateId == temp?.templateId){
-                    temp.isTemplateSigned = true
-                    temp.isSignActionRequired = false
                     temp.isTemplateVerify = true
-                    temp.signedTemplateURL = result?.fileUrl
+                    temp.templateURL = result?.fileUrl
                 }
             })
 
@@ -560,9 +558,10 @@ exports.assignTemplateToUsers = async (req, res) => {
                         $addToSet: {
                             templates: {
                                 templateId: templateId,
-                                isTemplateSigned: signatureRequired === true ? false : true,
+                                templateURL: existTemplate?.template,
+                                isSignRequired: signatureRequired,
+                                isReadRequired: signatureRequired == true ? false : true,
                                 isTemplateVerify: false,
-                                isSignActionRequired: signatureRequired,
                             }
                         }
                     }

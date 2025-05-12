@@ -91,6 +91,13 @@ exports.getCompany = async (req, res) => {
             if (!companyId || companyId == 'undefined' || companyId == 'null') {
                 return res.send({ status: 404, message: 'Company not found' })
             }
+
+            const admins = await User.find({ companyId, role: 'Administrator', isDeleted: { $ne: true } })
+            const formattedAdmins = admins.map(admin => ({
+                _id: admin._id,
+                name: admin?.personalDetails?.lastName ? `${admin?.personalDetails?.firstName} ${admin?.personalDetails?.lastName}` : `${admin?.personalDetails?.firstName}`
+            }))
+
             const company = await Company.findOne({
                 _id: companyId,
                 isDeleted: { $ne: true }
@@ -100,7 +107,7 @@ exports.getCompany = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            return res.send({ status: 200, message: 'Company fetched successfully.', company })
+            return res.send({ status: 200, message: 'Company fetched successfully.', company, companyAdmins: formattedAdmins.length > 0 ? formattedAdmins : [] })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching company:", error);

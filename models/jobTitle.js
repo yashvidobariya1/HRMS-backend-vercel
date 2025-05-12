@@ -6,10 +6,9 @@ const jobTitlesSchema = new mongoose.Schema({
         default: false
     },
     name: String,
-    status: {
-        type: String,
-        enum: ['Active', 'Inactive'],
-        default: 'Inactive'
+    isActive: {
+        type: Boolean,
+        default: true
     },
     canceledAt: Date,
 }, { timestamps: true })

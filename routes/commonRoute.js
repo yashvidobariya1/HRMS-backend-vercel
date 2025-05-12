@@ -1,7 +1,7 @@
 const Router = require('express')
 const { auth } = require('../middleware/authenticate')
 const { login, logOut, updatePassword, emailVerification, otpVerification, forgotPassword, getDetails, addUser, getUser, getAllUsers, updateUserDetails, deleteUserDetails, getUserJobTitles, updateProfileDetails, sendMailToEmployee, getUsers } = require('../controllers/common')
-const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport, clockInForEmployee, clockOutForEmployee, getAbsenceReport } = require('../controllers/timeSheet')
+const { getOwnTodaysTimeSheet, getAllTimeSheets, clockInFunc, clockOutFunc, verifyQRCode, getTimesheetReport, downloadTimesheetReport, clockInForEmployee, clockOutForEmployee, getAbsenceReport, getUsersAssignClients } = require('../controllers/timeSheet')
 const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, deleteLeaveRequest, approveLeaveRequest, rejectLeaveRequest, getAllowLeaveCount, getLeaveRequest } = require('../controllers/leaveManagement')
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 const { saveTemplateWithSignature, previewTemplate, readTemplate } = require('../controllers/templates')
@@ -29,6 +29,8 @@ commonRoute.get('/getUsers', auth, getUsers)
 commonRoute.get('/getAllUsers', auth, getAllUsers)
 commonRoute.post('/updateUser/:id', auth, updateUserDetails)
 commonRoute.post('/deleteUser/:id', auth, deleteUserDetails)
+// fetch user's clients
+commonRoute.post('/getUsersAssignClients', auth, getUsersAssignClients)
 // get logged In/out users
 commonRoute.get('/getAllLoggedInOutUsers', auth, getAllLoggedInOutUsers)
 // get own timesheet

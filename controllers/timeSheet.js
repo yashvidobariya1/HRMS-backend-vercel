@@ -2,7 +2,6 @@ const User = require("../models/user");
 const geolib = require('geolib')
 const Timesheet = require("../models/timeSheet");
 const Notification = require("../models/notification");
-const Company = require("../models/company");
 const Location = require("../models/location");
 const QR = require('../models/qrCode');
 const Leave = require("../models/leaveRequest");
@@ -14,15 +13,13 @@ const ExcelJS = require("exceljs")
 const path = require("path");
 const EmployeeReport = require("../models/employeeReport");
 const Task = require("../models/task");
-const sharp = require('sharp');
-const { unique_Id, uploadToS3 } = require("../utils/AWS_S3");
 const Client = require("../models/client");
 
 exports.clockInFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const { userId, location, jobId, isMobile, qrValue } = req.body
+            const { userId, location, jobId, isMobile, qrValue, clientId } = req.body
             console.log('Location:', location)
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -30,30 +27,52 @@ exports.clockInFunc = async (req, res) => {
                 return res.send({ status: 404, message: "User not found" })
             }
 
-            if(isMobile === true) {
-                let companyId = existUser?.companyId.toString()
-                // let locationId = existUser?.locationId.toString()
-
-                const locationQRCode = await QR.findOne({
-                    qrValue,
-                    companyId,
-                    isActive: { $ne: false },
-                    locationId: { $in: existUser?.locationId },
-                })
-                
-                if (!locationQRCode) {
-                    return res.send({ status: 400, message: 'Invalid QR code' })
-                }
-            }
-
             let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-            if(!companyLocation){
-                return res.send({ status: 404, message: 'Location not found' })
+            if(isMobile === true) {
+                let qrCode
+                let companyId = existUser?.companyId.toString()
+                if(jobDetail?.isWorkFromOffice){
+                    qrCode = await QR.findOne({
+                        qrValue,
+                        locationId: jobDetail?.location,
+                        companyId,
+                        isActive: { $ne: false }
+                    })
+                } else {
+                    qrCode = await QR.findOne({
+                        qrValue,
+                        clientId,
+                        companyId,
+                        isActive: { $ne: false }
+                    })
+                }
+                
+                if (!qrCode) {
+                    return res.send({ status: 400, message: 'Invalid QR code' })
+                }
+            }
+
+            let user_location
+            if(jobDetail?.isWorkFromOffice){
+                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            } else {
+                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }                
+            }
+
+            const latLongOfLocation = {
+                latitude: user_location?.latitude,
+                longitude: user_location?.longitude,
+                radius: user_location?.radius
             }
 
             if (!location || !location.latitude || !location.longitude) {
@@ -66,10 +85,10 @@ exports.clockInFunc = async (req, res) => {
             )            
             
             const GEOFENCE_CENTER = {
-                latitude: companyLocation?.latitude,
-                longitude: companyLocation?.longitude
+                latitude: latLongOfLocation?.latitude,
+                longitude: latLongOfLocation?.longitude
             }
-            const GEOFENCE_RADIUS = companyLocation?.radius // meters
+            const GEOFENCE_RADIUS = latLongOfLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -80,7 +99,13 @@ exports.clockInFunc = async (req, res) => {
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
-            let timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
+
+            let timesheet
+            if(jobDetail?.isWorkFromOffice){
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate })
+            } else {
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate })
+            }
 
             const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate, isDeleted: { $ne: true } })
             if(!assignedTask && req.user.role == 'Employee'){
@@ -91,6 +116,8 @@ exports.clockInFunc = async (req, res) => {
                 timesheet = new Timesheet({
                     userId,
                     jobId,
+                    clientId,
+                    locationId: jobDetail?.location,
                     date: currentDate,
                     clockinTime: [],
                     totalHours: '0h 0m 0s'
@@ -99,7 +126,7 @@ exports.clockInFunc = async (req, res) => {
                     // console.log('assignedTask.startTime', assignedTask.startTime)
                     // console.log('time now:', moment().format('HH:mm'))
                     const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
-                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
+                    const allowedClockInTime = moment(taskStartTime).add(user_location?.graceTime, 'minutes')
                     const currentTime = moment()
                     if (currentTime.isAfter(allowedClockInTime)) {
                         await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
@@ -164,6 +191,14 @@ exports.clockInFunc = async (req, res) => {
             // }
 
             if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+                if (jobDetail && jobDetail.assignManager) {
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    notifiedId.push(jobDetail.assignManager);
+                    readBy.push({
+                        userId: jobDetail.assignManager,
+                        role: assignManager?.role
+                    })
+                }
                 const administrators = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 administrators.map((admin) => {
                     notifiedId.push(admin?._id)
@@ -265,56 +300,23 @@ const subtractDurations = (totalDuration, threshold) => {
 }
 
 // calculate break time
-// function isDurationMoreThan20Minutes(durationStr) {
-//     const regex = /(\d+)h\s*(\d+)m\s*(\d+)s/
-//     const match = durationStr.match(regex)
-  
-//     if (!match) return false
-  
-//     const hours = parseInt(match[1])
-//     const minutes = parseInt(match[2])
-//     const seconds = parseInt(match[3])
-  
-//     const totalMinutes = (hours * 60) + minutes + (seconds / 60)
-  
-//     return totalMinutes > 20
-// }
+function subtractBreakTimeFromTotalWorkingHours(durationStr, breakMinutes) {
+    const [h, m, s] = durationStr.split(/[hms ]/).filter(Boolean).map(Number);
+    const totalSeconds = h * 3600 + m * 60 + s;
+    const remainingSeconds = Math.max(0, totalSeconds - breakMinutes * 60);
 
-// const subtractBreakTimeFromTotalWorkingHours = (durationStr, minutesToSubtract) => {
-//     const match = durationStr.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
+    const newH = Math.floor(remainingSeconds / 3600);
+    const newM = Math.floor((remainingSeconds % 3600) / 60);
+    const newS = remainingSeconds % 60;
 
-//     const hours = parseInt(match[1] || 0);
-//     const minutes = parseInt(match[2] || 0);
-//     const seconds = parseInt(match[3] || 0);
-
-//     // Total seconds of original duration
-//     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
-//     // Break time in seconds
-//     const subtractSeconds = minutesToSubtract * 60;
-
-//     // Final duration in seconds (may be negative)
-//     const finalSeconds = totalSeconds - subtractSeconds;
-
-//     // Get absolute value and sign for display
-//     const absSeconds = Math.abs(finalSeconds);
-//     const sign = finalSeconds < 0 ? '-' : '';
-
-//     const newHours = Math.floor(absSeconds / 3600);
-//     const newMinutes = Math.floor((absSeconds % 3600) / 60);
-//     const newSeconds = absSeconds % 60;
-
-//     // Build the string with signs
-//     const result = `${sign}${newHours}h ${sign}${newMinutes}m ${sign}${newSeconds}s`;
-
-//     return result;
-// }
+    return `${newH}h ${newM}m ${newS}s`;
+}
 
 exports.clockOutFunc = async (req, res) => {
     try {
         const allowedRoles = ['Administrator', 'Manager', 'Employee'];
         if (allowedRoles.includes(req.user.role)) {
-            const { userId, location, jobId, isMobile, qrValue } = req.body
+            const { userId, location, jobId, isMobile, qrValue, clientId } = req.body
             console.log('Location:', location)
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -322,30 +324,52 @@ exports.clockOutFunc = async (req, res) => {
                 return res.send({ status: 404, message: "User not found" })
             }
 
-            if(isMobile === true) {
-                let companyId = existUser?.companyId.toString()
-                // let locationId = existUser?.locationId.toString()
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'JobTitle not found' })
+            }
 
-                const qrCode = await QR.findOne({
-                    qrValue,
-                    companyId,
-                    isActive: { $ne: false },
-                    locationId: { $in: existUser?.locationId },
-                })
+            if(isMobile === true) {
+                let qrCode
+                let companyId = existUser?.companyId.toString()
+                if(jobDetail?.isWorkFromOffice){
+                    qrCode = await QR.findOne({
+                        qrValue,
+                        locationId: jobDetail?.location,
+                        companyId,
+                        isActive: { $ne: false }
+                    })
+                } else {
+                    qrCode = await QR.findOne({
+                        qrValue,
+                        clientId,
+                        companyId,
+                        isActive: { $ne: false }
+                    })
+                }
                 
                 if (!qrCode) {
                     return res.send({ status: 400, message: 'Invalid QR code' })
                 }
             }
 
-            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
+            let user_location
+            if(jobDetail?.isWorkFromOffice){
+                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            } else {
+                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
             }
 
-            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-            if(!companyLocation){
-                return res.send({ status: 404, message: 'Location not found' })
+            const latLongOfLocation = {
+                latitude: user_location?.latitude,
+                longitude: user_location?.longitude,
+                radius: user_location?.radius
             }
 
             if (!location || !location.latitude || !location.longitude) {
@@ -358,10 +382,10 @@ exports.clockOutFunc = async (req, res) => {
             )
 
             const GEOFENCE_CENTER = {
-                latitude: companyLocation?.latitude,
-                longitude: companyLocation?.longitude
+                latitude: latLongOfLocation?.latitude,
+                longitude: latLongOfLocation?.longitude
             }
-            const GEOFENCE_RADIUS = companyLocation?.radius // meters
+            const GEOFENCE_RADIUS = latLongOfLocation?.radius // meters
 
             if (!geolib.isPointWithinRadius(
                 { latitude: location.latitude, longitude: location.longitude },
@@ -372,7 +396,12 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
-            const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate })
+            let timesheet
+            if(jobDetail?.isWorkFromOffice){
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate })
+            } else {
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate })
+            }
 
             if (!timesheet) {
                 return res.send({ status: 404, message: "No timesheet found for today." })
@@ -390,39 +419,28 @@ exports.clockOutFunc = async (req, res) => {
             const clockInTime = moment(lastClockin.clockIn).toDate()
             const clockOutTime = moment(lastClockin.clockOut).toDate()            
 
-            const duration = formatDuration(clockInTime, clockOutTime)
+            let duration = formatDuration(clockInTime, clockOutTime)
             lastClockin.totalTiming = duration
 
-            if (timesheet.totalHours == '0h 0m 0s') {
+            if (timesheet.totalHours === '0h 0m 0s') {
                 timesheet.totalHours = duration
             } else {
                 const result = addDurations(timesheet.totalHours, duration)
                 timesheet.totalHours = result
             }
-            // =====================================break time calculate=====================================
-            // if (timesheet.totalHours == '0h 0m 0s') {
-            //     timesheet.totalHours = duration
-            // } else {
-            //     // console.log('else part')
-            //     // if(!timesheet.breakTimeDeducted){
-            //     //     console.log('if timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
-            //     //     if (isDurationMoreThan20Minutes(duration)) {
-            //     //         console.log("Duration is more than 20 minutes", duration);
-            //     //         duration = subtractBreakTimeFromTotalWorkingHours(duration, companyLocation?.breakTime)
-            //     //         const result = addDurations(timesheet.totalHours, duration)
-            //     //         timesheet.totalHours = result
-            //     //     } else {
-            //     //         console.log("Duration is 20 minutes or less", duration);
-            //     //         const result = addDurations(timesheet.totalHours, duration)
-            //     //         timesheet.totalHours = result
-            //     //     }
-            //     // } else {
-            //     //     console.log('else timesheet.breakTimeDeducted:', timesheet.breakTimeDeducted)
-            //     //     const result = addDurations(timesheet.totalHours, duration)
-            //     //     timesheet.totalHours = result
-            //     //     console.log("Duration is 20 minutes or less");
-            //     // }
-            // }
+
+            if (!timesheet.breakTimeDeducted) {
+                const [hours, minutes, seconds] = timesheet.totalHours.match(/\d+/g).map(Number)
+                const totalMinutes = hours * 60 + minutes + Math.floor(seconds / 60)
+            
+                if (totalMinutes > 20) {
+                    duration = subtractBreakTimeFromTotalWorkingHours(timesheet.totalHours, user_location?.breakTime)
+                    timesheet.totalHours = duration
+                    timesheet.breakTimeDeducted = true
+                } else {
+                    timesheet.breakTimeDeducted = false
+                }
+            }
 
             timesheet.isTimerOn = false
             await timesheet.save()
@@ -498,6 +516,14 @@ exports.clockOutFunc = async (req, res) => {
             // }
 
             if (existUser.role === 'Employee' || existUser.role === 'Manager') {
+                if (jobDetail && jobDetail.assignManager) {
+                    const assignManager = await User.findOne({ _id: jobDetail.assignManager, isDeleted: { $ne: true } })
+                    notifiedId.push(jobDetail.assignManager);
+                    readBy.push({
+                        userId: jobDetail.assignManager,
+                        role: assignManager?.role
+                    })
+                }
                 const administrators = await User.find({ role: 'Administrator', companyId: existUser?.companyId, isDeleted: { $ne: true } });
                 administrators.map((admin) => {
                     notifiedId.push(admin?._id)
@@ -539,6 +565,38 @@ exports.clockOutFunc = async (req, res) => {
     }
 }
 
+exports.getUsersAssignClients = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.user._id.toString()
+            const { jobId } = req.body
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!existUser){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+            if(!jobDetail){
+                return res.send({ status: 403, message: 'Job title not found' })
+            }
+
+            const clients = await Client.find({ _id: { $in: jobDetail?.assignClient }, isDeleted: { $ne: true } }).select('_id clientName')
+
+            const assignClients = clients.map(client => ({
+                clientId: client?._id,
+                clientName: client?.clientName
+            }))
+
+            return res.send({ status: 200, message: 'Clients fetched successfully', assignClients })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error("Error occurred while fetching user's clients:", error)
+        return res.send({ status: 500, message: "Error occurred while fetching user's clients!" })
+    }
+}
+
 exports.clockInForEmployee = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
@@ -547,7 +605,8 @@ exports.clockInForEmployee = async (req, res) => {
                 date,
                 startTime,
                 userId,
-                jobId
+                jobId,
+                clientId
             } = req.body
 
             if(!date || !startTime){
@@ -564,16 +623,29 @@ exports.clockInForEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-            if(!companyLocation){
-                return res.send({ status: 404, message: 'Location not found' })
+            let user_location
+            if(jobDetail?.isWorkFromOffice){
+                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            } else {
+                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
             }
 
-            let timesheet = await Timesheet.findOne({ userId, jobId, date })
+            let timesheet
+            if(jobDetail?.isWorkFromOffice){
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date })
+            } else {
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date })
+            }
 
             const assignedTask = await Task.findOne({ userId, jobId, taskDate: date, isDeleted: { $ne: true } })
             if(!assignedTask){
-                return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}` : `${existUser?.personalDetails?.firstName}`} today!` })
+                return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `'${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}'` : `'${existUser?.personalDetails?.firstName}'`} today!` })
             }
 
             if (!timesheet) {
@@ -586,7 +658,7 @@ exports.clockInForEmployee = async (req, res) => {
                 })
                 if(assignedTask){
                     const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
-                    const allowedClockInTime = moment(taskStartTime).add(companyLocation?.graceTime, 'minutes')
+                    const allowedClockInTime = moment(taskStartTime).add(user_location?.graceTime, 'minutes')
                     const currentTime = moment()
                     if (currentTime.isAfter(allowedClockInTime)) {
                         await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
@@ -626,7 +698,8 @@ exports.clockOutForEmployee = async (req, res) => {
                 date,
                 endTime,
                 userId,
-                jobId
+                jobId,
+                clientId
             } = req.body
 
             if(!date || !endTime){
@@ -643,12 +716,25 @@ exports.clockOutForEmployee = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            const companyLocation = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-            if(!companyLocation){
-                return res.send({ status: 404, message: 'Location not found' })
+            let user_location
+            if(jobDetail?.isWorkFromOffice){
+                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            } else {
+                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!user_location){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
             }
 
-            const timesheet = await Timesheet.findOne({ userId, jobId, date })
+            let timesheet
+            if(jobDetail?.isWorkFromOffice){
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date })
+            } else {
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date })
+            }
 
             if (!timesheet) {
                 return res.send({ status: 404, message: "No timesheet found for today." })
@@ -659,7 +745,7 @@ exports.clockOutForEmployee = async (req, res) => {
                 return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
             }
 
-            lastClockin.clockOut = moment(`${date}T${endTime}`).subtract(companyLocation?.breakTime, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS')
+            lastClockin.clockOut = moment(`${date}T${endTime}`).subtract(user_location?.breakTime, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS')
             lastClockin.isClockin = false
 
             const clockInTime = moment(lastClockin.clockIn).toDate()
@@ -948,7 +1034,6 @@ exports.getTimesheetReport = async (req, res) => {
             // 3. Fetch holidays
             const holidays = await Holiday.find({
                 companyId: user.companyId,
-                locationId: { $in: user.locationId },
                 date: { $gte: startDate, $lte: endDate },
                 isDeleted: { $ne: true }
             })
@@ -1153,7 +1238,6 @@ exports.getAbsenceReport = async (req, res) => {
             // 3. Fetch holidays
             const holidays = await Holiday.find({
                 companyId: user.companyId,
-                locationId: { $in: user.locationId },
                 date: { $gte: startDate, $lte: endDate },
                 isDeleted: { $ne: true }
             })
@@ -1527,7 +1611,7 @@ const formatTimeFromSeconds = (totalSeconds) => {
     return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-exports. downloadTimesheetReport = async (req, res) => {
+exports.downloadTimesheetReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user?.role) || req.token?.role === "Client"){
@@ -1572,7 +1656,6 @@ exports. downloadTimesheetReport = async (req, res) => {
 
             // const holidays = await Holiday.find({ 
             //     companyId: user.companyId, 
-            //     locationId: { $in: user.locationId } 
             // })
 
             const timesheetMap = new Map()
@@ -1888,299 +1971,3 @@ exports. downloadTimesheetReport = async (req, res) => {
         return res.send({ status: 500, message: 'Error occurred while downloading timesheet report!' })
     }
 }
-
-
-// for generate QR code
-exports.generateQRcode = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator']
-        if(allowedRoles.includes(req.user.role)){
-            const { companyId, locationId, clientId } = req.query
-            const {
-                // qrType,
-                qrCode,
-                qrValue
-            } = req.body
-
-            const idsPassed = [companyId, locationId, clientId].filter(Boolean)
-            if (idsPassed.length !== 1) {
-                return res.send({ status: 400, message: 'Please provide exactly one of companyId, locationId, or clientId.' })
-            }
-
-            const matches = qrCode.match(/^data:(image\/\w+);base64,(.+)$/)
-            if (!matches || matches.length !== 3) {
-                return res.send({ status: 400, message: 'Invalid Image Format!' })
-            }
-
-            const imageBuffer = Buffer.from(matches[2], 'base64')
-
-            const compressedBuffer = await sharp(imageBuffer)
-                .toFormat("jpeg", { quality: 70 })
-                .toBuffer()
-
-            const compressedBase64 = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`
-
-            const fileName = unique_Id()
-            let element = await uploadToS3(compressedBase64, 'QRCodes', fileName)
-
-            if (!element?.fileUrl) {
-                return res.send({ status: 500, message: 'Failed to upload QR code to storage.' })
-            }
-
-            let qrData = {
-                qrURL: element?.fileUrl,
-                qrValue,
-                isActive: true
-            }
-
-            if(companyId){
-                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-                if(!company) return res.send({ status: 404, message: 'Company not found' })
-
-                qrData = {
-                    ...qrData,
-                    companyId,
-                    companyName: company?.companyDetails?.businessName,
-                    isCompanyQR: true,
-                    qrType: 'Company'
-                }
-            } else if(locationId){
-                const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-                if(!location) return res.send({ status: 404, message: 'Location not found' })
-
-                if(location.latitude == "" || location.longitude == "" || location.radius == ""){
-                    return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this location before proceeding.' })
-                }
-
-                const company = await Company.findOne({ _id: location?.companyId, isDeleted: { $ne: true } })
-                if(!company) return res.send({ status: 404, message: 'Company not found' })
-
-                qrData = {
-                    ...qrData,
-                    companyId: location.companyId,
-                    companyName: company?.companyDetails?.businessName,
-                    locationName: location?.locationName,
-                    locationId,
-                    isLocationQR: true,
-                    qrType: 'Location'
-                }
-            } else if(clientId){
-                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-                if(!client){
-                    return res.send({ status: 404, message: 'Client not found' })
-                }
-
-                if(client.latitude == "" || client.longitude == "" || client.radius == ""){
-                    return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this client before proceeding.' })
-                }
-
-                const company = await Company.findOne({ _id: client?.companyId, isDeleted: { $ne: true } })
-                if(!company) return res.send({ status: 404, message: 'Company not found' })
-
-                client.QRCodeImage = element?.fileUrl
-
-                qrData = {
-                    ...qrData,
-                    clientName: client?.clientName,
-                    companyId: client?.companyId,
-                    companyName: company?.companyDetails?.businessName,
-                    clientId,
-                    isClientQR: true,
-                    qrType: 'Client'
-                }
-            }
-
-            const QRCode = await QR.create(qrData)
-            return res.send({ status: 200, message: `${qrData?.qrType} QR generated successfully.`, QRCode })
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occured while generating QR code:', error)
-        return res.send({ status: 500, message: 'Error occured while generating QR code!' })
-    }
-}
-
-// get all QR codes by location ID
-exports.getAllQRCodes = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator']
-        if(allowedRoles.includes(req.user.role)){
-            const locationId = req.params.id
-            const page = parseInt(req.query.page) || 1
-            const limit = parseInt(req.query.limit) || 50
-            const searchQuery = req.query.search ? req.query.search.trim() : ''
-
-            const skip = ( page - 1 ) * limit
-
-            const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-            if(!location){
-                return res.send({ status: 404, message: 'Location not found.' })
-            }
-
-            const companyId = location?.companyId
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found.' })
-            }
-
-            let baseQuery = { companyId, locationId, isActive: { $ne: false } }
-
-            let QRCodes = await QR.find(baseQuery).populate('locationId', 'locationName')
-
-            if(searchQuery){
-                const regex = new RegExp(searchQuery.replace(/[-\s]/g, "[-\\s]*"), "i")
-                QRCodes = QRCodes.filter(QR => {
-                    const locationName = QR?.locationId?.locationName
-                    return regex.test(`${locationName}`)
-                })
-            }
-
-            const totalQRCodes = QRCodes.length
-            const allQRCodes = QRCodes.slice(skip, skip + limit)
-
-            let qrValue = `${location?.locationName}-${company?.companyDetails?.businessName}`
-
-            return res.send({
-                status: 200,
-                message: 'QR codes fetched successfully.',
-                qrValue,
-                QRCodes: allQRCodes,
-                totalQRCodes,
-                totalPages: Math.ceil(totalQRCodes / limit) || 1,
-                currentPage: page || 1
-            })
-
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred while fetching company QR codes:', error)
-        return res.send({ status: 500, message: 'Error occurred while fetching QR codes!' })
-    }
-}
-
-exports.inactivateQRCode = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator']
-        if(allowedRoles.includes(req.user.role)){
-            const QRId = req.params.id
-            const QRCode = await QR.findById(QRId)
-            if(!QRCode){
-                return res.send({ status: 404, message: 'QRCode not found!' })
-            }
-            if(QRCode.isActive === false){
-                return res.send({ status: 400, message: 'The QR is already inactive' })
-            }
-            QRCode.isActive = false
-            QRCode.save()
-            return res.send({ status: 200, message: 'QRCode inactivated successfully.', QRCode })
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred while inactivating the QRCode:', error)
-        return res.send({ status: 500, message: 'Error occurred while inactivating the QRCode!' })
-    }
-}
-
-// for QR verification
-// exports.verifyQRCode = async (req, res) => {
-//     try {
-//         const allowedRoles = ['Administrator', 'Manager', 'Employee']
-//         if(allowedRoles.includes(req.user.role)){
-//             const { qrValue } = req.body;
-
-//             const user = await User.findOne({ _id: req.user.id, isDeleted: { $ne: true } })
-//             if(!user){
-//                 return res.send({ status: 404, message: 'User not found.' })
-//             }
-//             let companyId = user?.companyId.toString()
-//             let locationId = user?.locationId.toString()
-
-//             let qrCode
-//             qrCode = await QR.findOne({
-//                 'valueOfQRCode.qrValue': qrValue,
-//                 companyId,
-//                 locationId,
-//             });
-
-//             if (!qrCode) {
-//                 qrCode = await QR.findOne({
-//                     'valueOfQRCode.qrValue': qrValue,
-//                     companyId
-//                 });
-//             }
-            
-//             if (!qrCode) {
-//                 return res.send({ status: 400, message: 'QR code not found or invalid QR code' })
-//             }
-
-
-//             let entity;
-//             let entityName;
-//             if (qrCode.isCompanyQR) {
-//                 entity = await Company.findOne({ _id: qrCode.companyId, isDeleted: { $ne: true } });
-//                 entityName = 'Company';
-//             } else if (qrCode.isLocationQR) {
-//                 entity = await Location.findOne({ _id: qrCode.locationId, isDeleted: { $ne: true } });
-//                 entityName = 'Location';
-//             }
-//             if (!entity) {
-//                 return res.send({
-//                     status: 404,
-//                     message: `${entityName} associated with the QR code not found`,
-//                 });
-//             }
-
-//             return res.send({
-//                 status: 200,
-//                 message: `${entityName} QR code verified successfully`,
-//                 entityDetails: {
-//                     entityId: qrCode.isCompanyQR ? qrCode.companyId : qrCode.locationId,
-//                     entityName: entityName,
-//                     qrValue: qrCode.valueOfQRCode.qrValue,
-//                     qrURL: qrCode.valueOfQRCode.qrURL,
-//                 },
-//             });
-//         } else return res.send({ status: 403, message: 'Access denied' })
-//     } catch (error) {
-//         console.error('Error occurred during QR code verification:', error);
-//         return res.send({ status: 500, message: 'Error occurred during QR code verification!' });
-//     }
-// };
-
-exports.verifyQRCode = async (req, res) => {
-    try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
-        if(allowedRoles.includes(req.user.role)){
-            const { qrValue } = req.body;
-
-            const user = await User.findOne({ _id: req.user._id, isDelete: { $ne: true } })
-            if(!user){
-                return res.send({ status: 404, message: 'User not found.' })
-            }
-            let companyId = user?.companyId.toString()
-            let locationId = user?.locationId.toString()
-
-            const qrCode = await QR.findOne({
-                qrValue,
-                companyId,
-                locationId,
-            })
-            
-            if (!qrCode) {
-                return res.send({ status: 400, message: 'QR code not found or invalid QR code' })
-            }
-
-            return res.send({
-                status: 200,
-                message: 'QR code verified successfully.',
-                entityDetails: {
-                    userId: user._id,
-                    qrValue,
-                    locationId,
-                    companyId
-                }
-            })
-
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred during QR code verification:', error)
-        return res.send({ status: 500, message: 'Error occurred during QR code verification!' })
-    }
-};
