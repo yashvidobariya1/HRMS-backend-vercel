@@ -45,6 +45,7 @@
     "stream": "^0.0.3",
     "streamifier": "^0.1.1",
     "supertest": "^7.0.0",
+    "textract": "^2.5.0",
     "useragent": "^2.3.0"
   }
 }

@@ -1,5 +1,7 @@
+const Client = require('../models/client')
 const Holiday = require('../models/holiday')
 const Leave = require('../models/leaveRequest')
+const Location = require('../models/location')
 const Notification = require('../models/notification')
 const User = require('../models/user')
 const moment = require('moment')
@@ -24,6 +26,7 @@ exports.leaveRequest = async (req, res) => {
                 // leaveDays,
                 reasonOfLeave,
                 // isPaidLeave,
+                clientId,
             } = req.body
 
             const mockReq = { body: { jobId }, user }
@@ -52,7 +55,20 @@ exports.leaveRequest = async (req, res) => {
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
-            let locationId = jobDetail?.location
+
+            let location
+            let client
+            if(jobDetail?.isWorkFromOffice){
+                location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            } else {
+                client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+            }
 
             const existLeave = await Leave.findOne({
                 userId,
@@ -218,7 +234,8 @@ exports.leaveRequest = async (req, res) => {
                 // userName: `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`,
                 userEmail: user?.personalDetails?.email,
                 companyId: user.companyId,
-                locationId,
+                locationId: location?._id,
+                clientId: client?._id,
                 leaveType,
                 selectionDuration,
                 startDate,

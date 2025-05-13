@@ -85,7 +85,15 @@ exports.getAllQRCodesForLocation = async (req, res) => {
                 return res.send({ status: 404, message: 'Location not found.' })
             }
 
-            const companyId = location?.companyId.toString()
+            let companyId
+
+            if(req.query.companyId && req.query.companyId !== 'allCompany'){
+                companyId = req.query.companyId
+            } else {
+                companyId = location?.companyId.toString()
+            }
+
+            // const companyId = location?.companyId.toString()
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found.' })
@@ -208,7 +216,15 @@ exports.getAllQRCodesForClient = async (req, res) => {
                 return res.send({ status: 404, message: 'Client not found.' })
             }
 
-            const companyId = client?.companyId.toString()
+            let companyId
+
+            if(req.query.companyId && req.query.companyId !== 'allCompany'){
+                companyId = req.query.companyId
+            } else {
+                companyId = client?.companyId.toString()
+            }
+
+            // const companyId = client?.companyId.toString()
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){
                 return res.send({ status: 404, message: 'Company not found.' })

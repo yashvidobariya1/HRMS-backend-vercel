@@ -567,9 +567,9 @@ exports.clockOutFunc = async (req, res) => {
 
 exports.getUsersAssignClients = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
         if(allowedRoles.includes(req.user.role)){
-            const userId = req.user._id.toString()
+            const userId = req.body.userId || req.user._id.toString()
             const { jobId } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })

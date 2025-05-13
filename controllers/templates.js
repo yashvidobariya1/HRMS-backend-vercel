@@ -7,6 +7,7 @@ const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
 const axios = require('axios');
 const path = require('path');
 const pdfParse = require('pdf-parse');
+const textract = require('textract');
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -70,10 +71,11 @@ exports.addTemplate = async (req, res) => {
                     console.error("PDF Parsing Error:", pdfError)
                     return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
                 }
-            } else if (templateFileName.endsWith('.docx')) {
+            } else if (templateFileName.endsWith('.docx') || templateFileName.endsWith('.doc')) {
                 try {
+                    console.log('in')
                     const { value } = await mammoth.extractRawText({ buffer: Buffer.from(template, 'base64') })
-                    
+                    console.log('value:', value)
                     if (!value) {
                         throw new Error("DOCX extraction failed: No text found.")
                     }
@@ -87,25 +89,25 @@ exports.addTemplate = async (req, res) => {
                     console.error("DOCX Parsing Error:", docxError)
                     return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
                 }
-            } else {
-                return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
             }
-    
-            extractedKeys = [...new Set(extractedKeys)]
-    
-            const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
-            // console.log('missingKeys:', missingKeys)
-            const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
-            // console.log('extraKeys:', extraKeys)
 
-            if (missingKeys.length > 0 || extraKeys.length > 0) {
-            // if (extraKeys.length > 0) {
-                return res.send({
-                    status: 400,
-                    message: `Template file contains invalid placeholders.` +
-                        (missingKeys.length > 0 ? ` Missing keys: ${missingKeys.join(", ")}.` : '') +
-                        (extraKeys.length > 0 ? ` Extra keys: ${extraKeys.join(", ")}.` : '')
-                })
+            if(templateFileName.endsWith('.pdf') || templateFileName.endsWith('.docx')){
+                extractedKeys = [...new Set(extractedKeys)]
+        
+                const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
+                // console.log('missingKeys:', missingKeys)
+                const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
+                // console.log('extraKeys:', extraKeys)
+
+                if (missingKeys.length > 0 || extraKeys.length > 0) {
+                // if (extraKeys.length > 0) {
+                    return res.send({
+                        status: 400,
+                        message: `Template file contains invalid placeholders.` +
+                            (missingKeys.length > 0 ? ` Missing keys: ${missingKeys.join(", ")}.` : '') +
+                            (extraKeys.length > 0 ? ` Extra keys: ${extraKeys.join(", ")}.` : '')
+                    })
+                }
             }
 
             let documentURL

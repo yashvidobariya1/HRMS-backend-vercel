@@ -1067,12 +1067,14 @@ exports.getAllUsers = async (req, res) => {
                                 continue
                             }
     
-                            if(temp.isTemplateVerify){
-                                userTemplates.push({
-                                    _id: template._id,
-                                    templateName: template.templateName,
-                                    templateUrl: temp.templateURL
-                                })
+                            if(template){
+                                if(temp.isTemplateVerify){
+                                    userTemplates.push({
+                                        _id: template._id,
+                                        templateName: template?.templateName,
+                                        templateUrl: temp?.templateURL
+                                    })
+                                }
                             }
                         }
                     }

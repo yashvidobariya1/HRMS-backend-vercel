@@ -317,12 +317,16 @@ exports.generateLinkForClient = async (req, res) => {
             let filteredEmployees = []
             users.map(user => {
                 user?.jobDetails.map(job => {
-                    if(job?.assignClient?.toString() == clientId){
-                        filteredEmployees.push({
-                            userId: user?._id,
-                            jobId: job?._id,
-                            jobTitle: job?.jobTitle,
-                            jobRole: job?.role,
+                    if(!job?.isWorkFromOffice){
+                        job?.assignClient.map(client => {
+                            if(client == clientId){
+                                filteredEmployees.push({
+                                    userId: user?._id,
+                                    jobId: job?._id,
+                                    jobTitle: job?.jobTitle,
+                                    jobRole: job?.role,
+                                })
+                            }
                         })
                     }
                 })
