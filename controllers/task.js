@@ -1,6 +1,7 @@
 const Task = require('../models/task')
 const moment = require('moment')
 const User = require('../models/user')
+const Client = require('../models/client')
 
 // exports.createTask = async (req, res) => {
 //     try {
@@ -199,6 +200,12 @@ exports.createTask = async (req, res) => {
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
+
+            // if(jobDetail?.isWorkFromOffice){
+
+            // } else {
+            //     const client = await Client.findOne({ _id: clientId })
+            // }
 
             const newTask = {
                 taskName,

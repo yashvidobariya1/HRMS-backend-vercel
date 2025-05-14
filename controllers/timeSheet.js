@@ -807,6 +807,7 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             const skip = (page - 1) * limit
 
             const userId = req.body.userId || req.user._id
+            const clientId = req.body.clientId
             const { jobId } = req.body
 
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -814,15 +815,28 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            let jobDetail = existUser?.jobDetails.some((job) => job._id.toString() === jobId)
+            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
             if(!jobDetail){
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
             const currentDate = moment().format('YYYY-MM-DD')
-            const timesheet = await Timesheet.findOne({ userId, jobId, date: currentDate }).skip(skip).limit(limit)
+            let timesheet
+            let totalTimesheets
 
-            const totalTimesheets = await Timesheet.findOne({ userId, jobId, date: currentDate }).countDocuments()
+            if(jobDetail?.isWorkFromOffice){
+                console.log('in location work')
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate }).skip(skip).limit(limit)
+                totalTimesheets = await Timesheet.findOne({ userId, locationId: jobDetail?.location, clientId, jobId, date: currentDate }).countDocuments()
+            } else {
+                const client = jobDetail?.assignClient?.map(clientIds => clientIds == clientId)
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).skip(skip).limit(limit)
+                totalTimesheets = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).countDocuments()
+            }
 
             return res.send({
                 status: 200,

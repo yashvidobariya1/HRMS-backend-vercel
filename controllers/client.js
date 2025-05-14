@@ -437,9 +437,9 @@ exports.getGeneratedReports = async (req, res) => {
 
             let query = { isDeleted: { $ne: true } }
 
-            if (searchQuery) {
-                query["clientName"] = { $regex: searchQuery, $options: "i" }
-            }
+            // if (searchQuery) {
+            //     query["clientId.clientName"] = { $regex: searchQuery, $options: "i" }
+            // }
 
             if (!isAllClients && !isAllCompanies) {
                 const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
