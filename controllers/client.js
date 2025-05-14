@@ -177,13 +177,13 @@ exports.getAllClient = async (req, res) => {
 
 exports.getCompanyClients = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator']
+        const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
-            const companyId = req.user.companyId
+            const companyId = req.query.companyId || req.user.companyId
 
             const clients = await Client.find({ companyId, isDeleted: { $ne: true } }).skip(skip).limit(limit)
             const totalClients = await Client.find({ companyId, isDeleted: { $ne: true } }).countDocuments()
@@ -423,6 +423,7 @@ exports.getGeneratedReports = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
             const { clientId, companyId } = req.query
@@ -431,27 +432,54 @@ exports.getGeneratedReports = async (req, res) => {
                 return res.send({ status: 400, message: 'Client ID is required' })
             }
 
-            const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-            if(!client){
-                return res.send({ status: 404, message: 'Client not found' })
+            const isAllClients = clientId === 'allClients'
+            const isAllCompanies = companyId === 'allCompany'
+
+            let query = { isDeleted: { $ne: true } }
+
+            if (searchQuery) {
+                query["clientName"] = { $regex: searchQuery, $options: "i" }
             }
 
-            // const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            // if(!company){
-            //     return res.send({ status: 404, message: 'Company not found' })
-            // }
+            if (!isAllClients && !isAllCompanies) {
+                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if (!client) return res.send({ status: 404, message: 'Client not found' })
 
-            // if(company._id.toString() !== client.companyId.toString()){
-            //     return res.send({ status: 200, reports: [] })
-            // }
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if (!company) return res.send({ status: 404, message: 'Company not found' })
 
-            const reports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).populate('creatorId', 'personalDetails.firstName personalDetails.lastName').skip(skip).limit(limit)
-            const totalReports = await EmployeeReport.find({ clientId, isDeleted: { $ne: true } }).countDocuments()
+                if (client.companyId.toString() !== company._id.toString()) {
+                    return res.send({ status: 200, reports: [] })
+                }
+
+                query.clientId = clientId
+            } else if (isAllClients && !isAllCompanies) {
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if (!company) return res.send({ status: 404, message: 'Company not found' })
+
+                const clientIds = await Client.find({ companyId, isDeleted: { $ne: true } }).distinct('_id')
+                query.clientId = { $in: clientIds }
+
+            }  else if (!isAllClients && isAllCompanies) {
+                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if (!client) return res.send({ status: 404, message: 'Client not found' })
+
+                query.clientId = clientId
+            }
+
+            const reports = await EmployeeReport.find(query)
+                .populate('creatorId', 'personalDetails.firstName personalDetails.lastName')
+                .populate('clientId', 'clientName')
+                .skip(skip)
+                .limit(limit)
+            const totalReports = await EmployeeReport.find(query).countDocuments()
+
 
             let filteredReports = []
             reports.map(report => {
                 const hasStatusPending = report?.employees.some(emp => emp.status == 'Pending')
                 filteredReports.push({
+                    clientName: report?.clientId?.clientName,
                     startDate: report?.startDate,
                     endDate: report?.endDate,
                     createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
@@ -498,16 +526,16 @@ exports.getReport = async (req, res) => {
                 return res.send({ status: 404, message: 'Report not found' })
             }
 
-            // if(allowedRoles.includes(req.user?.role)){
-            //     const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            //     if(!company){
-            //         return res.send({ status: 404, message: 'Company not found' })
-            //     }
+            if(allowedRoles.includes(req.user?.role)){
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if(!company){
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
 
-            //     if(companyId !== report?.companyId.toString()){
-            //         return res.send({ status: 200, report: [] })
-            //     }
-            // }
+                if(companyId !== report?.companyId.toString()){
+                    return res.send({ status: 200, report: [] })
+                }
+            }
 
             const formattedEmployees = report.employees.map(emp => ({
                 userName: `${emp.userId?.personalDetails?.firstName} ${emp.userId?.personalDetails?.lastName}`,

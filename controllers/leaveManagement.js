@@ -78,7 +78,7 @@ exports.leaveRequest = async (req, res) => {
             })
 
             if (existLeave && existLeave?.status !== "Rejected") {
-                return res.send({ status: 400, message: 'You already have a leave request for this period!' });
+                return res.send({ status: 409, message: 'You already have a leave request for this period!' });
             }
 
             const holidays = await Holiday.find({

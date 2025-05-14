@@ -42,7 +42,7 @@ exports.addCompany = async (req, res) => {
                     companyLogoImg = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -263,7 +263,7 @@ exports.updateCompanyDetails = async (req, res) => {
                     }
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 

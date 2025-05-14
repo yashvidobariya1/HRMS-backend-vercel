@@ -76,7 +76,7 @@ exports.clockInFunc = async (req, res) => {
             }
 
             if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Location coordinator data is not found!" })
+                return res.send({ status: 404, message: "Location coordinator data is not found!" })
             }
 
             await User.updateOne(
@@ -373,7 +373,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             if (!location || !location.latitude || !location.longitude) {
-                return res.send({ status: 400, message: "Location coordinator data is not found!" })
+                return res.send({ status: 404, message: "Location coordinator data is not found!" })
             }
 
             await User.updateOne(

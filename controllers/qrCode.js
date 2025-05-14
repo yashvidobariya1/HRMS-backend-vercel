@@ -275,7 +275,7 @@ exports.inactivateQRCode = async (req, res) => {
                 return res.send({ status: 404, message: 'QRCode not found!' })
             }
             if(QRCode.isActive === false){
-                return res.send({ status: 400, message: 'The QR is already inactive' })
+                return res.send({ status: 409, message: 'The QR is already inactive' })
             }
             QRCode.isActive = false
             QRCode.save()

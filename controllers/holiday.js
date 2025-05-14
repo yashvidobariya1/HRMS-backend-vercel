@@ -27,7 +27,7 @@ exports.addHoliday = async (req, res) => {
 
             const existHoliday = await Holiday.findOne({ companyId, date, isDeleted: { $ne: true } })
             if(existHoliday){
-                return res.send({ status: 400, message: 'Holiday already exist.' })
+                return res.send({ status: 409, message: 'Holiday already exist.' })
             }
             
             const holiday = await Holiday.create(newHoliday)
@@ -125,7 +125,11 @@ exports.getAllHolidays = async (req, res) => {
             const year = req.query.year || moment().format('YYYY')
             // console.log('year:', year)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
-            const companyId = req.query.companyId || req.user.companyId.toString()
+            const companyId = req.query.companyId || req.user?.companyId?.toString()
+            
+            if(companyId == 'allCompany'){
+                return res.send({ status: 400, message: 'Kindly select a specific company.' })
+            }
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
             if(!company){

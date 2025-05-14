@@ -12,7 +12,7 @@ exports.createJobTitle = async (req, res) => {
 
             const sameName = await JobTitles.findOne({ name, isDeleted: { $ne: true } })
             if(sameName){
-                return res.send({ status: 400, message: `${name} job title already exist. Please try a different name.` })
+                return res.send({ status: 409, message: `${name} job title already exist. Please try a different name.` })
             }
 
             const newJobTitle = {
@@ -117,7 +117,7 @@ exports.updateJobTitle = async (req, res) => {
 
             const duplicateName = await JobTitles.findOne({ _id: { $ne: jobTitleId }, name: name, isDeleted: { $ne: true } })
             if (duplicateName) {
-                return res.send({ status: 400, message: `${name} job title already exists. Please try a different name.` })
+                return res.send({ status: 409, message: `${name} job title already exists. Please try a different name.` })
             }
 
             const updatedJobTitle = await JobTitles.findOneAndUpdate(

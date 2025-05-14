@@ -449,7 +449,7 @@ exports.updateProfileDetails = async (req, res) => {
                             }
                         } catch (uploadError) {
                             console.error(`Error uploading file at index ${i}, file ${j}:`, uploadError);
-                            return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                            return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                         }
                     }
             
@@ -735,7 +735,7 @@ exports.addUser = async (req, res) => {
                             });
                         } catch (uploadError) {
                             console.error(`Error uploading file at item ${i}, file ${j}:`, uploadError);
-                            return res.status(400).send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                            return res.status(400).send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                         }
                     }
             
@@ -1338,7 +1338,7 @@ exports.updateUserDetails = async (req, res) => {
                             }
                         } catch (uploadError) {
                             console.error(`Error uploading file at index ${i}, file ${j}:`, uploadError);
-                            return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                            return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                         }
                     }
             
@@ -1510,7 +1510,7 @@ exports.getUserJobTitles = async (req, res) => {
 
             const jobTitles = []
             user?.jobDetails.map((job) => {
-                jobTitles.push({ jobId: job._id, jobName: job.jobTitle })
+                jobTitles.push({ jobId: job._id, jobName: job.jobTitle, isWorkFromOffice: job?.isWorkFromOffice })
             })
 
             const templates = user?.templates.map(template => ({

@@ -68,7 +68,7 @@ exports.addContract = async (req, res) => {
                     extractedKeys = extractPlaceholders(pdfData.text)
                 } catch (pdfError) {
                     console.error("PDF Parsing Error:", pdfError)
-                    return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                    return res.send({ status: 422, message: "Error parsing the PDF file. Ensure it contains selectable text." })
                 }
             } else if (contractFileName.endsWith('.docx')) {
                 try {
@@ -81,10 +81,10 @@ exports.addContract = async (req, res) => {
                     extractedKeys = extractPlaceholders(value)
                 } catch (docxError) {
                     console.error("DOCX Parsing Error:", docxError)
-                    return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                    return res.send({ status: 422, message: "Error parsing the DOCX file. Ensure it is a valid document." })
                 }
             } else {
-                return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
+                return res.send({ status: 415, message: "Unsupported file format. Only PDF and DOCX are allowed." })
             }
 
             const missingKeys = requiredKeys.filter(key => !extractedKeys.includes(key))
@@ -115,7 +115,7 @@ exports.addContract = async (req, res) => {
                     documentURL = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to AWS:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
@@ -367,7 +367,7 @@ exports.updateContract = async (req, res) => {
                     contract = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to AWS:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             } else {
                 contract = isExist?.contract

@@ -4,10 +4,7 @@ const Company = require('../models/company');
 const moment = require('moment');
 const mammoth = require('mammoth');
 const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
-const axios = require('axios');
-const path = require('path');
 const pdfParse = require('pdf-parse');
-const textract = require('textract');
 
 const extractPlaceholders = (text) => {
     const placeholderRegex = /{(.*?)}/g
@@ -53,6 +50,10 @@ exports.addTemplate = async (req, res) => {
                 template = template.split(',')[1]
             }
 
+            if (templateFileName.endsWith('.doc')) {
+                return res.send({ status: 400, message: "Ensure the uploaded file is DOCX" })
+            }
+
             if (templateFileName.endsWith('.pdf')) {
                 try {
                     const pdfBuffer = Buffer.from(template, 'base64')
@@ -69,9 +70,9 @@ exports.addTemplate = async (req, res) => {
                     }    
                 } catch (pdfError) {
                     console.error("PDF Parsing Error:", pdfError)
-                    return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                    return res.send({ status: 500, message: "Error parsing the PDF file. Ensure it contains selectable text." })
                 }
-            } else if (templateFileName.endsWith('.docx') || templateFileName.endsWith('.doc')) {
+            } else if (templateFileName.endsWith('.docx')) {
                 try {
                     console.log('in')
                     const { value } = await mammoth.extractRawText({ buffer: Buffer.from(template, 'base64') })
@@ -87,7 +88,7 @@ exports.addTemplate = async (req, res) => {
                     }    
                 } catch (docxError) {
                     console.error("DOCX Parsing Error:", docxError)
-                    return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                    return res.send({ status: 500, message: "Error parsing the DOCX file. Ensure it is a valid document." })
                 }
             }
 
@@ -99,12 +100,12 @@ exports.addTemplate = async (req, res) => {
                 const extraKeys = extractedKeys.filter(key => !requiredKeys.includes(key))
                 // console.log('extraKeys:', extraKeys)
 
-                if (missingKeys.length > 0 || extraKeys.length > 0) {
-                // if (extraKeys.length > 0) {
+                // if (missingKeys.length > 0 || extraKeys.length > 0) {
+                if (extraKeys.length > 0) {
                     return res.send({
                         status: 400,
                         message: `Template file contains invalid placeholders.` +
-                            (missingKeys.length > 0 ? ` Missing keys: ${missingKeys.join(", ")}.` : '') +
+                            // (missingKeys.length > 0 ? ` Missing keys: ${missingKeys.join(", ")}.` : '') +
                             (extraKeys.length > 0 ? ` Extra keys: ${extraKeys.join(", ")}.` : '')
                     })
                 }
@@ -262,7 +263,7 @@ exports.updateTemplate = async (req, res) => {
                         extractedKeys = extractPlaceholders(pdfData.text)
                     } catch (pdfError) {
                         console.error("PDF Parsing Error:", pdfError)
-                        return res.send({ status: 400, message: "Error parsing the PDF file. Ensure it contains selectable text." })
+                        return res.send({ status: 500, message: "Error parsing the PDF file. Ensure it contains selectable text." })
                     }
                 } else if (templateFileName.endsWith('.docx')) {
                     try {
@@ -273,7 +274,7 @@ exports.updateTemplate = async (req, res) => {
                         extractedKeys = extractPlaceholders(value)
                     } catch (docxError) {
                         console.error("DOCX Parsing Error:", docxError)
-                        return res.send({ status: 400, message: "Error parsing the DOCX file. Ensure it is a valid document." })
+                        return res.send({ status: 500, message: "Error parsing the DOCX file. Ensure it is a valid document." })
                     }
                 } else {
                     return res.send({ status: 400, message: "Unsupported file format. Only PDF and DOCX are allowed." })
@@ -296,7 +297,7 @@ exports.updateTemplate = async (req, res) => {
                     documentURL = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file to AWS:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 

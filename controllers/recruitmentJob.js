@@ -95,7 +95,7 @@ exports.createJobPost = async (req, res) => {
                     jobPostImg = element?.fileUrl
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
             
@@ -308,7 +308,7 @@ exports.updateJobPost = async (req, res) => {
                     }
                 } catch (uploadError) {
                     console.error("Error occurred while uploading file:", uploadError);
-                    return res.send({ status: 400, message: "Error occurred while uploading file. Please try again." });
+                    return res.send({ status: 500, message: "Error occurred while uploading file. Please try again." });
                 }
             }
 
