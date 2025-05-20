@@ -14,6 +14,10 @@ const EmployeeReportSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Company'
         },
+        reportFrequency: {
+            type: String,
+            enum: ['Daily', 'Weekly', 'Monthly'],
+        },
         startDate: String,
         endDate: String,
         links: [{
@@ -21,21 +25,26 @@ const EmployeeReportSchema = new mongoose.Schema(
             link: String,
             token: String
         }],
-        employees: [{
-            userId: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'User'
-            },
-            jobId: mongoose.Schema.Types.ObjectId,
-            jobTitle: String,
-            jobRole: String,
-            status: {
-                type: String,
-                enum: ['Pending', 'Approved', 'Rejected'],
-                default: 'Pending'
-            },
-            rejectionReason: String
-        }],
+        status: {
+            type: String,
+            enum: ['Pending', 'Approved', 'Rejected'],
+            default: 'Pending'
+        },
+        // employees: [{
+        //     userId: {
+        //         type: mongoose.Schema.Types.ObjectId,
+        //         ref: 'User'
+        //     },
+        //     jobId: mongoose.Schema.Types.ObjectId,
+        //     jobTitle: String,
+        //     jobRole: String,
+        //     status: {
+        //         type: String,
+        //         enum: ['Pending', 'Approved', 'Rejected'],
+        //         default: 'Pending'
+        //     },
+        //     rejectionReason: String
+        // }],
         // token: String,
         // createdBy: String,
         creatorId: {

@@ -11,6 +11,7 @@ const mongoose = require('mongoose')
 const moment = require('moment')
 const Notification = require("../models/notification")
 const Task = require("../models/task")
+const { convertToEuropeanTimezone } = require("../utils/timezone")
 
 // find Absences users for Superadmin, Administrator and Manager
 const findAbsentUsers = async (requestedUser) => {
@@ -509,6 +510,19 @@ const getTodaysClocking = async (userId, jobId) => {
                 $sort: { date: 1 }
             }
         ])
+
+        for(const timesheet of TodaysClockingData){
+            timesheet.clockEntries = timesheet.clockEntries.map(entry => {
+                const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+
+                return {
+                    ...entry.toObject?.() ?? entry,
+                    clockIn: clockInStr,
+                    clockOut: clockOutStr,
+                }
+            })
+        }
 
         // console.log('TodaysClockingData:', TodaysClockingData)
         return TodaysClockingData

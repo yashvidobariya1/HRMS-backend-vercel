@@ -9,6 +9,8 @@ const TaskSchema = new mongoose.Schema(
         taskName: String,
         taskDescription: String,
         taskDate: String,
+        clientId: { type: String, ref: 'Client' },
+        locationId: { type: String, ref: 'Location' },
         startTime: String,
         endTime: String,
         userId: {

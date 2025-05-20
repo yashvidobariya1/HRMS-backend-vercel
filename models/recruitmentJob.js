@@ -9,7 +9,6 @@ const RecruitmentJobSchema = new mongoose.Schema({
     jobTitle: String, // required
     jobDescription: String, // required
     jobLocation: String,
-
     jobCategory: String,
     jobApplyTo: String,
     // jobStatus: String, // required

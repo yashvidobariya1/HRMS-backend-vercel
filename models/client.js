@@ -20,6 +20,14 @@ const clientSchema = new mongoose.Schema({
     QRCodeImage: String,
     breakTime: Number,
     graceTime: Number,
+    isAutoGenerateReport: { type: Boolean },
+    reportFrequency: {
+        type: String,
+        enum: ['Daily', 'Weekly', 'Monthly'],
+    },
+    reportTime: String,
+    weekday: String,
+    monthDate: String,
     companyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'

@@ -2,6 +2,7 @@ const Task = require('../models/task')
 const moment = require('moment')
 const User = require('../models/user')
 const Client = require('../models/client')
+const Location = require('../models/location')
 
 // exports.createTask = async (req, res) => {
 //     try {
@@ -184,11 +185,13 @@ exports.createTask = async (req, res) => {
             const {
                 taskName,
                 taskDescription,
-                taskDate,
+                startDate,
+                endDate,
                 startTime,
                 endTime,
                 userId,
-                jobId
+                jobId,
+                clientId,
             } = req.body
 
             const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
@@ -201,26 +204,75 @@ exports.createTask = async (req, res) => {
                 return res.send({ status: 404, message: 'JobTitle not found' })
             }
 
-            // if(jobDetail?.isWorkFromOffice){
-
-            // } else {
-            //     const client = await Client.findOne({ _id: clientId })
+            // const newTask = {
+            //     taskName,
+            //     taskDescription,
+            //     taskDate,
+            //     startTime,
+            //     endTime,
+            //     userId,
+            //     jobId,
+            //     creatorId: req.user._id,
             // }
 
-            const newTask = {
-                taskName,
-                taskDescription,
-                taskDate,
-                startTime,
-                endTime,
-                userId,
-                jobId,
-                creatorId: req.user._id,
+            let locationId = ""
+            if(jobDetail?.isWorkFromOffice){
+                const location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+                locationId = jobDetail?.location
+            } else {
+                if(!clientId || ['undefined', 'null', ''].includes(clientId)){
+                    return res.send({ status: 400, message: 'Client ID is required' })
+                }
+
+                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+                // newTask.clientId = clientId
             }
 
-            const task = await Task.create(newTask)
+            const start = moment(startDate)
+            const end = moment(endDate)
+            if(!start.isValid() || !end.isValid() || end.isBefore(start)){
+                return res.send({ status: 400, message: 'Invalid startDate or endDate' })
+            }
 
-            return res.send({ status: 200, message: 'Task created successfully', task })
+            const tasks = []
+            const dates = []
+
+            for(let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')){
+                dates.push(m.format('YYYY-MM-DD'))
+            }
+
+            for (const date of dates) {
+                const newTask = {
+                    taskName,
+                    taskDescription,
+                    taskDate: date,
+                    startTime,
+                    endTime,
+                    userId,
+                    jobId,
+                    creatorId: req.user._id,
+                };
+
+                if (locationId) {
+                    newTask.locationId = locationId;
+                } else {
+                    newTask.clientId = clientId;
+                }
+
+                tasks.push(newTask);
+            }
+
+            const insertedTasks = await Task.insertMany(tasks)
+
+            // const task = await Task.create(newTask)
+
+            return res.send({ status: 200, message: 'Task created successfully' })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while creating the task:', error)
@@ -253,8 +305,16 @@ exports.getTask = async (req, res) => {
 exports.getAllTasks = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(req.user?.role === 'Superadmin' && req.body.userId == ""){
+            return res.send({
+                status: 200,
+                message: 'Tasks fetched successfully',
+                task: []
+            })
+        }
         if(allowedRoles.includes(req.user.role)){
-            const { userId, jobId } = req.body
+            const { jobId, clientId } = req.body
+            const userId = req.body.userId || req.user._id
             const { month, year } = req.query
 
             let startDate, endDate
@@ -272,6 +332,41 @@ exports.getAllTasks = async (req, res) => {
             } else {
                 startDate = moment().startOf('month').format('YYYY-MM-DD')
                 endDate = moment().endOf('month').format('YYYY-MM-DD')
+            }
+
+            let baseQuery = {
+                isDeleted: { $ne: true },
+                userId: userId || req.user._id,
+                taskDate: { $gte: startDate, $lte: endDate },
+                jobId,
+            }
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = user?.jobDetails.find(job => job?._id.toString() == jobId)
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'Job title not found' })
+            }
+
+            if(jobDetail?.isWorkFromOffice){
+                const location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+                baseQuery.locationId = jobDetail?.location
+            } else {
+                if(!clientId || ['undefined', 'null', ''].includes(clientId)){
+                    return res.send({ status: 400, message: 'Client ID is required' })
+                }
+
+                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+                baseQuery.clientId = clientId
             }
 
             const tasks = await Task.find({
@@ -299,7 +394,7 @@ exports.getAllTasks = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const taskId = req.params.id
             const {

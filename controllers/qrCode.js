@@ -40,8 +40,8 @@ exports.generateQRCodeForLocation = async (req, res) => {
             const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             if(!location) return res.send({ status: 404, message: 'Location not found' })
 
-            if(location.latitude == "" || location.longitude == "" || location.radius == ""){
-                return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this location before proceeding.' })
+            if(location.latitude == "" || location.longitude == "" || location.radius == "" || location.breakTime == "" || location.graceTime == ""){
+                return res.send({ status: 400, message: 'You should first add or update the latitude, longitude, radius, breakTime and graceTime for this location before proceeding.' })
             }
 
             const company = await Company.findOne({ _id: location?.companyId, isDeleted: { $ne: true } })
@@ -169,8 +169,8 @@ exports.generateQRCodeForClient = async (req, res) => {
                 return res.send({ status: 404, message: 'Client not found' })
             }
 
-            if(client.latitude == "" || client.longitude == "" || client.radius == ""){
-                return res.send({ status: 400, message: 'You should first add or update the latitude, longitude and radius for this client before proceeding.' })
+            if(client.latitude == "" || client.longitude == "" || client.radius == "" || client.breakTime == "" || client.graceTime == ""){
+                return res.send({ status: 400, message: 'You should first add or update the latitude, longitude, radius, breakTime and graceTime for this location before proceeding.' })
             }
 
             const company = await Company.findOne({ _id: client?.companyId, isDeleted: { $ne: true } })

@@ -3,7 +3,6 @@ const { auth } = require('../middleware/authenticate')
 const { addCompany, getCompany, updateCompanyDetails, deleteCompany, getAllCompany } = require('../controllers/company')
 const { addLocation, getLocation, getAllLocation, getCompanyLocations, updateLocationDetails, deleteLocation } = require('../controllers/location')
 const { addContract, getAllContract, getAllContractOfCompany, getContract, updateContract, deleteContract } = require('../controllers/contract')
-// const { generateQRcode, getAllQRCodes, inactivateQRCode } = require('../controllers/timeSheet')
 const { addHoliday, getHoliday, getAllHolidays, updateHoliday, deleteHoliday } = require('../controllers/holiday')
 const { addClient, getClient, getAllClient, updateClient, deleteClient, generateLinkForClient, getCompanyClients } = require('../controllers/client')
 const { addTemplate, getTemplate, getAllTemplates, updateTemplate, deleteTemplate, assignTemplateToUsers } = require('../controllers/templates')
@@ -11,8 +10,8 @@ const { activateDeactivateUser } = require('../controllers/common')
 const { createJobPost, getJobPost, getAllJobPosts, updateJobPost, deleteJobPost, getJobPostForPublic, getCompanyLocationsForJobPost } = require('../controllers/recruitmentJob')
 const { applyForJob, getCandidateDetails, getAllCandidates } = require('../controllers/candidate')
 const { createJobTitle, getJobTitle, getAllJobTitles, updateJobTitle, deleteJobTitle, activeInactiveJobTitle } = require('../controllers/jobTitle')
-// const { generateQRcode, getAllQRCodes, inactivateQRCode } = require('../controllers/qrCode')
 const { generateQRCodeForLocation, getAllQRCodesForLocation, generateQRCodeForClient, getAllQRCodesForClient, inactivateQRCode } = require('../controllers/qrCode')
+const { getAllUsersAndClients } = require('../controllers/timeSheet')
 
 const superAdminRoute = Router()
 
@@ -88,5 +87,7 @@ superAdminRoute.get('/getAllJobTitles', auth, getAllJobTitles)
 superAdminRoute.post('/updateJobTitle/:id', auth, updateJobTitle)
 superAdminRoute.post('/activeInactiveJobTitle', auth, activeInactiveJobTitle)
 superAdminRoute.post('/deleteJobTitle/:id', auth, deleteJobTitle)
+// all users and client
+superAdminRoute.get('/getAllUsersAndClients', auth, getAllUsersAndClients)
 
 module.exports = superAdminRoute

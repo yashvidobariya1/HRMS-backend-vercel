@@ -9,6 +9,7 @@ const { dashboard } = require('../controllers/dashboard')
 const { createTask, updateTask, getTask, getAllTasks, canceledTask } = require('../controllers/task')
 const { getAllLoggedInOutUsers } = require('../controllers/loggedInUser')
 const { generateContractForEmployee } = require('../controllers/contract')
+// const { getTimesheetReportForClient } = require('../controllers/client')
 
 const commonRoute = Router()
 
@@ -66,6 +67,7 @@ commonRoute.post('/leaveRequestReject/:id', auth, rejectLeaveRequest)
 commonRoute.post('/getAllowLeaveCount', auth, getAllowLeaveCount)
 // timesheet report
 commonRoute.post('/getTimesheetReport', auth, getTimesheetReport)
+// commonRoute.post('/getTimesheetReportForClient', getTimesheetReportForClient)
 commonRoute.post('/getAbsenceReport', auth, getAbsenceReport)
 commonRoute.post('/downloadTimesheetReport', auth, downloadTimesheetReport)
 // generate template

@@ -8,6 +8,8 @@ const { default: axios } = require("axios")
 const EmployeeReport = require("../models/employeeReport")
 const { transporter } = require("../utils/nodeMailer");
 const { default: mongoose } = require("mongoose")
+const Timesheet = require("../models/timeSheet")
+const { convertToEuropeanTimezone } = require("../utils/timezone")
 
 
 exports.addClient = async (req, res) => {
@@ -15,7 +17,26 @@ exports.addClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const companyId = req.query.companyId || req.user.companyId
-            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode, latitude, longitude, radius, breakTime, graceTime } = req.body
+            const {
+                clientName,
+                contactNumber,
+                email,
+                address,
+                addressLine2,
+                city,
+                country,
+                postCode,
+                latitude,
+                longitude,
+                radius,
+                breakTime,
+                graceTime,
+                isAutoGenerateReport,
+                reportFrequency,
+                reportTime,
+                weekday,
+                monthDate,
+            } = req.body
 
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
             // if(!location){
@@ -45,7 +66,12 @@ exports.addClient = async (req, res) => {
                 longitude,
                 radius,
                 breakTime,
-                graceTime
+                graceTime,
+                isAutoGenerateReport,
+                reportFrequency,
+                reportTime,
+                weekday,
+                monthDate,
             }
 
             const client = await Client.create(newClient)
@@ -208,7 +234,26 @@ exports.updateClient = async (req, res) => {
         const allowedRoles = ['Superadmin', 'Administrator']
         if(allowedRoles.includes(req.user.role)){
             const clientId = req.params.id
-            const { clientName, contactNumber, email, address, addressLine2, city, country, postCode, latitude, longitude, radius, breakTime, graceTime } = req.body
+            const {
+                clientName,
+                contactNumber,
+                email,
+                address,
+                addressLine2,
+                city,
+                country,
+                postCode,
+                latitude,
+                longitude,
+                radius,
+                breakTime,
+                graceTime,
+                isAutoGenerateReport,
+                reportFrequency,
+                reportTime,
+                weekday,
+                monthDate,
+            } = req.body
 
             const existClient = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
             if(!existClient){
@@ -231,7 +276,12 @@ exports.updateClient = async (req, res) => {
                         longitude,
                         radius,
                         breakTime,
-                        graceTime
+                        graceTime,
+                        isAutoGenerateReport,
+                        reportFrequency,
+                        reportTime,
+                        weekday,
+                        monthDate,
                     }
                 }, { new: true }
             )
@@ -437,10 +487,6 @@ exports.getGeneratedReports = async (req, res) => {
 
             let query = { isDeleted: { $ne: true } }
 
-            // if (searchQuery) {
-            //     query["clientId.clientName"] = { $regex: searchQuery, $options: "i" }
-            // }
-
             if (!isAllClients && !isAllCompanies) {
                 const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
                 if (!client) return res.send({ status: 404, message: 'Client not found' })
@@ -452,7 +498,7 @@ exports.getGeneratedReports = async (req, res) => {
                     return res.send({ status: 200, reports: [] })
                 }
 
-                query.clientId = clientId
+                query.clientId = client?._id
             } else if (isAllClients && !isAllCompanies) {
                 const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
                 if (!company) return res.send({ status: 404, message: 'Company not found' })
@@ -464,20 +510,71 @@ exports.getGeneratedReports = async (req, res) => {
                 const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
                 if (!client) return res.send({ status: 404, message: 'Client not found' })
 
-                query.clientId = clientId
+                query.clientId = client?._id
             }
 
-            const reports = await EmployeeReport.find(query)
-                .populate('creatorId', 'personalDetails.firstName personalDetails.lastName')
-                .populate('clientId', 'clientName')
-                .skip(skip)
-                .limit(limit)
+            if (searchQuery) {
+                const isDate = !isNaN(Date.parse(searchQuery))
+                
+                if (isDate) {
+                    const startOfDay = moment(searchQuery).format('YYYY-MM-DD')
+                    const endOfDay = moment(searchQuery).format('YYYY-MM-DD')
+
+                    query['$or'] = [
+                        { startDate: { $gte: startOfDay, $lte: endOfDay } },
+                        { endDate: { $gte: startOfDay, $lte: endOfDay } }
+                    ]
+                } else {
+                    query['clientData.clientName'] = { $regex: searchQuery, $options: 'i' }
+                }
+            }
+
+            const reports = await EmployeeReport.aggregate([
+                { $match: {
+                    isDeleted: false
+                }},
+                { $lookup: {
+                    from: 'clients', // Make sure this matches the actual collection name
+                    localField: 'clientId',
+                    foreignField: '_id',
+                    as: 'clientData'
+                }},
+                { $unwind: '$clientData' },
+                { $match: query },
+                { $lookup: {
+                    from: 'users', // Assuming creatorId refers to a user
+                    localField: 'creatorId',
+                    foreignField: '_id',
+                    as: 'creatorData'
+                }},
+                { $unwind: {
+                    path: '$creatorData',
+                    preserveNullAndEmptyArrays: true
+                }},
+                { $project: {
+                    _id: 1,
+                    clientId: '$clientData',
+                    creatorId: '$creatorData',
+                    startDate: 1,
+                    endDate: 1,
+                    companyId: 1,
+                    employees: 1,
+                    links: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    reportFrequency: 1,
+                    status: 1,
+                }},
+                { $skip: skip },
+                { $limit: limit }
+            ])
+            // console.log('reports:', reports)
             const totalReports = await EmployeeReport.find(query).countDocuments()
 
 
             let filteredReports = []
             reports.map(report => {
-                const hasStatusPending = report?.employees.some(emp => emp.status == 'Pending')
+                // const hasStatusPending = report?.employees.some(emp => emp.status == 'Pending')
                 filteredReports.push({
                     clientName: report?.clientId?.clientName,
                     startDate: report?.startDate,
@@ -485,7 +582,8 @@ exports.getGeneratedReports = async (req, res) => {
                     createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
                     _id: report._id,
                     createdAt: report?.createdAt,
-                    status: hasStatusPending ? 'Pending' : 'Reviewed'
+                    status: report?.status,
+                    // status: hasStatusPending ? 'Pending' : 'Reviewed',
                 })
             })
 
@@ -509,10 +607,236 @@ exports.getGeneratedReports = async (req, res) => {
     }
 }
 
+// old method
+// exports.getReport = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator']
+//         if (allowedRoles.includes(req.user?.role) || req.token?.role === "Client") {
+//             const page = parseInt(req.query.page) || 1
+//             const limit = parseInt(req.query.limit) || 10
+
+//             const skip = (page - 1) * limit
+//             const reportId = req.params.id || req.token.reportId
+//             const companyId = req.query.companyId
+
+//             const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).populate('employees.userId', 'personalDetails.firstName personalDetails.lastName')
+
+//             if (!report) {
+//                 return res.send({ status: 404, message: 'Report not found' })
+//             }
+
+//             if(allowedRoles.includes(req.user?.role)){
+//                 const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+//                 if(!company){
+//                     return res.send({ status: 404, message: 'Company not found' })
+//                 }
+
+//                 if(companyId !== report?.companyId.toString()){
+//                     return res.send({ status: 200, report: [] })
+//                 }
+//             }
+
+//             const formattedEmployees = report.employees.map(emp => ({
+//                 userName: `${emp.userId?.personalDetails?.firstName} ${emp.userId?.personalDetails?.lastName}`,
+//                 userId: emp.userId?._id,
+//                 _id: emp.jobId,
+//                 jobTitle: emp.jobTitle,
+//                 jobRole: emp.jobRole,
+//                 reason: emp.rejectionReason || "",
+//                 status: emp.status
+//             })).slice(skip, skip + limit)
+
+//             const totalEmployees = report.employees.length
+
+//             return res.send({
+//                 status: 200,
+//                 message: 'Report fetched successfully',
+//                 report: {
+//                     ...report.toObject(),
+//                     employees: formattedEmployees
+//                 },
+//                 totalEmployees,
+//                 totalPages: Math.ceil(totalEmployees / limit) || 1,
+//                 currentPage: page || 1
+//             })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred while fetching report:', error)
+//         return res.send({ status: 500, message: 'Error occurred while fetching report!' })
+//     }
+// }
+
+// new method
+function getStartAndEndDate({ joiningDate, startDate, endDate }) {
+    let start, end
+
+    if (startDate && endDate) {
+        start = moment(startDate).startOf('day')
+        end = moment(endDate).endOf('day')
+    } else {
+        const now = moment()
+        start = now.startOf('month')
+        end = now.endOf('month')
+    }
+
+    if (joiningDate && start.isBefore(joiningDate)) {
+        start = moment(joiningDate).startOf('day')
+    }
+
+    return {
+        fromDate: start.format('YYYY-MM-DD'),
+        toDate: end.format('YYYY-MM-DD')
+    }
+}
+
+const timeStringToSeconds = (timeStr) => {
+    const match = timeStr.match(/(\d+)h\s*(\d+)m\s*(\d+)s/)
+    if (!match) return 0
+    const [, h, m, s] = match.map(Number)
+    return h * 3600 + m * 60 + s
+}
+
+const secondsToTimeString = (totalSeconds) => {
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    return `${hours}h ${minutes}m ${seconds}s`
+}
+
+// exports.getReport = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator']
+//         if(allowedRoles.includes(req.user?.role) || req.token?.role === 'Client'){            
+//             const page = parseInt(req.query.page) || 1
+//             const limit = parseInt(req.query.limit) || 10
+
+//             const skip = (page - 1) * limit
+//             const reportId = req.params.id || req.token.reportId
+//             const companyId = req.query.companyId
+
+//             const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).lean()
+
+//             if(!report){
+//                 return res.send({ status: 404, message: 'Report not found' })
+//             }
+
+//             if(allowedRoles.includes(req.user?.role) && companyId !== 'allCompany'){
+//                 const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+//                 if(!company){
+//                     return res.send({ status: 404, message: 'Company not found' })
+//                 }
+
+//                 if(companyId !== report?.companyId.toString()){
+//                     return res.send({ status: 200, report: [] })
+//                 }
+//             }
+
+//             const companyIdFromReport = report.companyId.toString()
+//             const clientIdFromReport = report.clientId.toString()
+
+//             const employees = await User.aggregate([
+//                 { $match: { 
+//                     companyId: new mongoose.Types.ObjectId(companyIdFromReport),
+//                     isDeleted: { $ne: true } 
+//                 }},
+//                 { $unwind: '$jobDetails' },
+//                 { $match: {
+//                     'jobDetails.isWorkFromOffice': false,
+//                     'jobDetails.assignClient': { $in: [clientIdFromReport] }
+//                 }},
+//                 { $project: {
+//                     userId: '$_id',
+//                     userName: { $concat: [ '$personalDetails.firstName', ' ', '$personalDetails.lastName' ] },
+//                     joiningDate: '$jobDetails.joiningDate',
+//                     jobId: '$jobDetails._id',
+//                     jobTitle: '$jobDetails.jobTitle',
+//                     jobRole: '$jobDetails.role'
+//                 }}
+//             ])
+
+//             const employeeTimesheet = []
+//             const today = moment().format('YYYY-MM-DD')
+
+//             for(const emp of employees){
+//                 const { fromDate, toDate } = getStartAndEndDate({
+//                     joiningDate: emp.joiningDate,
+//                     startDate: report.startDate,
+//                     endDate: report.endDate
+//                 })
+
+//                 const timesheets = await Timesheet.find({ userId : emp.userId,
+//                     jobId: emp.jobId,
+//                     clientId: clientIdFromReport,
+//                     date: { $gte: fromDate, $lte: toDate } 
+//                 }).lean()
+
+//                 const byDate = new Map()
+//                 timesheets.forEach(ts => {
+//                     const dateKey = moment(ts.date).format('YYYY-MM-DD')
+//                     if (!byDate.has(dateKey)) byDate.set(dateKey, [])
+//                     ts.clockinTime.forEach(slot => byDate.get(dateKey).push(slot))
+//                 })
+
+//                 for (let d = moment(fromDate); d.isSameOrBefore(toDate); d.add(1, 'days')) {
+//                     const dateStr = d.format('YYYY-MM-DD')
+//                     const dayOfWeek = d.day()
+//                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+//                     const isFuture = d.isAfter(today, 'day')
+//                     if (isWeekend || isFuture) continue
+
+//                     const rows = byDate.get(dateStr)
+
+//                     if(rows?.length){
+//                         rows.forEach(slot => {
+//                             employeeTimesheet.push({
+//                                 userName: emp.userName,
+//                                 jobTitle: emp.jobTitle,
+//                                 jobRole: emp.jobRole,
+//                                 date: dateStr,
+//                                 clockIn: convertToEuropeanTimezone(slot.clockIn).format("YYYY-MM-DDTHH:mm:ssZ"),
+//                                 clockOut: convertToEuropeanTimezone(slot.clockOut).format("YYYY-MM-DDTHH:mm:ssZ"),
+//                                 totalTiming: slot.totalTiming,
+//                                 overTime: slot.overTime ?? '0h 0m 0s',
+//                                 totalHours: slot.totalTiming
+//                             })
+//                         })
+//                     }
+//                 }
+//                 byDate.clear()
+//             }
+
+//             const reports = employeeTimesheet.slice(skip, skip + limit)
+//             const totalReports = employeeTimesheet.length
+
+//             const reportData = {
+//                 startDate: report?.startDate,
+//                 endDate: report?.endDate,
+//                 status: report?.status,
+//                 employeeTimesheetData: reports
+//             }
+
+//             return res.send({
+//                 status: 200,
+//                 message: 'Timesheet report fetched successfully',
+//                 reports: reportData,
+//                 totalReports,
+//                 totalPages: Math.ceil(totalReports / limit),
+//                 currentPage: page
+//             })
+//         } else return res.send({ status: 403, message: 'Access denied' })
+
+//     } catch (error) {
+//             console.error('Error while fetching timesheet report:', error)
+//             return res.send({ status: 500, message: 'Error occurred while fetching report!' })
+//     }
+// }
+
+// API for client which is return paticular one employee and in that object one array of object in thi array employee timesheet
+
 exports.getReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
-        if (allowedRoles.includes(req.user?.role) || req.token?.role === "Client") {
+        if(allowedRoles.includes(req.user?.role) || req.token?.role === 'Client'){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
 
@@ -520,13 +844,12 @@ exports.getReport = async (req, res) => {
             const reportId = req.params.id || req.token.reportId
             const companyId = req.query.companyId
 
-            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).populate('employees.userId', 'personalDetails.firstName personalDetails.lastName')
-
-            if (!report) {
+            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).lean()
+            if(!report){
                 return res.send({ status: 404, message: 'Report not found' })
             }
 
-            if(allowedRoles.includes(req.user?.role)){
+            if(allowedRoles.includes(req.user?.role) && companyId !== 'allCompany'){
                 const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
                 if(!company){
                     return res.send({ status: 404, message: 'Company not found' })
@@ -537,32 +860,140 @@ exports.getReport = async (req, res) => {
                 }
             }
 
-            const formattedEmployees = report.employees.map(emp => ({
-                userName: `${emp.userId?.personalDetails?.firstName} ${emp.userId?.personalDetails?.lastName}`,
-                userId: emp.userId?._id,
-                _id: emp.jobId,
-                jobTitle: emp.jobTitle,
-                jobRole: emp.jobRole,
-                reason: emp.rejectionReason || "",
-                status: emp.status
-            })).slice(skip, skip + limit)
+            const companyIdFromReport = report?.companyId?.toString()
+            const clientIdFromReport = report?.clientId?.toString()
 
-            const totalEmployees = report.employees.length
+            const employees = await User.aggregate([
+                { $match: { companyId: new mongoose.Types.ObjectId(String(companyIdFromReport)), isDeleted: { $ne: true } } },
+                { $unwind: "$jobDetails" },
+                { $match: {
+                    "jobDetails.isWorkFromOffice": false,
+                    "jobDetails.assignClient": { $in: [clientIdFromReport] }
+                }},
+                {
+                    $project: {
+                        userId: "$_id",
+                        userName: {
+                        $concat: [
+                                "$personalDetails.firstName",
+                                " ",
+                                "$personalDetails.lastName"
+                            ]
+                        },
+                        joiningDate: "$jobDetails.joiningDate",
+                        jobId: "$jobDetails._id",
+                        jobTitle: "$jobDetails.jobTitle",
+                        jobRole: "$jobDetails.role"
+                    }
+                }
+            ])
+
+            let employeeTimesheet = []
+
+            for(const emp of employees){
+
+                const { fromDate, toDate } = getStartAndEndDate({ joiningDate: emp?.joiningDate, startDate: report?.startDate, endDate: report?.endDate })
+
+                const timesheets = await Timesheet.find({ userId: emp?.userId, jobId: emp?.jobId, clientId: clientIdFromReport, date: { $gte: fromDate, $lte: toDate } }).lean()
+
+                const dateList = [];
+                for (let d = moment(fromDate); d.isSameOrBefore(toDate); d.add(1, 'days')) {
+                    dateList.push(d.clone().format('YYYY-MM-DD'))
+                }
+
+                const timesheetMap = new Map()
+                timesheets.map(TS => {
+                    const dateKey = TS.date
+                    timesheetMap.set(dateKey, TS)
+                })
+
+                const today = moment().format('YYYY-MM-DD')
+
+                const allReports = dateList.map(dateObj => {
+                    const isFuture = moment(dateObj, 'YYYY-MM-DD').isAfter(today, 'day')
+                    const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
+                    const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
+    
+                    if (isWeekend || isFuture) return null
+                
+                    const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
+                
+                    const hasTimesheet = timesheetEntries.length > 0
+                    if (!hasTimesheet) return null;
+                    // const isAbsent = !hasTimesheet  && !isFuture
+
+                    const convertedTime = Array.isArray(timesheetEntries[0].clockinTime)
+                        ? timesheetEntries[0].clockinTime.map(entry => ({
+                            ...entry,
+                            clockIn: convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ"),
+                            clockOut: convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ"),
+                        })) : [];
+
+                    const timesheetData = hasTimesheet ? {
+                        // date: timesheetEntries[0]?.date,
+                        clockinTime: convertedTime,
+                        workingHours: secondsToTimeString(timeStringToSeconds(timesheetEntries[0]?.totalHours) - timeStringToSeconds(timesheetEntries[0]?.overTime)),
+                        overTime: timesheetEntries[0]?.overTime,
+                        totalHours: timesheetEntries[0]?.totalHours,
+                    } : undefined;
+                    // console.log('timesheetData:', timesheetData)
+                
+                    return {
+                        date: dateObj,
+                        timesheet: hasTimesheet,
+                        // absent: isAbsent,
+                        timesheetData: timesheetData ? timesheetData : {}
+                    }
+                }).filter(report => report !== null)
+
+                let totalHoursSeconds = 0
+                let overTimeSeconds = 0
+
+                for (const day of allReports) {
+                    if (day?.timesheet && day?.timesheetData && typeof day?.timesheetData === 'object') {
+                        totalHoursSeconds += timeStringToSeconds(day.timesheetData.totalHours || "0h 0m 0s")
+                        overTimeSeconds += timeStringToSeconds(day.timesheetData.overTime || "0h 0m 0s")
+                    }
+                }
+
+                const totalWorkingHours = secondsToTimeString(totalHoursSeconds - overTimeSeconds)
+                const totalHours = secondsToTimeString(totalHoursSeconds)
+                const overTime = secondsToTimeString(overTimeSeconds)
+                // const overTime = secondsToTimeString(overTimeSeconds)
+                if(allReports.length > 0){
+                    employeeTimesheet.push({
+                        userName: emp?.userName,
+                        jobTitle: emp?.jobTitle,
+                        jobRole: emp?.jobRole,
+                        totalWorkingHours,
+                        totalHours,
+                        overTime,
+                        timesheetData: allReports
+                    })
+                }
+            }
+
+            const reports = employeeTimesheet.slice(skip, skip + limit)
+            const totalReports = employeeTimesheet.length
+
+            const reportData = {
+                startDate: report?.startDate,
+                endDate: report?.endDate,
+                status: report?.status,
+                employeeTimesheetData: reports
+            }
 
             return res.send({
                 status: 200,
-                message: 'Report fetched successfully',
-                report: {
-                    ...report.toObject(),
-                    employees: formattedEmployees
-                },
-                totalEmployees,
-                totalPages: Math.ceil(totalEmployees / limit) || 1,
-                currentPage: page || 1
+                message: 'Timesheet report fetched successfully',
+                reports: reportData,
+                totalReports,
+                totalPages: Math.ceil(totalReports / limit),
+                currentPage: page
             })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
-        console.error('Error occurred while fetching report:', error)
+        console.error('Error occurred while fetching timesheet report:', error)
         return res.send({ status: 500, message: 'Error occurred while fetching report!' })
     }
 }
