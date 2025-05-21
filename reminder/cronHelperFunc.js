@@ -74,7 +74,7 @@ exports.generateLinkForClient = async (options) => {
 
         // console.log('newReqport:', newReport)
 
-        const emailLinks = []
+        let emailLinks = []
 
         for (const email of clientEmails) {
             const token = jwt.sign(
@@ -119,7 +119,7 @@ exports.generateLinkForClient = async (options) => {
                                     </a>
                                 </div>
                                 <p style="font-size: 14px; color: #777777;">
-                                    <strong>Note:</strong> Please ensure that you review and take the necessary action on each report.
+                                    <strong>Note:</strong> Please ensure that you review and take the necessary action on report.
                                 </p>
                             </div>
                         </div>

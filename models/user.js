@@ -55,14 +55,16 @@ const userSchema = new mongoose.Schema({
     sickLeavesAllow: {
       leaveType: {
         type: String,
-        enum: ['Day', 'Hour']
+        enum: ['Day', 'Hour'],
+        default: 'Day'
       },
       allowedLeavesCounts: Number
     },
     leavesAllow: {
       leaveType: {
         type: String,
-        enum: ['Day', 'Hour']
+        enum: ['Day', 'Hour'],
+        default: 'Day'
       },
       allowedLeavesCounts: Number
     },    

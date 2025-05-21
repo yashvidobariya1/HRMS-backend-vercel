@@ -16,6 +16,9 @@ const Task = require("../models/task");
 const Client = require("../models/client");
 const { default: mongoose } = require("mongoose");
 const { convertToEuropeanTimezone } = require("../utils/timezone");
+const Company = require("../models/company");
+const jwt = require('jsonwebtoken');
+const { transporter } = require('../utils/nodeMailer');
 
 exports.clockInFunc = async (req, res) => {
     try {
@@ -2213,5 +2216,113 @@ exports.getAllUsersAndClients = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while fetching users and clients:', error)
         return res.send({ status: 500, message: 'Error occurred while fetching users and clients' })
+    }
+}
+
+exports.regenerateReportLink = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const { reportId } = req.body
+
+            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
+            if(!report){
+                return res.send({ status: 404, message: 'Report not found' })
+            }
+
+            const companyId = report?.companyId.toString()
+            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+            if(!company){
+                return res.send({ status: 404, message: 'Company not found' })
+            }
+
+            const clientId = report?.clientId.toString()
+            const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+            if(!client){
+                return res.send({ status: 404, message: 'Client not foubnd' })
+            }
+
+            const { startDate, endDate, links } = report
+            const { reportFrequency, email: clientEmails } = client
+
+            const data = {
+                clientId,
+                companyId,
+                startDate,
+                endDate,
+                reportFrequency,
+                clientEmails,
+                links
+            }
+
+            let overlapQuery = {}
+
+            if(startDate && endDate && endDate !== ""){
+                overlapQuery.startDate = { $lte: endDate },
+                overlapQuery.endDate = { $gte: startDate }
+            } else if(startDate){
+                overlapQuery.startDate = startDate
+            }
+
+            let emailLinks = []
+
+            for (const email of clientEmails) {
+                const token = jwt.sign(
+                    { clientId, companyId, startDate, endDate, reportId, email, role: "Client" },
+                    process.env.JWT_SECRET
+                )
+    
+                const link = `${process.env.FRONTEND_URL}/employeestimesheet?token=${token}`
+    
+                links.push({ email, link, token })
+                emailLinks.push({ email, link, token })
+            }
+
+            await report.save()
+
+            for (const { email, link } of emailLinks) {
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: email,
+                    subject: 'Employee Timesheet Report',
+                    html:`
+                        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                                <div style="background-color: #007bff; color: #ffffff; padding: 20px 30px; text-align: center;">
+                                    <h1 style="margin: 0; font-size: 24px;">Employee Timesheet Report</h1>
+                                </div>
+                                <div style="padding: 30px;">
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Hello,
+                                    </p>
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Please click the link below to view the employee timesheet report for the period from 
+                                        <strong>${moment(startDate).format('DD-MM-YYYY')}</strong> to 
+                                        <strong>${moment(endDate).format('DD-MM-YYYY')}</strong>.
+                                    </p>
+                                    <p style="font-size: 16px; color: #333333;">
+                                        Note: This is Re-generated report list.
+                                    </p>
+                                    <div style="text-align: center; margin: 30px 0;">
+                                        <a href="${link}" style="display: inline-block; padding: 12px 25px; font-size: 16px; color: #ffffff; background-color: #28a745; text-decoration: none; border-radius: 5px;">
+                                            View Report List
+                                        </a>
+                                    </div>
+                                    <p style="font-size: 14px; color: #777777;">
+                                        <strong>Note:</strong> Please ensure that you review and take the necessary action on report.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }
+                transporter.sendMail(mailOptions)
+            }
+
+            return res.send({ status: 200, message: 'Client report re-generated successfully.', data })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while re-generate report link:', error)
+        return res.send({ status: 500, message: 'Error occurred while re-generate report link!' })
     }
 }

@@ -573,6 +573,8 @@ exports.addUser = async (req, res) => {
                 isFormFilled
             } = req.body
 
+            const lowerCaseEmail = personalDetails?.email.toLowerCase()
+
             // let companyId
             // const locationId = jobDetails[0]?.location
             // const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
@@ -601,7 +603,7 @@ exports.addUser = async (req, res) => {
             }
 
             if (personalDetails && personalDetails.email) {
-                const user = await User.findOne({ "personalDetails.email": personalDetails.email, isDeleted: { $ne: true } })
+                const user = await User.findOne({ "personalDetails.email": lowerCaseEmail, isDeleted: { $ne: true } })
                 if (user) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
@@ -615,11 +617,11 @@ exports.addUser = async (req, res) => {
             }
 
             if(
-                !personalDetails.firstName || !personalDetails.lastName || !personalDetails.dateOfBirth || !personalDetails.gender || !personalDetails.maritalStatus || !personalDetails.phone || !personalDetails.email || !personalDetails.sendRegistrationLink ||
-                !addressDetails.address || !addressDetails.city || !addressDetails.postCode ||
-                !kinDetails.kinName || !kinDetails.postCode || !kinDetails.address || !kinDetails.emergencyContactNumber ||
-                !financialDetails.bankName || !financialDetails.holderName || !financialDetails.sortCode || !financialDetails.accountNumber || !financialDetails.payrollFrequency || !financialDetails.pension ||
-                !immigrationDetails.passportNumber || !immigrationDetails.countryOfIssue || !immigrationDetails.passportExpiry || !immigrationDetails.nationality || !immigrationDetails.rightToWorkCheckDate
+                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email || !personalDetails?.sendRegistrationLink ||
+                !addressDetails?.address || !addressDetails?.city || !addressDetails?.postCode ||
+                !kinDetails?.kinName || !kinDetails?.postCode || !kinDetails?.address || !kinDetails?.emergencyContactNumber ||
+                !financialDetails?.bankName || !financialDetails?.holderName || !financialDetails?.sortCode || !financialDetails?.accountNumber || !financialDetails?.payrollFrequency || !financialDetails?.pension ||
+                !immigrationDetails?.passportNumber || !immigrationDetails?.countryOfIssue || !immigrationDetails?.passportExpiry || !immigrationDetails?.nationality || !immigrationDetails?.rightToWorkCheckDate
             ){
                 FormFilled = false
             }
@@ -786,7 +788,7 @@ exports.addUser = async (req, res) => {
 
             let userData = {
                 EMPLOYEE_NAME: `${personalDetails?.firstName} ${personalDetails?.lastName}`,
-                EMPLOYEE_EMAIL: personalDetails?.email,
+                EMPLOYEE_EMAIL: lowerCaseEmail,
                 EMPLOYEE_CONTACT_NUMBER: personalDetails?.phone,
                 JOB_ROLE: 'JOB_ROLE',
                 JOB_START_DATE: 'START_DATE',
@@ -818,7 +820,10 @@ exports.addUser = async (req, res) => {
             }
 
             const newUser = {
-                personalDetails,
+                personalDetails: {
+                    ...personalDetails,
+                    email: lowerCaseEmail,
+                },
                 addressDetails,
                 kinDetails,
                 financialDetails,
@@ -839,7 +844,7 @@ exports.addUser = async (req, res) => {
                     const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
                     let mailOptions = {
                         from: process.env.NODEMAILER_EMAIL,
-                        to: newUser.personalDetails.email,
+                        to: lowerCaseEmail,
                         subject: `Welcome to ${company?.companyDetails?.businessName}'s City Clean Portal`,
                         html: `
                             <p>Welcome to City Clean Portal!</p>
@@ -848,7 +853,7 @@ exports.addUser = async (req, res) => {
 
                             <ul>
                                 <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
-                                <li><b>Email:</b> ${personalDetails.email}</li>
+                                <li><b>Email:</b> ${lowerCaseEmail}</li>
                                 <li><b>Position:</b> ${jobDetails[0].jobTitle}</li>
                                 <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
                             </ul>
@@ -857,7 +862,7 @@ exports.addUser = async (req, res) => {
 
                             <ul>
                                 <li><b>City Clean Portal Link:</b> <a href="${process.env.FRONTEND_URL}">City Clean Portal</a></li>
-                                <li><b>Username/Email:</b> ${personalDetails.email}</li>
+                                <li><b>Username/Email:</b> ${lowerCaseEmail}</li>
                                 <li><b>Temporary Password:</b> ${generatePass()}</li>
                             </ul>
 
@@ -1180,8 +1185,10 @@ exports.updateUserDetails = async (req, res) => {
                 contractDetails,
             } = req.body
 
-            if (personalDetails.email && user.personalDetails.email != personalDetails.email) {
-                const existingEmail = await User.findOne({ "personalDetails.email": personalDetails.email })
+            const lowerCaseEmail = personalDetails?.email.toLowerCase()
+
+            if (personalDetails.email && user.personalDetails.email != lowerCaseEmail) {
+                const existingEmail = await User.findOne({ "personalDetails.email": lowerCaseEmail })
                 if (existingEmail) {
                     return res.send({ status: 409, message: "Email already exists." });
                 }
@@ -1402,7 +1409,7 @@ exports.updateUserDetails = async (req, res) => {
 
                 let userData = {
                     EMPLOYEE_NAME: `${personalDetails?.firstName} ${personalDetails?.lastName}`,
-                    EMPLOYEE_EMAIL: personalDetails?.email,
+                    EMPLOYEE_EMAIL: lowerCaseEmail,
                     EMPLOYEE_CONTACT_NUMBER: personalDetails?.phone,
                     JOB_START_DATE: 'START_DATE',
                     EMPLOYEE_JOB_TITLE: 'JOB_TITLE',
@@ -1416,7 +1423,7 @@ exports.updateUserDetails = async (req, res) => {
                 
                 let mailOptions = {
                     from: process.env.NODEMAILER_EMAIL,
-                    to: personalDetails?.email,
+                    to: lowerCaseEmail,
                     subject: "Your contract will be updated",
                     html: `
                         <p>Dear ${personalDetails?.firstName}${personalDetails?.lastName},</p>
@@ -1431,11 +1438,11 @@ exports.updateUserDetails = async (req, res) => {
             let isFormFilled = true
 
             if(
-                !personalDetails.firstName || !personalDetails.lastName || !personalDetails.dateOfBirth || !personalDetails.gender || !personalDetails.maritalStatus || !personalDetails.phone || !personalDetails.email || !personalDetails.sendRegistrationLink ||
-                !addressDetails.address || !addressDetails.city || !addressDetails.postCode ||
-                !kinDetails.kinName || !kinDetails.postCode || !kinDetails.address || !kinDetails.emergencyContactNumber ||
-                !financialDetails.bankName || !financialDetails.holderName || !financialDetails.sortCode || !financialDetails.accountNumber || !financialDetails.payrollFrequency || !financialDetails.pension ||
-                !immigrationDetails.passportNumber || !immigrationDetails.countryOfIssue || !immigrationDetails.passportExpiry || !immigrationDetails.nationality || !immigrationDetails.rightToWorkCheckDate
+                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email || !personalDetails?.sendRegistrationLink ||
+                !addressDetails?.address || !addressDetails?.city || !addressDetails?.postCode ||
+                !kinDetails?.kinName || !kinDetails?.postCode || !kinDetails?.address || !kinDetails?.emergencyContactNumber ||
+                !financialDetails?.bankName || !financialDetails?.holderName || !financialDetails?.sortCode || !financialDetails?.accountNumber || !financialDetails?.payrollFrequency || !financialDetails?.pension ||
+                !immigrationDetails?.passportNumber || !immigrationDetails?.countryOfIssue || !immigrationDetails?.passportExpiry || !immigrationDetails?.nationality || !immigrationDetails?.rightToWorkCheckDate
             ){
                 isFormFilled = false
             }
@@ -1444,7 +1451,10 @@ exports.updateUserDetails = async (req, res) => {
                 { _id: userId },
                 {
                     $set: {
-                        personalDetails,
+                        personalDetails: {
+                            ...personalDetails,
+                            email: lowerCaseEmail,
+                        },
                         addressDetails,
                         kinDetails,
                         financialDetails,

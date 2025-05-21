@@ -4,7 +4,7 @@ const { getClientUsers, getGeneratedReports, approveReport, rejectReport, getRep
 
 const clientRoute = Router()
 
-clientRoute.get('/getReport/:id', auth, getReport)
+clientRoute.get('/getReport', auth, getReport)
 clientRoute.get('/getReportForClient', auth, getReport)
 clientRoute.get('/getAllReports', auth, getGeneratedReports)
 // clientRoute.get('/clientUsers', getClientUsers)

@@ -201,6 +201,96 @@ exports.getAllClient = async (req, res) => {
     // }
 }
 
+// for get all client with latest generated qrcode, this API is not working right now
+// exports.getAllClient = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+//         if (!allowedRoles.includes(req.user.role)) {
+//             return res.send({ status: 403, message: 'Access denied' })
+//         }
+
+//         const page = parseInt(req.query.page) || 1
+//         const limit = parseInt(req.query.limit) || 50
+//         const companyId = req.query.companyId
+//         const searchQuery = req.query.search ? req.query.search.trim() : ''
+//         const skip = (page - 1) * limit
+
+//         let baseMatch = { isDeleted: { $ne: true } }
+
+//         if (companyId && companyId !== 'allCompany') {
+//             baseMatch.companyId = new mongoose.Types.ObjectId(companyId)
+//         } else if (req.user.role !== 'Superadmin') {
+//             baseMatch.companyId = req.user.companyId
+//         }
+
+//         if (searchQuery) {
+//             baseMatch.clientName = { $regex: searchQuery, $options: "i" }
+//         }
+
+//         const [result] = await Client.aggregate([
+//             { $match: baseMatch },
+//             {
+//                 $facet: {
+//                     clients: [
+//                         { $skip: skip },
+//                         { $limit: limit },
+//                         {
+//                             $lookup: {
+//                                 from: "QRCodes", // collection name for QR codes
+//                                 let: { clientId: "$_id", companyId: "$companyId" },
+//                                 pipeline: [
+//                                     { $match: {
+//                                         $expr: {
+//                                             $and: [
+//                                                 { $eq: ["$clientId", "$$clientId"] },
+//                                                 { $eq: ["$companyId", "$$companyId"] },
+//                                                 { $ne: ["$isActive", false] }
+//                                             ]
+//                                         }
+//                                     }},
+//                                     { $sort: { createdAt: -1 } },
+//                                     { $limit: 1 }
+//                                 ],
+//                                 as: "latestQRCode"
+//                             }
+//                         },
+//                         {
+//                             $project: {
+//                                 _id: 1,
+//                                 clientName: 1,
+//                                 contactNumber: 1,
+//                                 email: 1,
+//                                 city: 1,
+//                                 latestQRCode: { $arrayElemAt: ["$latestQRCode", 0] }
+//                             }
+//                         }
+//                     ],
+//                     total: [
+//                         { $match: baseMatch },
+//                         { $count: 'count' }
+//                     ]
+//                 }
+//             }
+//         ])
+
+//         const clients = result.clients || []
+//         const totalClients = result.total.length > 0 ? result.total[0].count : 0
+
+//         return res.send({
+//             status: 200,
+//             message: 'Clients and their latest QR code fetched successfully',
+//             clients,
+//             totalClients,
+//             totalPages: Math.ceil(totalClients / limit) || 1,
+//             currentPage: page
+//         })
+
+//     } catch (error) {
+//         console.error('Error occurred while fetching clients and QR codes:', error)
+//         return res.send({ status: 500, message: 'Error occurred while fetching clients and QR codes' })
+//     }
+// }
+
 exports.getCompanyClients = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator']
@@ -582,6 +672,7 @@ exports.getGeneratedReports = async (req, res) => {
                     createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
                     _id: report._id,
                     createdAt: report?.createdAt,
+                    actionBy: report?.actionBy,
                     status: report?.status,
                     // status: hasStatusPending ? 'Pending' : 'Reviewed',
                 })
@@ -841,7 +932,7 @@ exports.getReport = async (req, res) => {
             const limit = parseInt(req.query.limit) || 10
 
             const skip = (page - 1) * limit
-            const reportId = req.params.id || req.token.reportId
+            const reportId = req.query.reportId || req.token.reportId
             const companyId = req.query.companyId
 
             const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } }).lean()
@@ -1082,34 +1173,55 @@ exports.getClientUsers = async (req, res) => {
 
 exports.approveReport = async (req, res) => {
     try {
-        const {
-            reportId,
-            // userId,
-            jobId
-        } = req.body
+        if(req.token?.role === 'Client'){
+            // const {
+            //     reportId,
+            //     // userId,
+            //     // jobId
+            // } = req.body
 
-        const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
-        if(!report){
-            return res.send({ status: 404, message: 'Report not found' })
-        }
+            // console.log('req.token:', req.token)
+            const reportId = req.token?.reportId
+            const clientEmail = req.token?.email
 
-        report?.employees.map(user => {
-            // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
-            if(user?.jobId?.toString() == jobId){
-                user.status = "Approved"
+            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
+            if(!report){
+                return res.send({ status: 404, message: 'Report not found' })
             }
-        })
 
-        await report.save()
-
-        let employeeData
-        report?.employees.map((emp) => {
-            if(emp?.jobId?.toString() == jobId){
-                employeeData = emp
+            if(report?.status !== 'Pending'){
+                return res.send({ status: 400, message: "You've already taken this action, you can't perform it again." })
             }
-        })
 
-        return res.send({ status: 200, message: 'Employee report approved successfully', report: employeeData })
+            const updatedReport = await EmployeeReport.findOneAndUpdate(
+                { _id: reportId, isDeleted: { $ne: true } },
+                {
+                    $set: {
+                        status: 'Approved',
+                        actionBy: clientEmail,
+                    }
+                },
+                { new: true }
+            )
+
+            // report?.employees.map(user => {
+            //     // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            //     if(user?.jobId?.toString() == jobId){
+            //         user.status = "Approved"
+            //     }
+            // })
+
+            // await report.save()
+
+            // let employeeData
+            // report?.employees.map((emp) => {
+            //     if(emp?.jobId?.toString() == jobId){
+            //         employeeData = emp
+            //     }
+            // })
+
+            return res.send({ status: 200, message: 'Employee report approved successfully', updatedReport })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.log('Error occurred while processing approval')
         return res.send({ status: 500, message: 'Error occurred while processing approval!' })
@@ -1118,40 +1230,61 @@ exports.approveReport = async (req, res) => {
 
 exports.rejectReport = async (req, res) => {
     try {
-        const {
-            reportId,
-            // userId,
-            jobId,
-            reason
-        } = req.body
+        if(req.token?.role === 'Client'){        
+            const {
+                // reportId,
+                // userId,
+                // jobId,
+                reason
+            } = req.body
 
-        const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
-        if(!report){
-            return res.send({ status: 404, message: 'Report not found' })
-        }
+            const reportId = req.token?.reportId
+            const clientEmail = req.token?.email
 
-        // if(!reason){
-        //     return res.send({ status: 400, message: 'Rejection reason is required!' })
-        // }
-
-        report?.employees.map(user => {
-            // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
-            if(user?.jobId?.toString() == jobId){
-                user.status = "Rejected"
-                user.rejectionReason = reason
+            const report = await EmployeeReport.findOne({ _id: reportId, isDeleted: { $ne: true } })
+            if(!report){
+                return res.send({ status: 404, message: 'Report not found' })
             }
-        })
 
-        await report.save()
-
-        let employeeData
-        report?.employees.map((emp) => {
-            if(emp?.jobId?.toString() == jobId){
-                employeeData = emp
+            if(report?.status !== 'Pending'){
+                return res.send({ status: 400, message: "You've already taken this action, you can't perform it again." })
             }
-        })
 
-        return res.send({ status: 200, message: 'Employee report rejected successfully', report: employeeData })
+            // if(!reason){
+            //     return res.send({ status: 400, message: 'Rejection reason is required!' })
+            // }
+
+            const updatedReport = await EmployeeReport.findOneAndUpdate(
+                { _id: reportId, isDeleted: { $ne: true } },
+                {
+                    $set: {
+                        status: 'Rejected',
+                        rejectionReason: reason,
+                        actionBy: clientEmail,
+                    }
+                },
+                { new: true }
+            )
+
+            // report?.employees.map(user => {
+            //     // if(user?.userId?.toString() == userId && user?.jobId?.toString() == jobId){
+            //     if(user?.jobId?.toString() == jobId){
+            //         user.status = "Rejected"
+            //         user.rejectionReason = reason
+            //     }
+            // })
+
+            // await report.save()
+
+            // let employeeData
+            // report?.employees.map((emp) => {
+            //     if(emp?.jobId?.toString() == jobId){
+            //         employeeData = emp
+            //     }
+            // })
+
+            return res.send({ status: 200, message: 'Employee report rejected successfully', updatedReport })
+        } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.log('Error occurred while processing rejection')
         return res.send({ status: 500, message: 'Error occurred while processing rejection!' })
