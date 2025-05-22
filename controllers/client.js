@@ -1030,8 +1030,8 @@ exports.getReport = async (req, res) => {
                     const convertedTime = Array.isArray(timesheetEntries[0].clockinTime)
                         ? timesheetEntries[0].clockinTime.map(entry => ({
                             ...entry,
-                            clockIn: convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ"),
-                            clockOut: convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ"),
+                            clockIn: convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss"),
+                            clockOut: convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss"),
                         })) : [];
 
                     const timesheetData = hasTimesheet ? {
