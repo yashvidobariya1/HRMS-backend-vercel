@@ -877,8 +877,8 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 
             if (timesheet) {
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
 
                     return {
                         ...entry.toObject?.() ?? entry,
@@ -1000,8 +1000,8 @@ exports.getAllTimeSheets = async (req, res) => {
 
             for(const timesheet of timesheets){
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
     
                     return {
                         ...entry.toObject?.() ?? entry,
@@ -1144,8 +1144,8 @@ exports.getTimesheetReport = async (req, res) => {
 
             for(const timesheet of timesheets){
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : null
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : null
+                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
     
                     return {
                         ...entry.toObject?.() ?? entry,
@@ -1821,8 +1821,8 @@ exports.downloadTimesheetReport = async (req, res) => {
 
             for(const timesheet of timesheets){
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
     
                     return {
                         ...entry.toObject?.() ?? entry,

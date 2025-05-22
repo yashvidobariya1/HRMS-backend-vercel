@@ -513,8 +513,8 @@ const getTodaysClocking = async (userId, jobId) => {
 
         for(const timesheet of TodaysClockingData){
             timesheet.clockEntries = timesheet.clockEntries.map(entry => {
-                const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
-                const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+                const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
 
                 return {
                     ...entry.toObject?.() ?? entry,

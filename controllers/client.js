@@ -885,8 +885,8 @@ const secondsToTimeString = (totalSeconds) => {
 //                                 jobTitle: emp.jobTitle,
 //                                 jobRole: emp.jobRole,
 //                                 date: dateStr,
-//                                 clockIn: convertToEuropeanTimezone(slot.clockIn).format("YYYY-MM-DDTHH:mm:ssZ"),
-//                                 clockOut: convertToEuropeanTimezone(slot.clockOut).format("YYYY-MM-DDTHH:mm:ssZ"),
+//                                 clockIn: convertToEuropeanTimezone(slot.clockIn).format("YYYY-MM-DD HH:mm:ss"),
+//                                 clockOut: convertToEuropeanTimezone(slot.clockOut).format("YYYY-MM-DD HH:mm:ss"),
 //                                 totalTiming: slot.totalTiming,
 //                                 overTime: slot.overTime ?? '0h 0m 0s',
 //                                 totalHours: slot.totalTiming

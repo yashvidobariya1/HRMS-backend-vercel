@@ -52,8 +52,8 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
             const formattedUsers = users.length > 0 ? users.map(user => ({
                 _id: user._id,
                 userName: `${user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`}` || "",
-                lastTimeLoggedIn: convertToEuropeanTimezone(user?.lastTimeLoggedIn).format("YYYY-MM-DDTHH:mm:ssZ") || "",
-                lastTimeAccess: convertToEuropeanTimezone(user?.lastTimeAccess).format("YYYY-MM-DDTHH:mm:ssZ") || "",
+                lastTimeLoggedIn: convertToEuropeanTimezone(user?.lastTimeLoggedIn).format("YYYY-MM-DD HH:mm:ss") || "",
+                lastTimeAccess: convertToEuropeanTimezone(user?.lastTimeAccess).format("YYYY-MM-DD HH:mm:ss") || "",
                 status: user?.isLoggedIn || "",
                 role: user?.role,
                 browser: user?.usedBrowser || "",
