@@ -689,6 +689,7 @@ exports.clockInForEmployee = async (req, res) => {
                     userId,
                     jobId,
                     date,
+                    clientId,
                     clockinTime: [],
                     totalHours: '0h 0m 0s'
                 })
