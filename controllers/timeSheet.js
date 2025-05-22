@@ -1144,8 +1144,8 @@ exports.getTimesheetReport = async (req, res) => {
 
             for(const timesheet of timesheets){
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DDTHH:mm:ssZ") : null
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DDTHH:mm:ssZ") : null
+                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : null
+                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : null
     
                     return {
                         ...entry.toObject?.() ?? entry,
