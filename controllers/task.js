@@ -234,43 +234,67 @@ exports.createTask = async (req, res) => {
                 // newTask.clientId = clientId
             }
 
-            const start = moment(startDate)
-            const end = moment(endDate)
-            if(!start.isValid() || !end.isValid() || end.isBefore(start)){
-                return res.send({ status: 400, message: 'Invalid startDate or endDate' })
-            }
+            if(startDate !== "" && endDate !== "" && startDate && endDate){
+                const start = moment(startDate)
+                const end = moment(endDate)
+                if(!start.isValid() || !end.isValid() || end.isBefore(start)){
+                    return res.send({ status: 400, message: 'Invalid start date or end date' })
+                }
 
-            const tasks = []
-            const dates = []
+                const tasks = []
+                const dates = []
 
-            for(let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')){
-                dates.push(m.format('YYYY-MM-DD'))
-            }
+                for(let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')){
+                    dates.push(m.format('YYYY-MM-DD'))
+                }
 
-            for (const date of dates) {
+                for (const date of dates) {
+                    const newTask = {
+                        taskName,
+                        taskDescription,
+                        taskDate: date,
+                        startTime,
+                        endTime,
+                        userId,
+                        jobId,
+                        creatorId: req.user._id,
+                    }
+
+                    if (locationId) {
+                        newTask.locationId = locationId
+                    } else {
+                        newTask.clientId = clientId
+                    }
+
+                    tasks.push(newTask)
+                }
+
+                await Task.insertMany(tasks)
+            } else if(startDate !== "" && (!endDate || endDate == "")){
+                const start = moment(startDate)
+                if(!start.isValid()){
+                    return res.send({ status: 400, message: 'Invalid start date' })
+                }
+
                 const newTask = {
                     taskName,
                     taskDescription,
-                    taskDate: date,
+                    taskDate: startDate,
                     startTime,
                     endTime,
                     userId,
                     jobId,
                     creatorId: req.user._id,
-                };
-
-                if (locationId) {
-                    newTask.locationId = locationId;
-                } else {
-                    newTask.clientId = clientId;
                 }
 
-                tasks.push(newTask);
+                if (locationId) {
+                    newTask.locationId = locationId
+                } else {
+                    newTask.clientId = clientId
+                }
+
+                await Task.create(newTask)
             }
-
-            const insertedTasks = await Task.insertMany(tasks)
-
-            // const task = await Task.create(newTask)
 
             return res.send({ status: 200, message: 'Task created successfully' })
         } else return res.send({ status: 403, message: 'Access denied' })

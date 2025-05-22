@@ -98,16 +98,16 @@ exports.leaveRequest = async (req, res) => {
             }
 
             let effectiveLeaveDays = 0
-            let weekends = 0
+            // let weekends = 0
             let holidaysInLeavePeriod = 0
 
             for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'days')) {
                 let formattedDate = date.format('YYYY-MM-DD')
 
-                if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
-                    weekends++
-                    continue
-                }
+                // if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
+                //     weekends++
+                //     continue
+                // }
 
                 if (holidayDates.includes(formattedDate)) {
                     holidaysInLeavePeriod++
@@ -118,7 +118,7 @@ exports.leaveRequest = async (req, res) => {
             }
 
             if (effectiveLeaveDays <= 0) {
-                return res.send({ status: 400, message: "Selected leave period contains weekends or holidays, no leave required!" })
+                return res.send({ status: 400, message: "Selected leave period contains holidays, no leave required!" })
             }
 
             let leaveDays
@@ -752,16 +752,16 @@ exports.updateLeaveRequest = async (req, res) => {
             }
 
             let effectiveLeaveDays = 0
-            let weekends = 0
+            // let weekends = 0
             let holidaysInLeavePeriod = 0
 
             for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'days')) {
                 let formattedDate = date.format('YYYY-MM-DD')
 
-                if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
-                    weekends++
-                    continue
-                }
+                // if (date.isoWeekday() === 6 || date.isoWeekday() === 7) {
+                //     weekends++
+                //     continue
+                // }
 
                 if (holidayDates.includes(formattedDate)) {
                     holidaysInLeavePeriod++
@@ -772,7 +772,7 @@ exports.updateLeaveRequest = async (req, res) => {
             }
 
             if (effectiveLeaveDays <= 0) {
-                return res.send({ status: 400, message: "Selected leave period contains weekends or holidays, no leave required!" })
+                return res.send({ status: 400, message: "Selected leave period contains holidays, no leave required!" })
             }
 
             let leaveDays

@@ -10,33 +10,35 @@ const { leaveActionReminder, clockInOutReminder, visaExpiryReminder, autoGenerat
 // │ │ │ │ │
 // 0 9 * * *  command-to-run
 
-// cron.schedule('0 9 * * *', async () => {
-//     const tomorrow = moment().add(1, 'days').format('YYYY-MM-DD')
-//     await leaveActionReminder(tomorrow)
-//     console.log(`✅ Reminder sent for action required on pending Leave Request.`)
-// }, {
-//     // timezone: "Europe/London" // Adjust timezone as needed
-// })
+// leave action reminder (09:00 AM)
+cron.schedule('0 9 * * *', async () => {
+    const tomorrow = moment().add(1, 'days').format('YYYY-MM-DD')
+    await leaveActionReminder(tomorrow)
+    console.log(`✅ Reminder sent for action required on pending Leave Request.`)
+}, {
+    // timezone: "Europe/London" // Adjust timezone as needed
+})
 
-// // Clock-In Reminder (9:10 AM)
-// cron.schedule('10 9 * * *', async () => {
-//     const today = moment().format('YYYY-MM-DD')
-//     await clockInOutReminder('clock-in', today)
-//     console.log("✅ Reminder sent for missing clock-in.")
-// }, {
-//     // timezone: "Europe/London" // Adjust timezone as needed
-// })
+// Clock-In Reminder (9:10 AM)
+cron.schedule('10 9 * * *', async () => {
+    const today = moment().format('YYYY-MM-DD')
+    await clockInOutReminder('clock-in', today)
+    console.log("✅ Reminder sent for missing clock-in.")
+}, {
+    // timezone: "Europe/London" // Adjust timezone as needed
+})
 
-// // Clock-Out Reminder (6:10 PM)
-// cron.schedule('10 18 * * *', async () => {
-//     const today = moment().format('YYYY-MM-DD')
-//     await clockInOutReminder('clock-out', today)
-//     console.log("✅ Reminder sent for missing clock-out.")
-// }, {
-//     // timezone: "Europe/London" // Adjust timezone as needed
-// })
+// Clock-Out Reminder (6:10 PM)
+cron.schedule('10 18 * * *', async () => {
+    const today = moment().format('YYYY-MM-DD')
+    await clockInOutReminder('clock-out', today)
+    console.log("✅ Reminder sent for missing clock-out.")
+}, {
+    // timezone: "Europe/London" // Adjust timezone as needed
+})
 
-cron.schedule('* 9 * * *', async () => {
+// leave action reminder (08:00 AM)
+cron.schedule('* 8 * * *', async () => {
     const today = moment().startOf('day').format('YYYY-MM-DD')
     const afterTenDaysDate = moment().add(10, 'days').startOf('day').format('YYYY-MM-DD')
     await visaExpiryReminder(today, afterTenDaysDate)
@@ -45,7 +47,8 @@ cron.schedule('* 9 * * *', async () => {
     // timezone: "Europe/London" // Adjust timezone as needed
 })
 
-cron.schedule('* * * * *', async () => {
+// auto generate report every 30 min
+cron.schedule('*/30 * * * *', async () => {
     console.log('call auto generate report')
     await autoGenerateClientReport()
     console.log("✅ Clients report generate successfully.")

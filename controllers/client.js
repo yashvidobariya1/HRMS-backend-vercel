@@ -624,7 +624,7 @@ exports.getGeneratedReports = async (req, res) => {
                     isDeleted: false
                 }},
                 { $lookup: {
-                    from: 'clients', // Make sure this matches the actual collection name
+                    from: 'clients', // collection name
                     localField: 'clientId',
                     foreignField: '_id',
                     as: 'clientData'
@@ -632,7 +632,7 @@ exports.getGeneratedReports = async (req, res) => {
                 { $unwind: '$clientData' },
                 { $match: query },
                 { $lookup: {
-                    from: 'users', // Assuming creatorId refers to a user
+                    from: 'users',
                     localField: 'creatorId',
                     foreignField: '_id',
                     as: 'creatorData'
@@ -650,6 +650,7 @@ exports.getGeneratedReports = async (req, res) => {
                     companyId: 1,
                     employees: 1,
                     links: 1,
+                    actionBy: 1,
                     createdAt: 1,
                     updatedAt: 1,
                     reportFrequency: 1,
@@ -672,7 +673,7 @@ exports.getGeneratedReports = async (req, res) => {
                     createdBy: `${report?.creatorId?.personalDetails?.lastName ? `${report?.creatorId?.personalDetails?.firstName} ${report?.creatorId?.personalDetails?.lastName}` : `${report?.creatorId?.personalDetails?.firstName}`}`,
                     _id: report._id,
                     createdAt: report?.createdAt,
-                    actionBy: report?.actionBy,
+                    actionBy: report?.actionBy || "",
                     status: report?.status,
                     // status: hasStatusPending ? 'Pending' : 'Reviewed',
                 })
@@ -930,6 +931,7 @@ exports.getReport = async (req, res) => {
         if(allowedRoles.includes(req.user?.role) || req.token?.role === 'Client'){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 10
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
 
             const skip = (page - 1) * limit
             const reportId = req.query.reportId || req.token.reportId
@@ -954,8 +956,20 @@ exports.getReport = async (req, res) => {
             const companyIdFromReport = report?.companyId?.toString()
             const clientIdFromReport = report?.clientId?.toString()
 
+            let query = {
+                companyId: new mongoose.Types.ObjectId(String(companyIdFromReport)),
+                isDeleted: { $ne: true },
+            }
+
+            if(searchQuery){
+                query.$or = [
+                    { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
+                    { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
+                ]
+            }
+
             const employees = await User.aggregate([
-                { $match: { companyId: new mongoose.Types.ObjectId(String(companyIdFromReport)), isDeleted: { $ne: true } } },
+                { $match: query },
                 { $unwind: "$jobDetails" },
                 { $match: {
                     "jobDetails.isWorkFromOffice": false,
@@ -1064,10 +1078,23 @@ exports.getReport = async (req, res) => {
                 }
             }
 
+            let empTotalHoursInSecound = 0
+
+            for(const TS of employeeTimesheet){
+                if(TS?.totalHours){
+                    empTotalHoursInSecound += timeStringToSeconds(TS?.totalHours || "0h 0m 0s")
+                }
+            }
+
+            const empTotalHours = secondsToTimeString(empTotalHoursInSecound)
+
             const reports = employeeTimesheet.slice(skip, skip + limit)
             const totalReports = employeeTimesheet.length
 
             const reportData = {
+                rejectionReason: report?.rejectionReason || "",
+                actionBy: report?.actionBy,
+                totalHoursOfEmployees: empTotalHours,
                 startDate: report?.startDate,
                 endDate: report?.endDate,
                 status: report?.status,

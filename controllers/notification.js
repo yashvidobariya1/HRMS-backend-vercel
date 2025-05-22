@@ -156,7 +156,17 @@ exports.getNotifications = async (req, res) => {
                 {
                     $addFields: {
                         userName: {
-                            $concat: ["$user.personalDetails.firstName", " ", "$user.personalDetails.lastName"] 
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $ne: [{ $ifNull: ["$user.personalDetails.lastName", ""] }, ""] }
+                                    ]
+                                },
+                                then: {
+                                    $concat: [ "$user.personalDetails.firstName", " ", "$user.personalDetails.lastName" ]
+                                },
+                                else: "$user.personalDetails.firstName"
+                            }
                         },
                         isRead: {
                             $max: {

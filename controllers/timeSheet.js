@@ -1217,7 +1217,8 @@ exports.getTimesheetReport = async (req, res) => {
                 const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
                 const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
 
-                if (isWeekend || isFuture) return null
+                if (isFuture) return null
+                // if (isWeekend || isFuture) return null
             
                 // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
                 const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)
@@ -1329,6 +1330,16 @@ exports.getTimesheetReport = async (req, res) => {
 exports.getAbsenceReport = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(req.user?.role == 'Superadmin' && req.body.userId == ""){
+            return res.send({
+                status: 200,
+                message: 'Timesheet report fetched successfully',
+                report: [],
+                totalReports: 0,
+                totalPages: 1,
+                currentPage: 1
+            })
+        }
         if(allowedRoles.includes(req.user?.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
@@ -1442,7 +1453,8 @@ exports.getAbsenceReport = async (req, res) => {
                 const dayOfWeek = moment(dateObj, 'YYYY-MM-DD').day()
                 const isWeekend = dayOfWeek === 6 || dayOfWeek === 0
 
-                if (isWeekend || isFuture) return null
+                if (isFuture) return null
+                // if (isWeekend || isFuture) return null
             
                 // const timesheetEntries = timesheets.filter(TS => TS.createdAt.toISOString().split("T")[0] === dateObj)
                 const timesheetEntries = timesheets.filter(TS => TS.date === dateObj)

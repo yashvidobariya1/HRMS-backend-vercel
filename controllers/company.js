@@ -148,6 +148,7 @@ exports.getAllCompany = async (req, res) => {
                                     'companyDetails.businessName': 1,
                                     'companyDetails.companyCode': 1,
                                     'companyDetails.city': 1,
+                                    'companyDetails.companyLogo': 1,
                                 }
                             }
                         ],
