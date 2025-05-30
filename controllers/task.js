@@ -3,6 +3,8 @@ const moment = require('moment')
 const User = require('../models/user')
 const Client = require('../models/client')
 const Location = require('../models/location')
+const momentTimeZone = require('moment-timezone')
+const { convertToEuropeanTimezone } = require('../utils/timezone')
 
 // exports.createTask = async (req, res) => {
 //     try {
@@ -253,8 +255,8 @@ exports.createTask = async (req, res) => {
                         taskName,
                         taskDescription,
                         taskDate: date,
-                        startTime,
-                        endTime,
+                        startTime: momentTimeZone.tz(`${date}T${startTime}`, 'Europe/London').utc().format('HH:mm'),
+                        endTime: momentTimeZone.tz(`${date}T${endTime}`, 'Europe/London').utc().format('HH:mm'),
                         userId,
                         jobId,
                         creatorId: req.user._id,
@@ -280,8 +282,8 @@ exports.createTask = async (req, res) => {
                     taskName,
                     taskDescription,
                     taskDate: startDate,
-                    startTime,
-                    endTime,
+                    startTime: momentTimeZone.tz(`${startDate}T${startTime}`, 'Europe/London').utc().format('HH:mm'),
+                    endTime: momentTimeZone.tz(`${startDate}T${endTime}`, 'Europe/London').utc().format('HH:mm'),
                     userId,
                     jobId,
                     creatorId: req.user._id,
@@ -403,6 +405,8 @@ exports.getAllTasks = async (req, res) => {
             const formattedTasks = tasks.map(task => {
                 return {
                     ...task.toObject(),
+                    startTime: convertToEuropeanTimezone(`${task.taskDate}T${task.startTime}:00.000Z`).format('HH:mm'),
+                    endTime: convertToEuropeanTimezone(`${task.taskDate}T${task.endTime}:00.000Z`).format('HH:mm'),
                     createdBy: `${ task?.creatorId?.personalDetails?.lastName ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName}` : `${task?.creatorId?.personalDetails?.firstName}` }`,
                     creatorId: task?.creatorId?._id
                 }
@@ -457,7 +461,7 @@ exports.updateTask = async (req, res) => {
 
 exports.canceledTask = async (req, res) => {
     try {
-        const allowedRoles = ['Administrator', 'Manager']
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
             const taskId = req.params.id
 

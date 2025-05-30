@@ -16,16 +16,22 @@ cron.schedule('0 9 * * *', async () => {
     await leaveActionReminder(tomorrow)
     console.log(`✅ Reminder sent for action required on pending Leave Request.`)
 }, {
-    // timezone: "Europe/London" // Adjust timezone as needed
+    timezone: "Europe/London" // Adjust timezone as needed
 })
 
 // Clock-In Reminder (9:10 AM)
-cron.schedule('10 9 * * *', async () => {
-    const today = moment().format('YYYY-MM-DD')
-    await clockInOutReminder('clock-in', today)
-    console.log("✅ Reminder sent for missing clock-in.")
+cron.schedule('* * * * *', async () => {
+// cron.schedule('10 9 * * *', async () => {
+// cron.schedule('*/30 * * * *', async () => {
+    try {
+        const today = moment().format('YYYY-MM-DD')
+        await clockInOutReminder('clock-in', today)
+        console.log("✅ Reminder sent for missing clock-in.")
+    } catch (error) {
+        console.error('Error occurred while sending reminder of clock-IN:', error)
+    }
 }, {
-    // timezone: "Europe/London" // Adjust timezone as needed
+    timezone: "Europe/London" // Adjust timezone as needed
 })
 
 // Clock-Out Reminder (6:10 PM)
@@ -34,7 +40,7 @@ cron.schedule('10 18 * * *', async () => {
     await clockInOutReminder('clock-out', today)
     console.log("✅ Reminder sent for missing clock-out.")
 }, {
-    // timezone: "Europe/London" // Adjust timezone as needed
+    timezone: "Europe/London" // Adjust timezone as needed
 })
 
 // leave action reminder (08:00 AM)
@@ -44,14 +50,14 @@ cron.schedule('* 8 * * *', async () => {
     await visaExpiryReminder(today, afterTenDaysDate)
     console.log("✅ Reminder sent for visa expired in next 10 days.")
 }, {
-    // timezone: "Europe/London" // Adjust timezone as needed
+    timezone: "Europe/London" // Adjust timezone as needed
 })
 
 // auto generate report every 30 min
 cron.schedule('*/30 * * * *', async () => {
-    console.log('call auto generate report')
+    // console.log('call auto generate report')
     await autoGenerateClientReport()
     console.log("✅ Clients report generate successfully.")
 }, {
-    // timezone: "Europe/London" // Adjust timezone as needed
+    timezone: "Europe/London" // Adjust timezone as needed
 })

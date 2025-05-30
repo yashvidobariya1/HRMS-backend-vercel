@@ -695,9 +695,9 @@ exports.dashboard = async (req, res) => {
                     totalLeaveRequests, previousMonthTotalLeaveRequests, currentMonthTotalLeaveRequests,
                     totalPendingLR, currentMonthTotalPendingLR,
                 ] = await Promise.all([
-                    Company.countDocuments(companyFilter),
-                    Company.countDocuments({ ...companyFilter, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
-                    Company.countDocuments({ ...companyFilter, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
+                    Company.countDocuments({ isDeleted: { $ne: true } }),
+                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),
+                    Company.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: currentYearStart, $lt: currentYearEnd } }),
 
                     Client.countDocuments(companyFilter),
                     Client.countDocuments({ ...companyFilter, createdAt: { $gte: previousYearStart, $lt: previousYearEnd } }),

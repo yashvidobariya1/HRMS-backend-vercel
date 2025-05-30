@@ -131,7 +131,7 @@ exports.updateJobTitle = async (req, res) => {
                 { new: true }
             )
 
-            return res.send({ status: 200, message: 'Job Title created successfully.', updatedJobTitle })
+            return res.send({ status: 200, message: 'Job Title updated successfully.', updatedJobTitle })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while updating job title:', error)

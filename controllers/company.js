@@ -4,6 +4,7 @@ const moment = require('moment')
 const sharp = require('sharp')
 const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
 const User = require("../models/user");
+const { default: mongoose } = require("mongoose");
 
 exports.addCompany = async (req, res) => {
     try {
@@ -92,11 +93,25 @@ exports.getCompany = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            const admins = await User.find({ companyId, role: 'Administrator', isDeleted: { $ne: true } })
-            const formattedAdmins = admins.map(admin => ({
-                _id: admin._id,
-                name: admin?.personalDetails?.lastName ? `${admin?.personalDetails?.firstName} ${admin?.personalDetails?.lastName}` : `${admin?.personalDetails?.firstName}`
-            }))
+            const admins = await User.aggregate([
+                { $match: {
+                    role: 'Administrator',
+                    companyId: new mongoose.Types.ObjectId(companyId),
+                    isDeleted: false
+                }},
+                { $project: { 
+                    _id: 1,
+                    adminName: {
+                        $cond: {
+                            if: { $gt: [{ $strLenCP: { $ifNull: ['$personalDetails.lastName', ''] } }, 0] },
+                            then: { 
+                                $concat: ['$personalDetails.firstName', ' ', '$personalDetails.lastName']
+                            },
+                            else: '$personalDetails.firstName'
+                        }
+                    }                                   
+                }}
+            ])
 
             const company = await Company.findOne({
                 _id: companyId,
@@ -107,7 +122,7 @@ exports.getCompany = async (req, res) => {
                 return res.send({ status: 404, message: 'Company not found' })
             }
 
-            return res.send({ status: 200, message: 'Company fetched successfully.', company, companyAdmins: formattedAdmins.length > 0 ? formattedAdmins : [] })
+            return res.send({ status: 200, message: 'Company fetched successfully.', company, companyAdmins: admins })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while fetching company:", error);

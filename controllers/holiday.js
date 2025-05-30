@@ -128,7 +128,7 @@ exports.getAllHolidays = async (req, res) => {
             const companyId = req.query.companyId || req.user?.companyId?.toString()
             
             if(companyId == 'allCompany'){
-                return res.send({ status: 400, message: 'Kindly select a specific company.' })
+                return res.send({ status: 400, message: 'Kindly select a specific company.', holidays: [] })
             }
 
             const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })

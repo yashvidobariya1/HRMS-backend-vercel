@@ -103,7 +103,6 @@ exports.addManager = async (req, res) => {
     //         const pass = generatePass()
     //         const hashedPassword = await bcrypt.hash(pass, 10)
 
-    //         if (personalDetails.sendRegistrationLink == true) {
     //             let mailOptions = {
     //                 from: process.env.NODEMAILER_EMAIL,
     //                 to: personalDetails.email,
@@ -138,7 +137,6 @@ exports.addManager = async (req, res) => {
     //                 `
     //             }
     //             transporter.sendMail(mailOptions);
-    //         }
 
     //         const newManager = {
     //             personalDetails,

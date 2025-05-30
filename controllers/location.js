@@ -95,27 +95,91 @@ exports.getAllLocation = async (req, res) => {
             let baseQuery = { isDeleted: { $ne: true } }
 
             if(companyId && companyId !== 'allCompany'){ 
-                baseQuery.companyId = companyId
+                baseQuery.companyId = new mongoose.Types.ObjectId(companyId);
             }
 
             if(searchQuery){
-                baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }
+                baseQuery.locationName = { $regex: searchQuery, $options: 'i' }
             }
 
-            const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
-            const totalLocations = await Location.find(baseQuery).countDocuments()
-
-            const formattedLocations = locations.map(loc => {
-                return {
-                    ...loc.toObject(),
-                    locationName: `${loc?.locationName} (${loc?.companyId?.companyDetails?.businessName})`
+            const [result] = await Location.aggregate([
+                { $match: baseQuery },
+                {
+                    $lookup: {
+                        from: 'companies',
+                        localField: 'companyId',
+                        foreignField: '_id',
+                        as: 'companyInfo'
+                    }
+                },
+                { $unwind: { path: '$companyInfo', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'qrcodes',
+                        let: { locationId: '$_id' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ['$locationId', '$$locationId'] },
+                                    isLocationQR: true
+                                }
+                            },
+                            { $sort: { createdAt: -1 } },
+                            { $limit: 1 },
+                            { $project: { _id: 0, qrURL: 1 } }
+                        ],
+                        as: 'latestQRCode'
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        locationName: 1,
+                        address: 1,
+                        city: 1,
+                        postcode: 1,
+                        'qrValue': {
+                            $concat: [
+                                '$locationName',
+                                '-',
+                                { $ifNull: ['$companyInfo.companyDetails.businessName', ''] }
+                            ]
+                        },
+                        companyName: '$companyInfo.companyDetails.businessName',
+                        latestQRCode: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$latestQRCode' }, 0] },
+                                then: { $arrayElemAt: ['$latestQRCode.qrURL', 0] },
+                                else: ''
+                            }
+                        }
+                    }
+                },
+                {
+                    $facet: {
+                        locations: [
+                            { $skip: skip },
+                            { $limit: limit }
+                        ],
+                        total: [
+                            { $count: 'count' }
+                        ]
+                    }
                 }
-            }).slice(skip, skip + limit)
+            ])
+
+            const locations = result.locations || []
+            const totalLocations = result.total.length > 0 ? result.total[0].count : 0
+
+            const formattedLocations = locations.map(loc => ({
+                ...loc,
+                locationName: `${loc.locationName} (${loc.companyName || ''})`
+            }))
 
             return res.send({
                 status: 200,
                 message: 'Locations fetched successfully.',
-                locations: formattedLocations ? formattedLocations : [],
+                locations: formattedLocations,
                 totalLocations,
                 totalPages: Math.ceil(totalLocations / limit) || 1,
                 currentPage: page || 1
@@ -125,6 +189,49 @@ exports.getAllLocation = async (req, res) => {
         console.error("Error occurred while fetching locations:", error);
         return res.send({ status: 500, message: "Something went wrong while fetching locations!" })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 50
+    //         const searchQuery = req.query.search ? req.query.search.trim() : ''
+    //         const companyId = req.query.companyId
+
+    //         const skip = (page - 1) * limit
+
+    //         let baseQuery = { isDeleted: { $ne: true } }
+
+    //         if(companyId && companyId !== 'allCompany'){ 
+    //             baseQuery.companyId = companyId
+    //         }
+
+    //         if(searchQuery){
+    //             baseQuery['locationName'] = { $regex: searchQuery, $options: "i" }
+    //         }
+
+    //         const locations = await Location.find(baseQuery).populate('companyId', 'companyDetails.businessName')
+    //         const totalLocations = await Location.find(baseQuery).countDocuments()
+
+    //         const formattedLocations = locations.map(loc => {
+    //             return {
+    //                 ...loc.toObject(),
+    //                 locationName: `${loc?.locationName} (${loc?.companyId?.companyDetails?.businessName})`
+    //             }
+    //         }).slice(skip, skip + limit)
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Locations fetched successfully.',
+    //             locations: formattedLocations ? formattedLocations : [],
+    //             totalLocations,
+    //             totalPages: Math.ceil(totalLocations / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error("Error occurred while fetching locations:", error);
+    //     return res.send({ status: 500, message: "Something went wrong while fetching locations!" })
+    // }
 }
 
 exports.getCompanyLocations = async (req, res) => {

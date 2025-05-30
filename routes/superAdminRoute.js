@@ -11,7 +11,7 @@ const { createJobPost, getJobPost, getAllJobPosts, updateJobPost, deleteJobPost,
 const { applyForJob, getCandidateDetails, getAllCandidates } = require('../controllers/candidate')
 const { createJobTitle, getJobTitle, getAllJobTitles, updateJobTitle, deleteJobTitle, activeInactiveJobTitle } = require('../controllers/jobTitle')
 const { generateQRCodeForLocation, getAllQRCodesForLocation, generateQRCodeForClient, getAllQRCodesForClient, inactivateQRCode } = require('../controllers/qrCode')
-const { getAllUsersAndClients, regenerateReportLink } = require('../controllers/timeSheet')
+const { getAllUsersAndClients, regenerateReportLink, getAllClientsOfUser, getAllUsersOfClient } = require('../controllers/timeSheet')
 
 const superAdminRoute = Router()
 
@@ -90,5 +90,8 @@ superAdminRoute.post('/activeInactiveJobTitle', auth, activeInactiveJobTitle)
 superAdminRoute.post('/deleteJobTitle/:id', auth, deleteJobTitle)
 // all users and client
 superAdminRoute.get('/getAllUsersAndClients', auth, getAllUsersAndClients)
+// get all users from client id and all clients from user id
+superAdminRoute.post('/getAllClientsOfUser', auth, getAllClientsOfUser)
+superAdminRoute.post('/getAllUsersOfClient', auth, getAllUsersOfClient)
 
 module.exports = superAdminRoute

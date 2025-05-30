@@ -119,7 +119,7 @@ exports.addEmployee = async (req, res) => {
     //             createdBy: req.user.role,
     //             creatorId: req.user._id,
     //         }
-    //         if (personalDetails.sendRegistrationLink == true) {
+
     //             try {
     //                 let mailOptions = {
     //                     from: process.env.NODEMAILER_EMAIL,
@@ -158,7 +158,7 @@ exports.addEmployee = async (req, res) => {
     //             } catch (error) {
     //                 console.log('Error occurred:', error);
     //             }
-    //         }
+
     //         // console.log('new employee', newEmployee)
     //         const employee = await User.create(newEmployee)
 

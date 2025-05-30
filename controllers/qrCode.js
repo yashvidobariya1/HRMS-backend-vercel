@@ -59,6 +59,11 @@ exports.generateQRCodeForLocation = async (req, res) => {
                 qrType: 'Location'
             }
 
+            await QR.updateMany(
+                { locationId, isLocationQR: true, isActive: true  },
+                { $set: { isActive: false } }
+            )
+
             const QRCode = await QR.create(qrData)
             return res.send({ status: 200, message: `${qrData?.qrType} QR generated successfully.`, QRCode })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -189,6 +194,11 @@ exports.generateQRCodeForClient = async (req, res) => {
                 isClientQR: true,
                 qrType: 'Client'
             }
+
+            await QR.updateMany(
+                { clientId, isClientQR: true, isActive: true  },
+                { $set: { isActive: false } }
+            )
 
             const QRCode = await QR.create(qrData)
             return res.send({ status: 200, message: `${qrData?.qrType} QR generated successfully.`, QRCode })

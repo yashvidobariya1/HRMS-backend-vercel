@@ -128,6 +128,38 @@ exports.getAllClient = async (req, res) => {
             const [result] = await Client.aggregate([
                 { $match: baseQuery },
                 {
+                    $lookup: {
+                        from: 'companies',
+                        localField: 'companyId',
+                        foreignField: '_id',
+                        as: 'companyInfo'
+                    }
+                },
+                { $unwind: { path: '$companyInfo', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'qrcodes',
+                        let: { clientId: '$_id' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ['$clientId', '$$clientId'] },
+                                    isClientQR: true
+                                }
+                            },
+                            { $sort: { createdAt: -1 } },
+                            { $limit: 1 },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    qrURL: 1
+                                }
+                            }
+                        ],
+                        as: 'latestQRCode'
+                    }
+                },
+                {
                     $facet: {
                         clients: [
                             { $skip: skip },
@@ -139,6 +171,20 @@ exports.getAllClient = async (req, res) => {
                                     'contactNumber': 1,
                                     'email': 1,
                                     'city': 1,
+                                    'qrValue': {
+                                        $concat: [
+                                            '$clientName',
+                                            '-',
+                                            { $ifNull: ['$companyInfo.companyDetails.businessName', ''] }
+                                        ]
+                                    },
+                                    'latestQRCode': {
+                                        $cond: {
+                                            if: { $gt: [{ $size: '$latestQRCode' }, 0] },
+                                            then: { $arrayElemAt: ['$latestQRCode.qrURL', 0] },
+                                            else: ''
+                                        }
+                                    }
                                 }
                             }
                         ],
@@ -540,7 +586,18 @@ exports.generateLinkForClient = async (req, res) => {
                         </div>
                     `
                 }
-                transporter.sendMail(mailOptions)
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if(error){
+                        if(error.code == 'EENVELOPE'){
+                            console.warn('Invalid email address, while sending report link:', email)
+                        } else {
+                            console.error('Error while sending report link:', error)
+                        }
+                    }
+                    if(info){
+                        console.log(`✅ Report link to: ${email}`)
+                    }
+                })
             }
 
             await generatedReport.save()

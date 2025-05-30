@@ -17,7 +17,6 @@ const userSchema = new mongoose.Schema({
     homeTelephone: String,
     email: { type: String, unique: true },
     niNumber: String,
-    sendRegistrationLink: Boolean,
   },
   addressDetails: {
     address: String,
@@ -108,12 +107,12 @@ const userSchema = new mongoose.Schema({
     }]
   }],
   contractDetails: {
-    // contractType: String,
+    contractType: String,
     // contractDocument: {
     //   fileName: String,
     //   fileURL: String,
     // },
-    contractId: { type: String, ref: 'Contract' }
+    contractDocument: { type: String, ref: 'Contract' }
   },
   userContractURL: String,
   password: String,

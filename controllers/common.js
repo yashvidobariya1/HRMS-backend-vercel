@@ -207,6 +207,13 @@ exports.emailVerification = async (req, res) => {
             }
 
             await transporter.sendMail(mailOptions, (error, info) => {
+                if(error){
+                    if(error.code == 'EENVELOPE'){
+                        console.warn('Invalid email address, while email verification:', findUser.personalDetails.email)
+                    } else {
+                        console.error('Error while email verification:', error)
+                    }
+                }
                 if (info) {
                     console.log("Email sent successfully:", info.response);
                 }
@@ -472,7 +479,6 @@ exports.updateProfileDetails = async (req, res) => {
                             homeTelephone,
                             email,
                             niNumber: user?.personalDetails?.niNumber,
-                            sendRegistrationLink: user?.personalDetails?.sendRegistrationLink,
                         },
                         addressDetails: user?.addressDetails,
                         kinDetails: user?.kinDetails,
@@ -617,7 +623,7 @@ exports.addUser = async (req, res) => {
             }
 
             if(
-                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email || !personalDetails?.sendRegistrationLink ||
+                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email ||
                 !addressDetails?.address || !addressDetails?.city || !addressDetails?.postCode ||
                 !kinDetails?.kinName || !kinDetails?.postCode || !kinDetails?.address || !kinDetails?.emergencyContactNumber ||
                 !financialDetails?.bankName || !financialDetails?.holderName || !financialDetails?.sortCode || !financialDetails?.accountNumber || !financialDetails?.payrollFrequency || !financialDetails?.pension ||
@@ -801,12 +807,14 @@ exports.addUser = async (req, res) => {
             let contractURL
             let generatedContract
 
-            if(contractDetails?.contractType){
+            if(contractDetails?.contractDocument){
                 contractDetailsFile = {
-                    contractId: contractDetails?.contractType,
+                    // contractId: contractDetails?.contractType,
+                    contractDocument: contractDetails?.contractDocument,
+                    contractType: contractDetails?.contractType,
                 }
 
-                const contractId = contractDetails?.contractType
+                const contractId = contractDetails?.contractDocument
                 
 
                 const contract = await Contract.findOne({ _id: contractId, isDeleted: { $ne: true } })
@@ -839,48 +847,58 @@ exports.addUser = async (req, res) => {
                 creatorId: req.user._id,
             }
 
-            if (personalDetails.sendRegistrationLink == true) {
-                try {
-                    const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
-                    let mailOptions = {
-                        from: process.env.NODEMAILER_EMAIL,
-                        to: lowerCaseEmail,
-                        subject: `Welcome to ${company?.companyDetails?.businessName}'s City Clean Portal`,
-                        html: `
-                            <p>Welcome to City Clean Portal!</p>
+            try {
+                const attachedFileName = `${newUser?.personalDetails?.firstName}${newUser?.personalDetails?.lastName}-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
+                let mailOptions = {
+                    from: process.env.NODEMAILER_EMAIL,
+                    to: lowerCaseEmail,
+                    subject: `Welcome to ${company?.companyDetails?.businessName}'s City Clean Portal`,
+                    html: `
+                        <p>Welcome to City Clean Portal!</p>
 
-                            <p>We are pleased to inform you that a new ${newUser.role} account has been successfully created by the Manager under your supervision in the City Clean portal. Below are the details:</p>
+                        <p>We are pleased to inform you that a new ${newUser.role} account has been successfully created by the Manager under your supervision in the City Clean portal. Below are the details:</p>
 
-                            <ul>
-                                <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
-                                <li><b>Email:</b> ${lowerCaseEmail}</li>
-                                <li><b>Position:</b> ${jobDetails[0].jobTitle}</li>
-                                <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
-                            </ul>
+                        <ul>
+                            <li><b>Name:</b> ${personalDetails.firstName} ${personalDetails.lastName}</li>
+                            <li><b>Email:</b> ${lowerCaseEmail}</li>
+                            <li><b>Position:</b> ${jobDetails[0].jobTitle}</li>
+                            <li><b>Joining Date:</b> ${jobDetails[0].joiningDate}</li>
+                        </ul>
 
-                            <p>Please ensure the ${newUser.role} logs into the City Cleam portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
+                        <p>Please ensure the ${newUser.role} logs into the City Cleam portal using their temporary credentials and updates their password promptly. Here are the login details for their reference:</p>
 
-                            <ul>
-                                <li><b>City Clean Portal Link:</b> <a href="${process.env.FRONTEND_URL}">City Clean Portal</a></li>
-                                <li><b>Username/Email:</b> ${lowerCaseEmail}</li>
-                                <li><b>Temporary Password:</b> ${generatePass()}</li>
-                            </ul>
+                        <ul>
+                            <li><b>City Clean Portal Link:</b> <a href="${process.env.FRONTEND_URL}">City Clean Portal</a></li>
+                            <li><b>Username/Email:</b> ${lowerCaseEmail}</li>
+                            <li><b>Temporary Password:</b> ${generatePass()}</li>
+                        </ul>
 
-                            <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
+                        <p>If you have any questions or need further assistance, feel free to reach out to the HR manager or HR department.</p>
 
-                            <p>Looking forward to your journey with us!</p>
+                        <p>Looking forward to your journey with us!</p>
 
-                            <p>Best regards,<br>City Clean London Team</p>
-                        `,
-                        attachments: [{ filename: attachedFileName, content: generatedContract ? generatedContract : '' }],
-                    };
+                        <p>Best regards,<br>City Clean London Team</p>
+                    `,
+                    attachments: [{ filename: attachedFileName, content: generatedContract ? generatedContract : '' }],
+                };
 
-                    await transporter.sendMail(mailOptions);
-                    // console.log('Email sent successfully');
-                } catch (error) {
-                    console.log('Error occurred:', error);
-                }
+                await transporter.sendMail(mailOptions, (error, info) => {
+                    if(error){
+                        if(error.code == 'EENVELOPE'){
+                            console.warn('Invalid email address, while sending contract:', lowerCaseEmail)
+                        } else {
+                            console.error('Error while sending contract:', error)
+                        }
+                    }
+                    if(info){
+                        console.log(`✅ User creates successfully and contract will be sent to: ${lowerCaseEmail}`)
+                    }
+                })
+                // console.log('Email sent successfully');
+            } catch (error) {
+                console.log('Error occurred:', error);
             }
+
             // console.log('new user', newUser)
             const unique_ID = await generateUserId()
             const user = await User.create({
@@ -917,12 +935,12 @@ exports.getUser = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            const userDetails = {
-                ...user.toObject(),
-                contractDetails: { contractType: user?.contractDetails?.contractId }
-            }
+            // const userDetails = {
+            //     ...user.toObject(),
+            //     contractDetails: { contractType: user?.contractDetails?.contractId }
+            // }
 
-            return res.send({ status: 200, message: 'User get successfully.', user: userDetails })
+            return res.send({ status: 200, message: 'User get successfully.', user })
         } else return res.send({ status: 403, message: "Access denied" })
     } catch (error) {
         console.error("Error occurred while getting user:", error);
@@ -953,7 +971,7 @@ const calculateUserGracePoints = async (users) => {
         }))
 
         return {
-            ...user?.toObject(),
+            ...user,
             roleWisePoints
         }
     }))
@@ -965,150 +983,115 @@ exports.getAllUsers = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
-            // const timePeriod = parseInt(req.query.timePeriod)
             const searchQuery = req.query.search ? req.query.search.trim() : ''
             const companyId = req.query.companyId
 
             const skip = (page - 1) * limit
 
-            // let timeFilter = {}
-            // if (timePeriod) {
-            //     const filteredHour = new Date()
-            //     filteredHour.setHours(filteredHour.getHours() - timePeriod)
-            //     timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
-            // }
-
-            // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
             let baseQuery = { isDeleted: { $ne: true } }
 
             if(companyId && companyId !== 'allCompany'){
                 baseQuery.companyId = companyId
             } else if(req.user.role !== 'Superadmin'){
-                baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.companyId = req.user.companyId
+                baseQuery.locationId = { $in: req.user.locationId }
             }
 
             if (req.user.role === 'Superadmin') {
                 baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
             } else if (req.user.role === 'Administrator') {
-                baseQuery.companyId = req.user.companyId
-                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Manager", "Employee"] }
             } else if(req.user.role === 'Manager') {
-                baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
-                baseQuery.companyId = req.user.companyId
-                // baseQuery.locationId = { $in: req.user.locationId }
                 baseQuery.role = { $in: ["Employee"] }
+                baseQuery.jobDetails = {
+                    $elemMatch: { assignManager: req.user._id.toString() }
+                }
             }
 
             if (searchQuery) {
                 baseQuery.$or = [
                     { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
                     { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
-                ];
+                ]
             }
 
-            const allUsers = await User.find(baseQuery)            
-            const updateUsers = await calculateUserGracePoints(allUsers)
+            const totalUsers = await User.countDocuments(baseQuery)
 
-            // user's today clock in active or not
-            const usersWithClockInStatus = await Promise.all(
-                updateUsers.map(async (user) => {
-                    let todaysTimesheet = []
-    
-                    for (const job of user.jobDetails) {
-                        const timesheet = await Timesheet.findOne({
-                            userId: user._id,
-                            jobId: job._id,
-                            date: moment().format('YYYY-MM-DD'),
-                            isTimerOn: true
-                        })
-    
-                        todaysTimesheet.push({
-                            jobId: job._id,
-                            jobName: job.jobTitle,
-                            isActiveClockIn: !!timesheet
-                        })
-                    }
-    
-                    return {
-                        ...user,
-                        todaysTimesheet
-                    }
-                })
-            )
+            const users = await User.find(baseQuery)
+                .skip(skip)
+                .limit(limit)
+                .select('_id unique_ID role isActive personalDetails jobDetails roleWisePoints templates')
+                .lean()
 
-            // const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
-            //     const firstName = user.personalDetails?.firstName || ''
-            //     const lastName = user.personalDetails?.lastName || ''
-            //     const userName = `${firstName} ${lastName}`.trim()
+            const updatedUsers = await calculateUserGracePoints(users)
 
-            //     return {
-            //         userName,
-            //         _id: user?._id,
-            //         Id: user?.unique_ID,
-            //         position: user?.role,
-            //         email: user?.personalDetails?.email,
-            //         status: user?.isActive,
-            //         todaysTimesheet: user?.todaysTimesheet,
-            //         roleWisePoints: user.roleWisePoints,
-            //     }
-            // })
+            const userIds = updatedUsers.map(u => u._id)
+            const today = moment().format("YYYY-MM-DD")
 
-            const users = []
+            const todaysTimesheets = await Timesheet.find({
+                userId: { $in: userIds },
+                date: today,
+                isTimerOn: true
+            }).lean()
 
-            for (const user of usersWithClockInStatus.slice(skip, skip + limit)) {
+            const timesheetMap = {}
+            todaysTimesheets.forEach(ts => {
+                const uid = ts.userId.toString()
+                const jobId = ts.jobId.toString()
+                if (!timesheetMap[uid]) timesheetMap[uid] = new Set()
+                timesheetMap[uid].add(jobId)
+            })
+
+            const templateIds = [
+                ...new Set(
+                    updatedUsers.flatMap(u => u.templates?.map(t => t.templateId?.toString()) || [])
+                )
+            ]
+
+            const templates = await Template.find({ _id: { $in: templateIds } }).lean()
+            const templateMap = {}
+            templates.forEach(t => templateMap[t._id.toString()] = t)
+
+            const finalUsers = updatedUsers.map(user => {
                 const firstName = user.personalDetails?.firstName || ''
                 const lastName = user.personalDetails?.lastName || ''
                 const userName = `${firstName} ${lastName}`.trim()
 
-                let userTemplates = []
-                try {
-                    if (user?.templates?.length > 0) {
-                        for (const temp of user.templates) {
-                            const template = await Template.findOne({ _id: temp?.templateId })
-                            if (!template) {
-                                console.log('Template not found for ID:', temp?._id)
-                                continue
-                            }
-    
-                            if(template){
-                                if(temp.isTemplateVerify){
-                                    userTemplates.push({
-                                        _id: template._id,
-                                        templateName: template?.templateName,
-                                        templateUrl: temp?.templateURL
-                                    })
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.log('Error while fetching templates:', error)
-                }
+                const todaysTimesheet = (user.jobDetails || []).map(job => ({
+                    jobId: job._id,
+                    jobName: job.jobTitle,
+                    isActiveClockIn: timesheetMap[user._id.toString()]?.has(job._id.toString()) || false
+                }))
 
-                users.push({
+                const userTemplates = (user.templates || []).reduce((acc, temp) => {
+                    const template = templateMap[temp.templateId?.toString()]
+                    if (template && temp.isTemplateVerify) {
+                        acc.push({
+                            _id: template._id,
+                            templateName: template.templateName,
+                            templateUrl: temp.templateURL
+                        })
+                    }
+                    return acc
+                }, [])
+
+                return {
                     userName,
-                    _id: user?._id,
-                    Id: user?.unique_ID,
-                    position: user?.role,
-                    email: user?.personalDetails?.email,
-                    status: user?.isActive,
-                    todaysTimesheet: user?.todaysTimesheet,
+                    _id: user._id,
+                    Id: user.unique_ID,
+                    position: user.role,
+                    email: user.personalDetails?.email,
+                    status: user.isActive,
+                    todaysTimesheet,
                     roleWisePoints: user.roleWisePoints,
                     templates: userTemplates
-                })
-            }
-
-            const totalUsers = usersWithClockInStatus.length
-
-            // const users = updateUsers.slice(skip, skip + limit)
-            // const totalUsers = updateUsers.length
+                }
+            })
 
             return res.send({
                 status: 200,
                 message: 'Users fetched successfully.',
-                users,
+                users: finalUsers,
                 totalUsers,
                 totalPages: Math.ceil(totalUsers / limit) || 1,
                 currentPage: page || 1
@@ -1118,6 +1101,164 @@ exports.getAllUsers = async (req, res) => {
         console.error("Error occurred while getting users:", error);
         return res.send({ status: 500, message: "Something went wrong while getting users!" })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 50
+    //         // const timePeriod = parseInt(req.query.timePeriod)
+    //         const searchQuery = req.query.search ? req.query.search.trim() : ''
+    //         const companyId = req.query.companyId
+
+    //         const skip = (page - 1) * limit
+
+    //         // let timeFilter = {}
+    //         // if (timePeriod) {
+    //         //     const filteredHour = new Date()
+    //         //     filteredHour.setHours(filteredHour.getHours() - timePeriod)
+    //         //     timeFilter = { lastTimeLoggedIn: { $gte: filteredHour } }
+    //         // }
+
+    //         // let baseQuery = { isDeleted: { $ne: true }, ...timeFilter }
+    //         let baseQuery = { isDeleted: { $ne: true } }
+
+    //         if(companyId && companyId !== 'allCompany'){
+    //             baseQuery.companyId = companyId
+    //         } else if(req.user.role !== 'Superadmin'){
+    //             baseQuery.locationId = { $in: req.user.locationId }
+    //             baseQuery.companyId = req.user.companyId
+    //         }
+
+    //         if (req.user.role === 'Superadmin') {
+    //             baseQuery.role = { $in: ["Administrator", "Manager", "Employee"] }
+    //         } else if (req.user.role === 'Administrator') {
+    //             baseQuery.companyId = req.user.companyId
+    //             // baseQuery.locationId = { $in: req.user.locationId }
+    //             baseQuery.role = { $in: ["Manager", "Employee"] }
+    //         } else if(req.user.role === 'Manager') {
+    //             baseQuery.jobDetails = { $elemMatch: { assignManager: req.user._id.toString() } }
+    //             baseQuery.companyId = req.user.companyId
+    //             // baseQuery.locationId = { $in: req.user.locationId }
+    //             baseQuery.role = { $in: ["Employee"] }
+    //         }
+
+    //         if (searchQuery) {
+    //             baseQuery.$or = [
+    //                 { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
+    //                 { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
+    //             ];
+    //         }
+
+    //         const allUsers = await User.find(baseQuery)            
+    //         const updateUsers = await calculateUserGracePoints(allUsers)
+
+    //         // user's today clock in active or not
+    //         const usersWithClockInStatus = await Promise.all(
+    //             updateUsers.map(async (user) => {
+    //                 let todaysTimesheet = []
+    
+    //                 for (const job of user.jobDetails) {
+    //                     const timesheet = await Timesheet.findOne({
+    //                         userId: user._id,
+    //                         jobId: job._id,
+    //                         date: moment().format('YYYY-MM-DD'),
+    //                         isTimerOn: true
+    //                     })
+    
+    //                     todaysTimesheet.push({
+    //                         jobId: job._id,
+    //                         jobName: job.jobTitle,
+    //                         isActiveClockIn: !!timesheet
+    //                     })
+    //                 }
+    
+    //                 return {
+    //                     ...user,
+    //                     todaysTimesheet
+    //                 }
+    //             })
+    //         )
+
+    //         // const users = usersWithClockInStatus.slice(skip, skip + limit).map(user => {
+    //         //     const firstName = user.personalDetails?.firstName || ''
+    //         //     const lastName = user.personalDetails?.lastName || ''
+    //         //     const userName = `${firstName} ${lastName}`.trim()
+
+    //         //     return {
+    //         //         userName,
+    //         //         _id: user?._id,
+    //         //         Id: user?.unique_ID,
+    //         //         position: user?.role,
+    //         //         email: user?.personalDetails?.email,
+    //         //         status: user?.isActive,
+    //         //         todaysTimesheet: user?.todaysTimesheet,
+    //         //         roleWisePoints: user.roleWisePoints,
+    //         //     }
+    //         // })
+
+    //         const users = []
+
+    //         for (const user of usersWithClockInStatus.slice(skip, skip + limit)) {
+    //             const firstName = user.personalDetails?.firstName || ''
+    //             const lastName = user.personalDetails?.lastName || ''
+    //             const userName = `${firstName} ${lastName}`.trim()
+
+    //             let userTemplates = []
+    //             try {
+    //                 if (user?.templates?.length > 0) {
+    //                     for (const temp of user.templates) {
+    //                         const template = await Template.findOne({ _id: temp?.templateId })
+    //                         if (!template) {
+    //                             console.log('Template not found for ID:', temp?._id)
+    //                             continue
+    //                         }
+    
+    //                         if(template){
+    //                             if(temp.isTemplateVerify){
+    //                                 userTemplates.push({
+    //                                     _id: template._id,
+    //                                     templateName: template?.templateName,
+    //                                     templateUrl: temp?.templateURL
+    //                                 })
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             } catch (error) {
+    //                 console.log('Error while fetching templates:', error)
+    //             }
+
+    //             users.push({
+    //                 userName,
+    //                 _id: user?._id,
+    //                 Id: user?.unique_ID,
+    //                 position: user?.role,
+    //                 email: user?.personalDetails?.email,
+    //                 status: user?.isActive,
+    //                 todaysTimesheet: user?.todaysTimesheet,
+    //                 roleWisePoints: user.roleWisePoints,
+    //                 templates: userTemplates
+    //             })
+    //         }
+
+    //         const totalUsers = usersWithClockInStatus.length
+
+    //         // const users = updateUsers.slice(skip, skip + limit)
+    //         // const totalUsers = updateUsers.length
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Users fetched successfully.',
+    //             users,
+    //             totalUsers,
+    //             totalPages: Math.ceil(totalUsers / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error("Error occurred while getting users:", error);
+    //     return res.send({ status: 500, message: "Something went wrong while getting users!" })
+    // }
 }
 
 exports.getUsers = async (req, res) => {
@@ -1388,16 +1529,20 @@ exports.updateUserDetails = async (req, res) => {
             //     }
             // }
 
-            if(user?.contractDetails?.contractId == contractDetails?.contractType){
+            if(user?.contractDetails?.contractDocument == contractDetails?.contractDocument){
                 contractDetailsFile = {
-                    contractId: user?.contractDetails?.contractId
+                    // contractId: user?.contractDetails?.contractId,
+                    contractDocument: contractDetails?.contractDocument,
+                    contractType: contractDetails?.contractType
                 }
-            } else if(contractDetails?.contractType) {
+            } else if(contractDetails?.contractDocument) {
                 contractDetailsFile = {
-                    contractId: contractDetails?.contractType,
+                    // contractId: contractDetails?.contractDocument,
+                    contractDocument: contractDetails?.contractDocument,
+                    contractType: contractDetails?.contractType
                 }
 
-                const contract = await Contract.findOne({ _id: contractDetailsFile?.contractId, isDeleted: { $ne: true } })
+                const contract = await Contract.findOne({ _id: contractDetailsFile?.contractDocument, isDeleted: { $ne: true } })
                 if(!contract){
                     return res.send({ status: 404, message: 'Contract not found' })
                 }
@@ -1418,7 +1563,7 @@ exports.updateUserDetails = async (req, res) => {
                     COMPANY_NAME: company?.companyDetails?.businessName
                 }
 
-                const generatedContract = await generateContractForUser(userData, contractDetailsFile?.contractId)
+                const generatedContract = await generateContractForUser(userData, contractDetailsFile?.contractDocument)
                 const attachedFileName = `${personalDetails?.firstName}${personalDetails?.lastName}-updated-contract-${moment().format("YYYYMMDDHHmmssSSS") + Math.floor(Math.random() * 1000)}.pdf`
                 
                 let mailOptions = {
@@ -1432,13 +1577,24 @@ exports.updateUserDetails = async (req, res) => {
                     `,
                     attachments: [{ filename: attachedFileName, content: generatedContract }],
                 }
-                await transporter.sendMail(mailOptions)
+                await transporter.sendMail(mailOptions, (error, info) => {
+                    if(error){
+                        if(error.code == 'EENVELOPE'){
+                            console.warn('Invalid email address, while sending updated contract:', lowerCaseEmail)
+                        } else {
+                            console.error('Error while sending updated contract:', error)
+                        }
+                    }
+                    if(info){
+                        console.log(`✅ User contract will be updated successfully and sent to: ${lowerCaseEmail}`)
+                    }
+                })
             }
 
             let isFormFilled = true
 
             if(
-                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email || !personalDetails?.sendRegistrationLink ||
+                !personalDetails?.firstName || !personalDetails?.lastName || !personalDetails?.dateOfBirth || !personalDetails?.gender || !personalDetails?.maritalStatus || !personalDetails?.phone || !personalDetails?.email ||
                 !addressDetails?.address || !addressDetails?.city || !addressDetails?.postCode ||
                 !kinDetails?.kinName || !kinDetails?.postCode || !kinDetails?.address || !kinDetails?.emergencyContactNumber ||
                 !financialDetails?.bankName || !financialDetails?.holderName || !financialDetails?.sortCode || !financialDetails?.accountNumber || !financialDetails?.payrollFrequency || !financialDetails?.pension ||
@@ -1569,7 +1725,18 @@ exports.sendMailToEmployee = async (req, res) => {
                 `
             }
 
-            transporter.sendMail(mailOptions)
+            transporter.sendMail(mailOptions, (error, info) => {
+                if(error){
+                    if(error.code == 'EENVELOPE'){
+                        console.warn('Invalid email address, while sending mail to user:', employeeEmail)
+                    } else {
+                        console.error('Error while sending mail to user:', error)
+                    }
+                }
+                if(info){
+                    console.log(`✅ Mail sent successfully to: ${employeeEmail}`)
+                }
+            })
 
             return res.send({ status: 200, message: 'Mail sent successfully' })
         } else return res.send({ status: 403, message: 'Access denied' })

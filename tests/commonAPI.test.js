@@ -817,7 +817,6 @@ describe('User CRUD==================================================', () => {
                         "homeTelephone": "0987654321",
                         "email": "jane.doe@example.com",
                         "niNumber": "AB123456C",
-                        "sendRegistrationLink": true
                     },
                     "addressDetails": {
                         "address": "456 Elm Street",
@@ -1221,7 +1220,6 @@ describe('User CRUD==================================================', () => {
                         "homeTelephone": "0987654321",
                         "email": "jane.doe2@example.com",
                         "niNumber": "AB123456C",
-                        "sendRegistrationLink": true
                     },
                     "addressDetails": {
                         "address": "456 Elm Street",
@@ -1625,7 +1623,6 @@ describe('User CRUD==================================================', () => {
                         "homeTelephone": "0987654321",
                         "email": "jane.doe2@example.com",
                         "niNumber": "AB123456C",
-                        "sendRegistrationLink": true
                     },
                     "addressDetails": {
                         "address": "456 Elm Street",

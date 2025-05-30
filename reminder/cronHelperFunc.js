@@ -42,6 +42,7 @@ exports.generateLinkForClient = async (options) => {
             })
             const last = allReports[allReports.length - 1]
             const nextStart = moment(last.endDate).add(1, 'days').format('DD-MM-YYYY')
+            console.log(`Report already exists. Create new from ${nextStart}`)
             return { status: 400, message: `Report already exists. Create new from ${nextStart}` }
         }
 
@@ -126,7 +127,18 @@ exports.generateLinkForClient = async (options) => {
                     </div>
                 `
             }
-            transporter.sendMail(mailOptions)
+            transporter.sendMail(mailOptions, (error, info) => {
+                if(error){
+                    if(error.code == 'EENVELOPE'){
+                        console.warn('Invalid email address, while generating report link for client:', email)
+                    } else {
+                        console.error('Error while generating report link for client:', error)
+                    }
+                }
+                if(info){
+                    console.log(`✅ Report link generate successfully and sent to: ${email}`)
+                }
+            })
         }
 
         await generatedReport.save()

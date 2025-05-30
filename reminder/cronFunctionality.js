@@ -9,6 +9,8 @@ const { transporter } = require("../utils/nodeMailer")
 const Client = require('../models/client')
 const { generateLinkForClient } = require('./cronHelperFunc')
 const { default: mongoose } = require('mongoose')
+const Task = require('../models/task')
+const Location = require('../models/location')
 
 exports.leaveActionReminder = async (tomorrow) => {
     try {
@@ -35,7 +37,18 @@ exports.leaveActionReminder = async (tomorrow) => {
                             <p>Best Regards,<br>City Clean London Team</p>
                         `
                     }                
-                    transporter.sendMail(mailOptions)
+                    transporter.sendMail(mailOptions, (error, info) => {
+                        if(error){
+                            if(error.code == 'EENVELOPE'){
+                                console.warn('Invalid email address, while sending leave action reminder:', assignManager?.personalDetails?.email)
+                            } else {
+                                console.error('Error while sending leave action reminder:', error)
+                            }
+                        }
+                        if(info){
+                            console.log(`✅ Leave action reminder sent to: ${assignManager?.personalDetails?.email}`)
+                        }
+                    })
 
                     await Notification.create({
                         // userName: `${assignManager?.personalDetails?.firstName} ${assignManager?.personalDetails?.lastName} (You)`,
@@ -63,6 +76,7 @@ exports.leaveActionReminder = async (tomorrow) => {
 exports.clockInOutReminder = async (type, today) => {
     try {
         const allEmployees = await User.find({ role: { $in: ["Administrator", "Manager", "Employee"] }, isDeleted: { $ne: true } }).lean()
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
         for(const employee of allEmployees){
             const { _id, companyId, jobDetails } = employee
@@ -71,6 +85,36 @@ exports.clockInOutReminder = async (type, today) => {
             if (isHoliday) continue
 
             for(const job of jobDetails){
+                const { _id: jobId, isWorkFromOffice, location: locationId, assignClient = [] } = job
+
+                let tasks = []
+
+                if(isWorkFromOffice){
+                    const location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                    if(!location){
+                        console.log(`Location is not found for employee ${employee._id}, and for job ${jobId}`)
+                        continue
+                    }
+                    tasks = await Task.find({
+                        taskDate: today,
+                        locationId,
+                        jobId,
+                        userId: _id.toString(),
+                        isDeleted: { $ne: true }
+                    })
+                } else {
+                    for (const clientId of assignClient) {
+                        const clientTasks = await Task.find({
+                            taskDate: today,
+                            clientId,
+                            jobId,
+                            userId: _id,
+                            isDeleted: { $ne: true }
+                        })
+                        tasks = [...tasks, ...clientTasks]
+                    }
+                }
+
                 const isOnLeave = await Leave.exists({
                     userId: _id,
                     jobId: job?._id,
@@ -96,50 +140,84 @@ exports.clockInOutReminder = async (type, today) => {
                     }
                 }
 
-                if (type === 'clock-in' && !hasClockIn) {
-                    let mailOptions = {
-                        from: process.env.NODEMAILER_EMAIL,
-                        to: employee?.personalDetails?.email,
-                        subject: 'Missing Clock-in Reminder',
-                        html: `
-                            <h2>Reminder for missing Clock-in</h2>
-                            <p>You haven't clocked in today for ${job?.jobTitle} Role.</p>
-                            <p>Best Regards,<br>City Clean London Team</p>
-                        `
+                for(const task of tasks){
+                    const taskStart = moment(`${task.date} ${task.startTime}`, "YYYY-MM-DD HH:mm")
+                    const reminderTime = taskStart.clone().add(10, "minutes")
+
+                    const now = momentTimeZone().tz('Europe/London')
+                    if (now.isBefore(reminderTime)) continue // skip if it's not yet time for reminder
+
+                    if (type === 'clock-in' && !hasClockIn) {
+                        let mailOptions = {
+                            from: process.env.NODEMAILER_EMAIL,
+                            to: employee?.personalDetails?.email,
+                            subject: 'Missing Clock-in Reminder',
+                            html: `
+                                <h2>Reminder for missing Clock-in</h2>
+                                <p>You haven't clocked in today for ${job?.jobTitle} Role.</p>
+                                <p>Best Regards,<br>City Clean London Team</p>
+                            `
+                        }
+
+                        transporter.sendMail(mailOptions, (error, info) => {
+                            if(error){
+                                if(error.code == 'EENVELOPE'){
+                                    console.warn('Invalid email address:', employee?.personalDetails?.email)
+                                } else {
+                                    console.error('Error while sending clock-IN reminder:', error)
+                                }
+                            }
+                            if(info){
+                                console.log(`✅ Clock-IN reminder sent to: ${employee?.personalDetails?.email}`)
+                            }
+                        })
+
+                        await Notification.create({
+                            // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
+                            userId: _id,
+                            notifiedId: [_id],
+                            type: 'Clock-in Reminder',
+                            message: `You haven't clocked in today for <b>${job?.jobTitle}</b> Role.`,
+                            readBy: [{ userId: _id, role: employee?.role }]
+                        })
+                        await delay(1000);
                     }
-                    transporter.sendMail(mailOptions)
 
-                    await Notification.create({
-                        // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
-                        userId: _id,
-                        notifiedId: [_id],
-                        type: 'Clock-in Reminder',
-                        message: `You haven't clocked in today for <b>${job?.jobTitle}</b> Role.`,
-                        readBy: [{ userId: _id, role: employee?.role }]
-                    })
-                }
-
-                if (type === 'clock-out' && hasMissingClockOut && isTimerOn) {
-                    let mailOptions = {
-                        from: process.env.NODEMAILER_EMAIL,
-                        to: employee?.personalDetails?.email,
-                        subject: 'Missing Clock-out Reminder',
-                        html: `
-                            <h2>Reminder for missing Clock-out</h2>
-                            <p>You haven't clocked out yet for ${job?.jobTitle} Role.</p>
-                            <p>Best Regards,<br>City Clean London Team</p>
-                        `
+                    if (type === 'clock-out' && hasMissingClockOut && isTimerOn) {
+                        let mailOptions = {
+                            from: process.env.NODEMAILER_EMAIL,
+                            to: employee?.personalDetails?.email,
+                            subject: 'Missing Clock-out Reminder',
+                            html: `
+                                <h2>Reminder for missing Clock-out</h2>
+                                <p>You haven't clocked out yet for ${job?.jobTitle} Role.</p>
+                                <p>Best Regards,<br>City Clean London Team</p>
+                            `
+                        }
+    
+                        transporter.sendMail(mailOptions, (error, info) => {
+                            if(error){
+                                if(error.code == 'EENVELOPE'){
+                                    console.warn('Invalid email address:', employee?.personalDetails?.email)
+                                } else {
+                                    console.error('Error while sending clock-OUT reminder:', error)
+                                }
+                            }
+                            if(info){
+                                console.log(`✅ Clock-OUT reminder sent to: ${employee?.personalDetails?.email}`)
+                            }
+                        })
+    
+                        await Notification.create({
+                            // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
+                            userId: _id,
+                            notifiedId: [_id],
+                            type: 'Clock-out Reminder',
+                            message: `You haven't clocked out yet for <b>${job?.jobTitle}</b> Role.`,
+                            readBy: [{ userId: _id, role: employee?.role }]
+                        })
+                        await delay(1000)
                     }
-                    transporter.sendMail(mailOptions)
-
-                    await Notification.create({
-                        // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
-                        userId: _id,
-                        notifiedId: [_id],
-                        type: 'Clock-out Reminder',
-                        message: `You haven't clocked out yet for <b>${job?.jobTitle}</b> Role.`,
-                        readBy: [{ userId: _id, role: employee?.role }]
-                    })
                 }
             }
         }
@@ -176,7 +254,18 @@ exports.visaExpiryReminder = async (fromDate, toDate) => {
                 `
             }
             try {
-                transporter.sendMail(mailOptions)
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if(error){
+                        if(error.code == 'EENVELOPE'){
+                            console.warn('Invalid email address, while sending visa expiry reminder:', email)
+                        } else {
+                            console.error('Error while sending visa expiry reminder:', error)
+                        }
+                    }
+                    if(info){
+                        console.log(`✅ Visa expiry reminder sent to: ${email}`)
+                    }
+                })
                 await Notification.create({
                     // userName: `${employee?.personalDetails?.firstName} ${employee?.personalDetails?.lastName} (You)`,
                     userId: _id,
@@ -236,7 +325,6 @@ exports.autoGenerateClientReport = async () => {
             options.reportTime = reportTime
             options.clientId = _id.toString()
             options.companyId = companyId.toString()
-            console.log('email:', email)
             options.clientEmails = email
 
             if(reportFrequency === 'Daily'){
@@ -261,7 +349,7 @@ exports.autoGenerateClientReport = async () => {
             if(shouldGenerate){
                 console.log(`Generating report for client: ${clientName}`)
                 try {
-                    console.log('options:', options)
+                    // console.log('options:', options)
                     await generateLinkForClient(options)
                 } catch (error) {
                     console.error(`Failed to generate report for ${clientName}:`, error)
