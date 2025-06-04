@@ -28,6 +28,8 @@ exports.clockInFunc = async (req, res) => {
             const { userId, location, jobId, isMobile, qrValue, clientId } = req.body
             console.log('Location:', location)
 
+            console.log("location",location);
+            
             const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
             if (!existUser) {
                 return res.send({ status: 404, message: "User not found" })
@@ -3975,3 +3977,132 @@ exports.regenerateReportLink = async (req, res) => {
         return res.send({ status: 500, message: 'Error occurred while re-generate report link!' })
     }
 }
+
+exports.inactivateQRCode = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator']
+        if(allowedRoles.includes(req.user.role)){
+            const QRId = req.params.id
+            const QRCode = await QR.findById(QRId)
+            if(!QRCode){
+                return res.send({ status: 404, message: 'QRCode not found!' })
+            }
+            if(QRCode.isActive === false){
+                return res.send({ status: 400, message: 'The QR is already inactive' })
+            }
+            QRCode.isActive = false
+            QRCode.save()
+            return res.send({ status: 200, message: 'QRCode inactivated successfully.', QRCode })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while inactivating the QRCode:', error)
+        return res.send({ status: 500, message: 'Error occurred while inactivating the QRCode!' })
+    }
+}
+
+// for QR verification
+// exports.verifyQRCode = async (req, res) => {
+//     try {
+//         const allowedRoles = ['Administrator', 'Manager', 'Employee']
+//         if(allowedRoles.includes(req.user.role)){
+//             const { qrValue } = req.body;
+
+//             const user = await User.findOne({ _id: req.user.id, isDeleted: { $ne: true } })
+//             if(!user){
+//                 return res.send({ status: 404, message: 'User not found.' })
+//             }
+//             let companyId = user?.companyId.toString()
+//             let locationId = user?.locationId.toString()
+
+//             let qrCode
+//             qrCode = await QR.findOne({
+//                 'valueOfQRCode.qrValue': qrValue,
+//                 companyId,
+//                 locationId,
+//             });
+
+//             if (!qrCode) {
+//                 qrCode = await QR.findOne({
+//                     'valueOfQRCode.qrValue': qrValue,
+//                     companyId
+//                 });
+//             }
+            
+//             if (!qrCode) {
+//                 return res.send({ status: 400, message: 'QR code not found or invalid QR code' })
+//             }
+
+
+//             let entity;
+//             let entityName;
+//             if (qrCode.isCompanyQR) {
+//                 entity = await Company.findOne({ _id: qrCode.companyId, isDeleted: { $ne: true } });
+//                 entityName = 'Company';
+//             } else if (qrCode.isLocationQR) {
+//                 entity = await Location.findOne({ _id: qrCode.locationId, isDeleted: { $ne: true } });
+//                 entityName = 'Location';
+//             }
+//             if (!entity) {
+//                 return res.send({
+//                     status: 404,
+//                     message: `${entityName} associated with the QR code not found`,
+//                 });
+//             }
+
+//             return res.send({
+//                 status: 200,
+//                 message: `${entityName} QR code verified successfully`,
+//                 entityDetails: {
+//                     entityId: qrCode.isCompanyQR ? qrCode.companyId : qrCode.locationId,
+//                     entityName: entityName,
+//                     qrValue: qrCode.valueOfQRCode.qrValue,
+//                     qrURL: qrCode.valueOfQRCode.qrURL,
+//                 },
+//             });
+//         } else return res.send({ status: 403, message: 'Access denied' })
+//     } catch (error) {
+//         console.error('Error occurred during QR code verification:', error);
+//         return res.send({ status: 500, message: 'Error occurred during QR code verification!' });
+//     }
+// };
+
+exports.verifyQRCode = async (req, res) => {
+    try {
+        const allowedRoles = ['Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const { qrValue } = req.body;
+
+            const user = await User.findOne({ _id: req.user._id, isDelete: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found.' })
+            }
+            let companyId = user?.companyId.toString()
+            let locationId = user?.locationId.toString()
+
+            const qrCode = await QR.findOne({
+                qrValue,
+                companyId,
+                locationId,
+            })
+            
+            if (!qrCode) {
+                return res.send({ status: 400, message: 'QR code not found or invalid QR code' })
+            }
+
+            return res.send({
+                status: 200,
+                message: 'QR code verified successfully.',
+                entityDetails: {
+                    userId: user._id,
+                    qrValue,
+                    locationId,
+                    companyId
+                }
+            })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred during QR code verification:', error)
+        return res.send({ status: 500, message: 'Error occurred during QR code verification!' })
+    }
+};
