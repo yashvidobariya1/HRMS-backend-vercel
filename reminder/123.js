@@ -57,7 +57,7 @@ exports.clockInOutReminder = async (type, today) => {
                 if (isOnLeave) continue;
 
                 // Check timesheet
-                const timesheet = await Timesheet.findOne({ userId: _id, jobId, date: today });
+                const timesheet = await Timesheet.findOne({ userId: _id, jobId, date: today, isDeleted: { $ne: true } });
 
                 let hasClockIn = false;
                 let hasMissingClockOut = false;

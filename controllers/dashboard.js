@@ -342,6 +342,7 @@ const getAbsentCount = async (userId, jobId) => {
                 $match: {
                     userId: new mongoose.Types.ObjectId(String(userId)),
                     jobId: new mongoose.Types.ObjectId(String(jobId)),
+                    isDeleted: { $ne: true },
                     date: { 
                         $gte: startDate.toISOString(),
                         $lte: endDate.toISOString() 
@@ -383,6 +384,7 @@ const getCurrentMonthTotalHoursAndOverTime = async (userId, jobId) => {
                 $match: {
                     userId: new mongoose.Types.ObjectId(String(userId)),
                     jobId: new mongoose.Types.ObjectId(String(jobId)),
+                    isDeleted: { $ne: true },
                     createdAt: { $gte: startOfMonth, $lte: endOfMonth }
                 }
             },
@@ -476,6 +478,7 @@ const getTodaysClocking = async (userId, jobId) => {
                 $match: {
                     userId: new mongoose.Types.ObjectId(String(userId)),
                     jobId: new mongoose.Types.ObjectId(String(jobId)),
+                    isDeleted: { $ne: true },
                     createdAt: { $gte: startOfDay, $lte: endOfDay }
                 }
             },

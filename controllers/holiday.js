@@ -2,6 +2,7 @@ const Location = require("../models/location")
 const Company = require("../models/company")
 const Holiday = require("../models/holiday")
 const moment = require('moment')
+const mongoose = require('mongoose')
 
 exports.addHoliday = async (req, res) => {    
     try {
@@ -122,34 +123,55 @@ exports.getAllHolidays = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
-            const year = req.query.year || moment().format('YYYY')
-            // console.log('year:', year)
-            const searchQuery = req.query.search ? req.query.search.trim() : ''
-            const companyId = req.query.companyId || req.user?.companyId?.toString()
-            
-            if(companyId == 'allCompany'){
-                return res.send({ status: 400, message: 'Kindly select a specific company.', holidays: [] })
-            }
-
-            const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
-            if(!company){
-                return res.send({ status: 404, message: 'Company not found' })
-            }
-
             const skip = (page - 1) * limit
 
-            let filter = { companyId, isDeleted: { $ne: true } }
+            const year = req.query.year || moment().format('YYYY')
+            const searchQuery = req.query.search ? req.query.search.trim() : ''
+            const companyId = req.query.companyId || req.user?.companyId?.toString()
 
-            if (year) {
-                filter.date = new RegExp(`^${year}-`, 'i')
+            let matchStage = {
+                isDeleted: { $ne: true },
+                date: { $regex: `^${year}-`, $options: 'i' }
             }
 
-            if(searchQuery){
-                filter['occasion'] = { $regex: searchQuery, $options: "i" }
+            if (companyId !== 'allCompany') {
+                const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+                if (!company) {
+                    return res.send({ status: 404, message: 'Company not found' })
+                }
+                matchStage.companyId = new mongoose.Types.ObjectId(companyId)
             }
 
-            const holidays = await Holiday.find(filter).sort({ date: 1 }).skip(skip).limit(limit)
-            const totalHolidays = await Holiday.countDocuments(filter)
+            if (searchQuery) {
+                matchStage.occasion = { $regex: searchQuery, $options: 'i' }
+            }
+
+            const aggregatePipeline = [
+                { $match: matchStage },
+                {
+                    $lookup: {
+                        from: 'companies',
+                        localField: 'companyId',
+                        foreignField: '_id',
+                        as: 'company'
+                    }
+                },
+                { $unwind: '$company' },
+                {
+                    $project: {
+                        _id: 1,
+                        date: 1,
+                        occasion: 1,
+                        companyName: '$company.companyDetails.businessName'
+                    }
+                },
+                { $sort: { date: 1 } },
+                { $skip: skip },
+                { $limit: limit }
+            ]
+
+            const holidays = await Holiday.aggregate(aggregatePipeline)
+            const totalHolidays = await Holiday.countDocuments(matchStage)
 
             return res.send({
                 status: 200,
@@ -164,6 +186,53 @@ exports.getAllHolidays = async (req, res) => {
         console.error('Error occurred while fetching holidays:', error)
         return res.send({ status: 500, message: 'Error occurred while fetching holidays!' })
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 50
+    //         const year = req.query.year || moment().format('YYYY')
+    //         // console.log('year:', year)
+    //         const searchQuery = req.query.search ? req.query.search.trim() : ''
+    //         const companyId = req.query.companyId || req.user?.companyId?.toString()
+            
+    //         if(companyId == 'allCompany'){
+    //             return res.send({ status: 400, message: 'Kindly select a specific company.', holidays: [] })
+    //         }
+
+    //         const company = await Company.findOne({ _id: companyId, isDeleted: { $ne: true } })
+    //         if(!company){
+    //             return res.send({ status: 404, message: 'Company not found' })
+    //         }
+
+    //         const skip = (page - 1) * limit
+
+    //         let filter = { companyId, isDeleted: { $ne: true } }
+
+    //         if (year) {
+    //             filter.date = new RegExp(`^${year}-`, 'i')
+    //         }
+
+    //         if(searchQuery){
+    //             filter['occasion'] = { $regex: searchQuery, $options: "i" }
+    //         }
+
+    //         const holidays = await Holiday.find(filter).sort({ date: 1 }).skip(skip).limit(limit)
+    //         const totalHolidays = await Holiday.countDocuments(filter)
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Holidays fetched successfully.',
+    //             holidays: holidays ? holidays : [],
+    //             totalHolidays,
+    //             totalPages: Math.ceil(totalHolidays / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching holidays:', error)
+    //     return res.send({ status: 500, message: 'Error occurred while fetching holidays!' })
+    // }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
     //     if(allowedRoles.includes(req.user.role)){

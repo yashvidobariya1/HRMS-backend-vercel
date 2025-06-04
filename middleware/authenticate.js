@@ -34,7 +34,7 @@ exports.auth = async (req, res, next) => {
         next()                  
     } catch (error) {
         console.error("Error occurred while authenticate:", error);
-        return res.send({ status: 500, message: "Your session has expired. Please log in again!" })
+        return res.send({ status: 5000, message: "Your session has expired. Please log in again!" })
     }
 }
 

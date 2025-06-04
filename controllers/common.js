@@ -1031,7 +1031,8 @@ exports.getAllUsers = async (req, res) => {
             const todaysTimesheets = await Timesheet.find({
                 userId: { $in: userIds },
                 date: today,
-                isTimerOn: true
+                isTimerOn: true,
+                isDeleted: { $ne: true }
             }).lean()
 
             const timesheetMap = {}

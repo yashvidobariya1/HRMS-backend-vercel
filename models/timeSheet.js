@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const TimesheetSchema = new mongoose.Schema(
     {
+        isDeleted: {
+            type: Boolean,
+            default: false
+        },
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'

@@ -108,14 +108,14 @@ exports.clockInFunc = async (req, res) => {
 
             let timesheet
             if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate })
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate, isDeleted: { $ne: true } })
                 if(!timesheet){
-                    timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId }).sort({ createdAt: -1 })
+                    timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 })
                 }
             } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate })
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate, isDeleted: { $ne: true } })
                 if(!timesheet){
-                    timesheet = await Timesheet.findOne({ userId, clientId, jobId }).sort({ createdAt: -1 })
+                    timesheet = await Timesheet.findOne({ userId, clientId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 })
                 }
             }
 
@@ -128,7 +128,7 @@ exports.clockInFunc = async (req, res) => {
             const checkInTime = moment().utc()
 
             if (checkInTime.isBefore(taskStartTime)) {
-                return res.status(400).json({ message: `You can only clock in after the task time ${convertToEuropeanTimezone(`${assignedTask.taskDate}T${assignedTask.startTime}:00.000Z`).format('LT')}.` })
+                return res.send({ status: 400, message: `You can only clock in after the task time ${convertToEuropeanTimezone(`${assignedTask.taskDate}T${assignedTask.startTime}:00.000Z`).format('LT')}.` })
             }
             
             if (!timesheet) {
@@ -259,6 +259,7 @@ exports.clockInFunc = async (req, res) => {
     }
 }
 
+// count total hours between two timing
 const formatDuration = (clockInTime, clockOutTime) => {
     let diffInSeconds = Math.floor((clockOutTime - clockInTime) / 1000)
     const hours = Math.floor(diffInSeconds / 3600)
@@ -269,6 +270,7 @@ const formatDuration = (clockInTime, clockOutTime) => {
     return `${hours}h ${minutes}m ${seconds}s`
 }
 
+// separate hours, minitues, second
 const parseTime = (duration) => {
     const regex = /(\d+)h|(\d+)m|(\d+)s/g
     let hours = 0, minutes = 0, seconds = 0
@@ -283,6 +285,7 @@ const parseTime = (duration) => {
     return { hours, minutes, seconds }
 }
 
+// add one time (5h 5m 0s) in second time (1h 1m 1s) then return (6h 6m 1s)
 const addDurations = (duration1, duration2) => {
     const time1 = parseTime(duration1)
     const time2 = parseTime(duration2)
@@ -297,6 +300,7 @@ const addDurations = (duration1, duration2) => {
     return `${totalHours}h ${totalMinutes}m ${totalSeconds}s`
 }
 
+// count over time from total duration and total working hours
 const subtractDurations = (totalDuration, threshold) => {
     const totalTime = parseTime(totalDuration)
     const thresholdTime = parseTime(threshold)
@@ -417,14 +421,14 @@ exports.clockOutFunc = async (req, res) => {
             const currentDate = moment().format('YYYY-MM-DD')
             let timesheet
             if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate })
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate, isDeleted: { $ne: true } })
                 if(!timesheet){
-                    timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId }).sort({ createdAt: -1 })
+                    timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 })
                 }
             } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate })
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate, isDeleted: { $ne: true } })
                 if(!timesheet){
-                    timesheet = await Timesheet.findOne({ userId, clientId, jobId }).sort({ createdAt: -1 })
+                    timesheet = await Timesheet.findOne({ userId, clientId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 })
                 }
             }
 
@@ -687,9 +691,9 @@ exports.clockInForEmployee = async (req, res) => {
 
             let timesheet
             if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date })
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
             } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date })
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
             }
 
             const assignedTask = await Task.findOne({ userId, clientId, jobId, taskDate: date, isDeleted: { $ne: true } })
@@ -782,9 +786,9 @@ exports.clockOutForEmployee = async (req, res) => {
 
             let timesheet
             if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date })
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
             } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date })
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
             }
 
             if (!timesheet) {
@@ -820,6 +824,7 @@ exports.clockOutForEmployee = async (req, res) => {
 
             const weeklyTimesheets = await Timesheet.find({
                 userId,
+                isDeleted: { $ne: true },
                 date: { $gte: startOfWeek, $lte: endOfWeek }
             })
 
@@ -876,18 +881,18 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
             let totalTimesheets
 
             if(jobDetail?.isWorkFromOffice){
-                // timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate }).lean().skip(skip).limit(limit)
-                // totalTimesheets = await Timesheet.findOne({ userId, locationId: jobDetail?.location, clientId, jobId, date: currentDate }).countDocuments()
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId }).sort({ createdAt: -1 }).lean()
+                // timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate, isDeleted: { $ne: true } }).lean().skip(skip).limit(limit)
+                // totalTimesheets = await Timesheet.findOne({ userId, locationId: jobDetail?.location, clientId, jobId, date: currentDate, isDeleted: { $ne: true } }).countDocuments()
+                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean()
             } else {
                 const client = jobDetail?.assignClient?.map(clientIds => clientIds == clientId)
                 if(!client){
                     return res.send({ status: 404, message: 'Client not found' })
                 }
 
-                // timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).lean().skip(skip).limit(limit)
-                // totalTimesheets = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).countDocuments()
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId }).sort({ createdAt: -1 }).lean()
+                // timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate, isDeleted: { $ne: true } }).lean().skip(skip).limit(limit)
+                // totalTimesheets = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate, isDeleted: { $ne: true } }).countDocuments()
+                timesheet = await Timesheet.findOne({ userId, clientId, jobId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean()
             }
 
             if (timesheet) {
@@ -916,6 +921,73 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
         console.error('Error occurred while fetching timesheet:', error);
         return res.send({ status: 500, message: "Something went wrong while fetching the timesheet!" });
     }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 50
+
+    //         const skip = (page - 1) * limit
+
+    //         const userId = req.body.userId || req.user._id
+    //         const clientId = req.body.clientId
+    //         const { jobId } = req.body
+
+    //         const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    //         if (!existUser) {
+    //             return res.send({ status: 404, message: 'User not found' })
+    //         }
+
+    //         let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+    //         if(!jobDetail){
+    //             return res.send({ status: 404, message: 'JobTitle not found' })
+    //         }
+
+    //         const currentDate = moment().format('YYYY-MM-DD')
+    //         let timesheet
+    //         let totalTimesheets
+
+    //         if(jobDetail?.isWorkFromOffice){
+    //             // timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date: currentDate }).lean().skip(skip).limit(limit)
+    //             // totalTimesheets = await Timesheet.findOne({ userId, locationId: jobDetail?.location, clientId, jobId, date: currentDate }).countDocuments()
+    //             timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId }).sort({ createdAt: -1 }).lean()
+    //         } else {
+    //             const client = jobDetail?.assignClient?.map(clientIds => clientIds == clientId)
+    //             if(!client){
+    //                 return res.send({ status: 404, message: 'Client not found' })
+    //             }
+
+    //             // timesheet = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).lean().skip(skip).limit(limit)
+    //             // totalTimesheets = await Timesheet.findOne({ userId, clientId, jobId, date: currentDate }).countDocuments()
+    //             timesheet = await Timesheet.findOne({ userId, clientId, jobId }).sort({ createdAt: -1 }).lean()
+    //         }
+
+    //         if (timesheet) {
+    //             timesheet.clockinTime = timesheet.clockinTime.map(entry => {
+    //                 const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+    //                 const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
+
+    //                 return {
+    //                     ...entry.toObject?.() ?? entry,
+    //                     clockIn: clockInStr,
+    //                     clockOut: clockOutStr,
+    //                 }
+    //             })
+    //         }
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Timesheet fetched successfully.',
+    //             timesheet: timesheet ? timesheet : {},
+    //             // totalTimesheets,
+    //             // totalPages: Math.ceil(totalTimesheets / limit) || 1,
+    //             // currentPage: page || 1
+    //         })
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching timesheet:', error);
+    //     return res.send({ status: 500, message: "Something went wrong while fetching the timesheet!" });
+    // }
     // try {
     //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
     //     if (allowedRoles.includes(req.user.role)) {
@@ -984,6 +1056,139 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
     // }
 }
 
+function getStartAndEndDateForViewHours ({ startDate, endDate }) {
+    let start, end
+    if(startDate && endDate){
+        start = moment(startDate).format('YYYY-MM-DD')
+        end = moment(endDate).format('YYYY-MM-DD')
+    } else if(startDate && (!endDate || endDate == "")){
+        start = moment(startDate).format('YYYY-MM-DD')
+        end = moment().format('YYYY-MM-DD')
+    } else {
+        start = moment().startOf('day')
+        end = moment().startOf('day')
+    }
+
+    return {
+        startDate: start,
+        endDate: end
+    }
+}
+
+async function getTimesheetReportForViewHours (users, clientIds, fromDate, toDate, isWorkFromOffice) {
+    const finalResponse = []
+
+    const userFilter = Array.isArray(users) && users.length > 0 ? users.map(id => new mongoose.Types.ObjectId(id)) : null
+
+    const clientFilter = Array.isArray(clientIds) && clientIds.length > 0 ? clientIds : null
+
+    let clientQuery = clientFilter ? { _id: { $in: clientFilter } } : {}
+
+    const clientDocs = await Client.find(clientQuery).lean()
+    // console.log('clientDocs:', clientDocs)
+    const clientMap = new Map(clientDocs.map(client => [client?._id?.toString(), client]))
+
+    const matchQuery = {
+        isDeleted: { $ne: true },
+        date: {
+            $gte: moment(fromDate).format('YYYY-MM-DD'),
+            $lte: moment(toDate).format('YYYY-MM-DD')
+        }
+    }
+
+    if(isWorkFromOffice == "false") {
+        if (clientFilter) matchQuery.clientId = { $in: clientFilter }
+    }
+
+    if (userFilter) matchQuery.userId = { $in: userFilter }
+
+    // console.log('matchQuery:', matchQuery)
+
+    const timesheetDocs = await Timesheet.aggregate([
+        { $match: matchQuery },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'user'
+            }
+        },
+        { $unwind: '$user' },
+        { $sort: { createdAt: -1 } },
+        // {
+        //     $facet: {
+        //         timesheet: [
+        //             { $skip: skip },
+        //             { $limit: limit },
+        //             {
+        //                 $project: {
+        //                     _id: 1,
+        //                     userId: 1,
+        //                     clientId: 1,
+        //                     date: 1,
+        //                     totalHours: 1,
+        //                     overTime: 1,
+        //                     clockinTime: 1,
+        //                     'user._id': 1,
+        //                     'user.personalDetails': 1,
+        //                     'user.jobDetails': 1
+        //                 }
+        //             }
+        //         ],
+        //         count: [{ $count: 'count' }]
+        //     }
+        // },
+        {
+            $project: {
+                _id: 1,
+                userId: 1,
+                jobId: 1,
+                clientId: 1,
+                date: 1,
+                totalHours: 1,
+                overTime: 1,
+                clockinTime: 1,
+                'user._id': 1,
+                'user.personalDetails': 1,
+                'user.jobDetails': 1
+            }
+        }
+    ])
+
+    for(const TS of timesheetDocs){
+        const user = TS?.user
+        let client
+        if(isWorkFromOffice == 'false'){
+            client = clientMap.get(TS?.clientId?.toString())
+            if (!client) continue
+        }
+        for(const job of user?.jobDetails){
+            let location
+            if(isWorkFromOffice == 'true' && job?.isWorkFromOffice == true){
+                location = await Location.findOne({ _id: job?.location, isDeleted: { $ne: true } }).select('locationName').lean()
+            }
+            if(job?._id?.toString() == TS?.jobId?.toString()){
+                for(const CI of TS?.clockinTime){
+                    finalResponse.push({
+                        _id: TS?._id,
+                        entryId: CI?._id,
+                        userName: user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`,
+                        jobTitle: job?.jobTitle,
+                        clientName: client?.clientName,
+                        locationName: location?.locationName,
+                        clockIn: CI?.clockIn ? convertToEuropeanTimezone(CI?.clockIn).format("YYYY-MM-DD HH:mm:ss") : "",
+                        clockOut: CI?.clockOut ? convertToEuropeanTimezone(CI?.clockOut).format("YYYY-MM-DD HH:mm:ss") : "",
+                        totalTiming: CI?.totalTiming,
+                    })
+                }
+            }
+        }
+    }
+
+    return finalResponse
+}
+
 // for view hours frontend page
 exports.getAllTimeSheets = async (req, res) => {
     try {
@@ -993,104 +1198,76 @@ exports.getAllTimeSheets = async (req, res) => {
             const limit = parseInt(req.query.limit) || 50
 
             const skip = (page - 1) * limit
-            const userId = req.body.userId || req.user._id
+            // const userId = req.body.userId || req.user._id
 
-            const { jobId, clientId } = req.body
-            const { month, year } = req.query
+            const { userId, clientId } = req.body
+            let { startDate, endDate, isWorkFromOffice, companyId } = req.query
+            // const { month, year } = req.query
 
-            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            const user = await User.findOne({ _id: req.user._id.toString(), isDeleted: { $ne: true } })
             if (!user) {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            const jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
+            if((!startDate || startDate == "") && (!endDate || endDate == "")){
+                startDate = moment(user.createdAt).format('YYYY-MM-DD')
+                endDate = moment().format('YYYY-MM-DD')
             }
 
-            let baseQuery = {
-                userId,
-                jobId: jobId.toString(),
-            }
+            const { startDate: fromDate, endDate: toDate } = getStartAndEndDateForViewHours({ startDate, endDate })
 
-            if(jobDetail?.isWorkFromOffice){
-                const location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-                if(!location){
-                    return res.send({ status: 404, message: 'Location not found' })
-                }
-                baseQuery.locationId = jobDetail?.location
-            } else {
-                if(!clientId || ['undefined', 'null', ''].includes(clientId)){
-                    return res.send({ status: 400, message: 'Client ID is required' })
-                }
+            let users, userIds = [], clients, clientIds = []
 
-                const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-                if(!client){
-                    return res.send({ status: 404, message: 'Client not found' })
-                }
-                baseQuery.clientId = clientId
-            }
+            const userMatch = { isDeleted: { $ne: true } }
+            if (companyId !== 'allCompany') userMatch.companyId = companyId
 
-            const currentDate = moment()
-            let filterYear = year || currentDate.format('YYYY')
-            let filterMonth = month ? month.padStart(2, '0') : null
+            if ((userId == 'allUsers' || userId == "" || !userId) && (clientId == 'allClients' || clientId == "" || !clientId)) {
+                users = await User.find(userMatch)
+                userIds = users.map(user => user._id.toString())
+                clients = await Client.find(userMatch)
+                clientIds = clients.map(client => client._id.toString())
+            } else if (userId !== 'allUsers' && (clientId == 'allClients' || clientId == "" || !clientId)) {
+                users = await User.find({ _id: userId, ...userMatch })
+                userIds = users.map(user => user._id.toString())
 
-            const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
-            const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
-
-            let startDate, endDate
-
-            if (!month && !year) {
-                filterYear = currentDate.format('YYYY')
-                filterMonth = currentDate.format('MM')
-                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
-                endDate = moment(startDate).endOf('month').toDate()
-                if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')){
-                    startDate = moment(joiningDate).toDate()
-                    endDate = moment(startDate).endOf('month').toDate()
-                }
-            } else if (month && !year) {
-                filterYear = currentDate.format('YYYY');
-                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
-                endDate = moment(startDate).endOf('month').toDate()
-                if(month === joiningDate.format('MM') && filterYear === joiningYear){
-                    startDate = moment(joiningDate).toDate()
-                    endDate = moment(startDate).endOf('month').toDate()
-                }               
-            } else if (!month && year) {
-                startDate = moment(`${filterYear}-01-01`).startOf('year').toDate()
-                endDate = moment(startDate).endOf('year').toDate()
-                if(filterYear === joiningYear){
-                    startDate = moment(joiningDate).toDate()
-                    endDate = moment(startDate).endOf('year').toDate()
-                }
-            } else {
-                startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
-                endDate = moment(startDate).endOf('month').toDate()
-                if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')) {
-                    startDate = moment(joiningDate).toDate()
-                    endDate = moment(startDate).endOf('month').toDate()
-                }
-            }
-
-            baseQuery.createdAt = { $gte: startDate, $lte: endDate }
-
-            const timesheets = await Timesheet.find(baseQuery).lean().sort({ createdAt: -1 }).skip(skip).limit(limit)
-
-            const totalTimesheets = await Timesheet.find(baseQuery).sort({ createdAt: -1 }).countDocuments()
-
-            for(const timesheet of timesheets){
-                timesheet.clockinTime = timesheet.clockinTime.map(entry => {
-                    const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
-                    const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
-    
-                    return {
-                        ...entry.toObject?.() ?? entry,
-                        clockIn: clockInStr,
-                        clockOut: clockOutStr,
-                    }
+                users.forEach(user => {
+                    user.jobDetails?.forEach(job => {
+                        job.assignClient?.forEach(client => {
+                            if (client) {
+                                clientIds.push(client.toString());
+                            }
+                        })
+                    })
                 })
+
+                clients = await Client.find(userMatch)
+                clientIds = clients.map(client => client._id.toString())
+            } else if ((userId == 'allUsers' || userId == "" || !userId) && clientId !== 'allClients') {
+                users = await User.find(userMatch)
+                // userIds = users.map(user => user._id.toString())
+
+                users.forEach(user => {
+                    user.jobDetails?.forEach(job => {
+                        job.assignClient?.forEach(client => {
+                            if(clientId == client){
+                                userIds.push(user._id.toString())
+                            }
+                        })
+                    })
+                })
+
+                clients = await Client.find({ _id: clientId, ...userMatch })
+                clientIds = clients.map(client => client._id.toString())
+            } else if (userId !== 'allUsers' && clientId !== 'allClients') {
+                users = await User.find({ _id: userId, ...userMatch })
+                userIds = users.map(user => user._id.toString())
+                clients = await Client.find({ _id: clientId, ...userMatch })
+                clientIds = clients.map(client => client._id.toString())
             }
+
+            const reports = await getTimesheetReportForViewHours(userIds, clientIds, fromDate, toDate, isWorkFromOffice)
+            const timesheets = reports.slice(skip, skip + limit)
+            const totalTimesheets = reports?.length
 
             return res.send({
                 status: 200,
@@ -1105,6 +1282,478 @@ exports.getAllTimeSheets = async (req, res) => {
     } catch (error) {
         console.error('Error occurred while fetching time sheet:', error)
         return res.send({ status: 500, message: 'Something went wrong while fetching time sheet!' })
+    }
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee'];
+    //     if (allowedRoles.includes(req.user.role)) {
+    //         const page = parseInt(req.query.page) || 1
+    //         const limit = parseInt(req.query.limit) || 50
+
+    //         const skip = (page - 1) * limit
+    //         const userId = req.body.userId || req.user._id
+
+    //         const { jobId, clientId } = req.body
+    //         const { month, year } = req.query
+
+    //         const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    //         if (!user) {
+    //             return res.send({ status: 404, message: 'User not found' })
+    //         }
+
+    //         const jobDetail = user?.jobDetails.find((job) => job._id.toString() === jobId)
+    //         if(!jobDetail){
+    //             return res.send({ status: 404, message: 'JobTitle not found' })
+    //         }
+
+    //         let baseQuery = {
+    //             userId,
+    //             jobId: jobId.toString(),
+    //         }
+
+    //         if(jobDetail?.isWorkFromOffice){
+    //             const location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+    //             if(!location){
+    //                 return res.send({ status: 404, message: 'Location not found' })
+    //             }
+    //             baseQuery.locationId = jobDetail?.location
+    //         } else {
+    //             if(!clientId || ['undefined', 'null', ''].includes(clientId)){
+    //                 return res.send({ status: 400, message: 'Client ID is required' })
+    //             }
+
+    //             const client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+    //             if(!client){
+    //                 return res.send({ status: 404, message: 'Client not found' })
+    //             }
+    //             baseQuery.clientId = clientId
+    //         }
+
+    //         const currentDate = moment()
+    //         let filterYear = year || currentDate.format('YYYY')
+    //         let filterMonth = month ? month.padStart(2, '0') : null
+
+    //         const joiningDate = jobDetail?.joiningDate ? moment(jobDetail?.joiningDate).startOf('day') : null
+    //         const joiningYear = joiningDate ? joiningDate.format('YYYY') : null
+
+    //         let startDate, endDate
+
+    //         if (!month && !year) {
+    //             filterYear = currentDate.format('YYYY')
+    //             filterMonth = currentDate.format('MM')
+    //             startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+    //             endDate = moment(startDate).endOf('month').toDate()
+    //             if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')){
+    //                 startDate = moment(joiningDate).toDate()
+    //                 endDate = moment(startDate).endOf('month').toDate()
+    //             }
+    //         } else if (month && !year) {
+    //             filterYear = currentDate.format('YYYY');
+    //             startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+    //             endDate = moment(startDate).endOf('month').toDate()
+    //             if(month === joiningDate.format('MM') && filterYear === joiningYear){
+    //                 startDate = moment(joiningDate).toDate()
+    //                 endDate = moment(startDate).endOf('month').toDate()
+    //             }               
+    //         } else if (!month && year) {
+    //             startDate = moment(`${filterYear}-01-01`).startOf('year').toDate()
+    //             endDate = moment(startDate).endOf('year').toDate()
+    //             if(filterYear === joiningYear){
+    //                 startDate = moment(joiningDate).toDate()
+    //                 endDate = moment(startDate).endOf('year').toDate()
+    //             }
+    //         } else {
+    //             startDate = moment(`${filterYear}-${filterMonth}-01`).startOf('month').toDate()
+    //             endDate = moment(startDate).endOf('month').toDate()
+    //             if(filterYear === joiningYear && filterMonth === joiningDate.format('MM')) {
+    //                 startDate = moment(joiningDate).toDate()
+    //                 endDate = moment(startDate).endOf('month').toDate()
+    //             }
+    //         }
+
+    //         baseQuery.createdAt = { $gte: startDate, $lte: endDate }
+
+    //         const timesheets = await Timesheet.find(baseQuery).lean().sort({ createdAt: -1 }).skip(skip).limit(limit)
+
+    //         const totalTimesheets = await Timesheet.find(baseQuery).sort({ createdAt: -1 }).countDocuments()
+
+    //         for(const timesheet of timesheets){
+    //             timesheet.clockinTime = timesheet.clockinTime.map(entry => {
+    //                 const clockInStr = entry.clockIn ? convertToEuropeanTimezone(entry.clockIn).format("YYYY-MM-DD HH:mm:ss") : ""
+    //                 const clockOutStr = entry.clockOut ? convertToEuropeanTimezone(entry.clockOut).format("YYYY-MM-DD HH:mm:ss") : ""
+    
+    //                 return {
+    //                     ...entry.toObject?.() ?? entry,
+    //                     clockIn: clockInStr,
+    //                     clockOut: clockOutStr,
+    //                 }
+    //             })
+    //         }
+
+    //         return res.send({
+    //             status: 200,
+    //             message: 'Timesheets fetched successfully.',
+    //             timesheets: timesheets.length > 0 ? timesheets : [],
+    //             totalTimesheets,
+    //             totalPages: Math.ceil(totalTimesheets / limit) || 1,
+    //             currentPage: page || 1
+    //         })
+
+    //     } else return res.send({ status: 403, message: "Access denied" })
+    // } catch (error) {
+    //     console.error('Error occurred while fetching time sheet:', error)
+    //     return res.send({ status: 500, message: 'Something went wrong while fetching time sheet!' })
+    // }
+}
+
+exports.addTimesheetEntry = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { userId, jobId, clientId, locationId, clockIn, clockOut, isWorkFromOffice } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = user?.jobDetails.find(job => job._id.toString() === jobId.toString())
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'Job title not found' })
+            }
+
+            const timesheetDate = moment(clockIn).format('YYYY-MM-DD')
+
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: timesheetDate, isDeleted: { $ne: true } })
+            if(!assignedTask && user.role == 'Employee'){
+                return res.send({ status: 404, message: "You don't have any tasks assigned for today!" })
+            }
+
+            const taskStartTime = moment(`${timesheetDate} ${assignedTask.startTime}`, 'YYYY-MM-DD HH:mm')
+            const checkInTime = moment(clockIn, 'YYYY-MM-DD HH:mm')
+
+            if(checkInTime.isBefore(taskStartTime)){
+                return res.send({ status: 400, message: `You can only clock in after the task time ${convertToEuropeanTimezone(`${assignedTask.taskDate}T${assignedTask.startTime}:00.000Z`).format('LT')}.` })
+            }
+            
+            let existTimesheet, location, client, breakTime
+            if(isWorkFromOffice == 'true' && jobDetail?.isWorkFromOffice == true){
+                const existAssignLocation = jobDetail?.location.find(loc => loc?.toString() == locationId)
+                if(!existAssignLocation){
+                    return res.send({ status: 404, message: 'Location not assigned to this job'})
+                }
+                existTimesheet = await Timesheet.findOne({ userId, jobId, locationId, date: timesheetDate, isDeleted: { $ne: true } })
+                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                breakTime = location?.breakTime
+            } else if(isWorkFromOffice == 'false' && jobDetail?.isWorkFromOffice == false){
+                const existAssignClient = jobDetail?.assignClient.find(client => client?.toString() == clientId)
+                if(!existAssignClient){
+                    return res.send({ status: 404, message: 'Client not assigned to this job'})
+                }
+                existTimesheet = await Timesheet.findOne({ userId, jobId, clientId, date: timesheetDate, isDeleted: { $ne: true } })
+                client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                breakTime = client?.breakTime
+            }
+
+            if(existTimesheet && existTimesheet?.isTimerOn){
+                return res.send({ status: 403, message: 'You have already clocked in. Please clock out before starting a new session.' })
+            } else if(existTimesheet && !existTimesheet?.isTimerOn) {
+                const timesheetId = existTimesheet?._id.toString()
+
+                const duration = formatDuration(new Date(clockIn), new Date(clockOut))
+
+                const newEntry = {
+                    clockIn: momentTimeZone.tz(clockIn, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                    clockOut: momentTimeZone.tz(clockOut, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                    totalTiming: duration,
+                    isClockin: false,
+                }
+
+                await Timesheet.findOneAndUpdate(
+                    { _id: new mongoose.Types.ObjectId(timesheetId) },
+                    {
+                        $push: {
+                            clockinTime: newEntry
+                        }
+                    },
+                    { new: true }
+                )
+
+                const updatedTimesheet = await Timesheet.findOne({ _id: timesheetId, isDeleted: { $ne: true } })
+                let shouldDeductBreak = updatedTimesheet?.breakTimeDeducted
+
+                let totalSeconds = updatedTimesheet.clockinTime.reduce((acc, entry) => acc + convertToSeconds(entry.totalTiming), 0)
+                const taskTotalHours = formatDuration(new Date(`${timesheetDate} ${assignedTask?.startTime}`), new Date(`${timesheetDate} ${assignedTask?.endTime}`))
+
+                if(!updatedTimesheet?.breakTimeDeducted && totalSeconds > (breakTime * 60)){
+                    shouldDeductBreak = true
+                }
+
+                totalSeconds -= (breakTime * 60)
+
+                let isOverTime = false
+                let overTime = subtractDurations(formatTimeFromSeconds(totalSeconds), taskTotalHours)
+
+                if(overTime !== "0h 0m 0s"){
+                    isOverTime = true
+                }
+
+                await Timesheet.findByIdAndUpdate(timesheetId, {
+                    totalHours: formatTimeFromSeconds(totalSeconds),
+                    isOverTime,
+                    overTime,
+                    breakTimeDeducted: shouldDeductBreak
+                })
+                
+                return res.send({ status: 200, message: 'Timesheet entry created successfully' })
+            } else {
+                const duration = formatDuration(new Date(clockIn), new Date(clockOut))
+                const taskTotalHours = formatDuration(new Date(`${timesheetDate} ${assignedTask?.startTime}`), new Date(`${timesheetDate} ${assignedTask?.endTime}`))
+                const totalHours = subtractBreakTimeFromTotalWorkingHours(duration, breakTime)
+
+                let isOverTime = false
+                let overTime = subtractDurations(duration, taskTotalHours)
+
+                if(overTime !== "0h 0m 0s"){
+                    isOverTime = true
+                }
+
+                const newTimesheet = {
+                    userId,
+                    jobId,
+                    clientId,
+                    locationId,
+                    date: timesheetDate,
+                    clockinTime: [{
+                        clockIn: momentTimeZone.tz(clockIn, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                        clockOut: momentTimeZone.tz(clockOut, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                        totalTiming: duration,
+                        isClockin: false,
+                    }],
+                    breakTimeDeducted: true, // true or false
+                    totalHours,
+                    isOverTime, // true or false
+                    overTime,
+                }
+                
+                await Timesheet.create(newTimesheet)
+
+                return res.send({ status: 200, message: 'Timesheet entry created successfully' })
+            }
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while creating timesheet entry:', error)
+        return res.send({ status: 500, message: 'Error occurred while creating timesheet entry!' })
+    }
+}
+
+exports.getTimesheetEntryData = async (req, res) => {
+    try {
+        const allowedRole = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRole.includes(req.user.role)){
+            const { timesheetId, entryId } = req.query
+
+            const timesheet = await Timesheet.findOne({ _id: timesheetId, isDeleted: { $ne: true } })
+            if(!timesheet){
+                return res.send({ status: 404, message: 'Timesheet not found' })
+            }
+
+            const entry = timesheet?.clockinTime.find(entry => entry?._id.toString() == entryId)
+            if(!entry){
+                return res.send({ status: 404, message: 'Timesheet entry not found' })
+            }
+
+            let isWorkFromOffice = false
+
+            if(timesheet?.locationId && timesheet?.locationId !== ""){
+                isWorkFromOffice = true
+            }
+
+            const timesheetData = {
+                isWorkFromOffice,
+                userId: timesheet?.userId,
+                jobId: timesheet?.jobId,
+                clientId: timesheet?.clientId,
+                locationId: timesheet?.locationId,
+                clockIn: entry?.clockIn ? convertToEuropeanTimezone(entry?.clockIn).format('YYYY-MM-DD HH:mm:ss') : "",
+                clockOut: entry?.clockOut ? convertToEuropeanTimezone(entry?.clockOut).format('YYYY-MM-DD HH:mm:ss') : "",
+            }
+
+            return res.send({ status: 200, message: 'Timesheet data fetched successfully', timesheetData })
+
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while fetching timesheet data:', error)
+        return res.send({ status: 500, message: 'Error occurred while fetching timesheet data!' })
+    }
+}
+
+exports.updateTimesheetEntry = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { timesheetId, entryId } = req.query
+            const { userId, jobId, clientId, locationId, clockIn, clockOut, isWorkFromOffice } = req.body
+
+            const user = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = user?.jobDetails.find(job => job._id.toString() === jobId.toString())
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'Job title not found' })
+            }
+
+            const timesheet = await Timesheet.findOne({ _id: timesheetId, isDeleted: { $ne: true } })
+            if(!timesheet){
+                return res.send({ status: 404, message: 'Timesheet not found' })
+            }
+
+            const entry = timesheet?.clockinTime.find(entry => entry?._id.toString() == entryId)
+            if(!entry){
+                return res.send({ status: 404, message: 'Timesheet entry not found' })
+            }
+
+            if (userId && userId !== timesheet.userId.toString()) {
+                return res.send({ status: 400, message: 'Mismatch: Selected employee does not belong to this timesheet' })
+            }
+
+            if (jobId && jobId !== timesheet.jobId.toString()) {
+                return res.send({ status: 400, message: 'Mismatch: Selected job title does not match the original job title in this timesheet entry' })
+            }
+
+            if(isWorkFromOffice == 'true'){
+                if (locationId && locationId !== timesheet.locationId.toString()) {
+                    return res.send({ status: 400, message: 'Mismatch: Selected location does not match the original location in this timesheet entry' })
+                }
+            } else if(isWorkFromOffice == 'false') {
+                if (clientId && clientId !== timesheet.clientId.toString()) {
+                    return res.send({ status: 400, message: 'Mismatch: Selected client does not match the original client in this timesheet entry' })
+                }
+            }
+
+            const duration = formatDuration(new Date(clockIn), new Date(clockOut))
+            const timesheetDate = moment(clockIn).format('YYYY-MM-DD')
+
+            const assignedTask = await Task.findOne({ userId, jobId, taskDate: timesheetDate, isDeleted: { $ne: true } })
+            if(!assignedTask && user.role == 'Employee'){
+                return res.send({ status: 404, message: "You don't have any tasks assigned for today!" })
+            }
+
+            let location, client, breakTime
+            if(isWorkFromOffice == 'true' && jobDetail?.isWorkFromOffice == true){
+                const existAssignLocation = jobDetail?.location.find(loc => loc?.toString() == locationId)
+                if(!existAssignLocation){
+                    return res.send({ status: 404, message: 'Location not assigned to this job'})
+                }
+                location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
+                breakTime = location?.breakTime
+            } else if(isWorkFromOffice == 'false' && jobDetail?.isWorkFromOffice == false){
+                const existAssignClient = jobDetail?.assignClient.find(client => client?.toString() == clientId)
+                if(!existAssignClient){
+                    return res.send({ status: 404, message: 'Client not assigned to this job'})
+                }
+                client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+                breakTime = client?.breakTime
+            }
+
+            timesheet.isTimerOn = false
+            entry.isClockin = false
+            entry.clockIn = momentTimeZone.tz(clockIn, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]')
+            entry.clockOut = momentTimeZone.tz(clockOut, 'YYYY-MM-DD HH:mm', 'Europe/London').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]')
+            entry.totalTiming = duration
+
+            let shouldDeductBreak = timesheet?.breakTimeDeducted
+            let totalSeconds = timesheet.clockinTime.reduce((acc, entry) => acc + convertToSeconds(entry.totalTiming), 0)
+            const taskTotalHours = formatDuration(new Date(`${timesheetDate} ${assignedTask?.startTime}`), new Date(`${timesheetDate} ${assignedTask?.endTime}`))
+
+            if(!timesheet?.breakTimeDeducted && totalSeconds > (breakTime * 60)){
+                shouldDeductBreak = true
+            }
+
+            totalSeconds -= (breakTime * 60)
+
+            let isOverTime = false
+            let overTime = subtractDurations(formatTimeFromSeconds(totalSeconds), taskTotalHours)
+
+            if(overTime !== "0h 0m 0s"){
+                isOverTime = true
+            }
+
+            timesheet.totalHours = formatTimeFromSeconds(totalSeconds)
+            timesheet.isOverTime = isOverTime
+            timesheet.overTime = overTime
+            timesheet.breakTimeDeducted = shouldDeductBreak
+
+            await timesheet.save()
+
+            return res.send({ status: 200, message: 'Timesheet entry updated successfully' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while updating timesheet entry:', error)
+        return res.send({ status: 500, message: 'Error ocurred while updating timesheet entry!' })
+    }
+}
+
+exports.deleteTimesheetEntry = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+        if(allowedRoles.includes(req.user.role)){
+            const { timesheetId, entryId } = req.query
+
+            const timesheet = await Timesheet.findOne({ _id: timesheetId, isDeleted: { $ne: true } })
+            if(!timesheet){
+                return res.send({ status: 404, message: 'Timesheet not found' })
+            }
+
+            const entry = timesheet?.clockinTime.find(entry => entry?._id.toString() == entryId)
+            if(!entry){
+                return res.send({ status: 404, message: 'Timesheet entry not found' })
+            }
+
+            const totalHours = subtractDurations(timesheet?.totalHours, entry?.totalTiming)
+
+            let overTime, isOverTime
+            if(convertToSeconds(timesheet?.overTime) > convertToSeconds(entry?.totalTiming)){
+                overTime = convertToSeconds(timesheet?.overTime) - convertToSeconds(entry?.totalTiming)
+                if(overTime > 0){
+                    isOverTime = true
+                } else isOverTime = false
+            } else {
+                overTime = "0h 0m 0s"
+                isOverTime = false
+            }
+
+            if(timesheet?.clockinTime?.length > 1){
+                await Timesheet.updateOne(
+                    { _id: new mongoose.Types.ObjectId(timesheetId) },
+                    {
+                        $set: {
+                            totalHours: totalHours,
+                            overTime: formatTimeFromSeconds(overTime),
+                            isOverTime: isOverTime,
+                        },
+                        $pull: {
+                            clockinTime: {
+                                _id: new mongoose.Types.ObjectId(entryId)
+                            }
+                        }
+                    }                    
+                )
+            } else {
+                await Timesheet.findOneAndUpdate(
+                    { _id: timesheetId },
+                    { $set: {
+                        isDeleted: true
+                    } },
+                    { new: true },
+                )
+            }
+            return res.send({ status: 200, message: 'Timesheet entry deleted successfully' })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error('Error occurred while deleting timesheet entry:', error)
+        return res.send({ status: 500, message: 'Error occurred while deleting timesheet entry!' })
     }
 }
 
@@ -1388,7 +2037,201 @@ function getStartAndEndDate({ timesheetFrequency, weekDate, startDate, endDate }
 //     return finalResponse;
 // }
 
-async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, timesheetFrequency, skip, limit) {
+// const buildTimesheetPipeline = (matchQuery, timesheetFrequency, skip, limit) => {
+//   const base = [
+//     { $match: matchQuery },
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'userId',
+//         foreignField: '_id',
+//         as: 'user'
+//       }
+//     },
+//     { $unwind: '$user' }
+//   ]
+
+//   if (timesheetFrequency === 'Weekly') {
+//     base.push(
+//       { $unwind: '$user.jobDetails' },                       // 1 row per job
+//       {
+//         // calculate ISO-week & ISO-year from the "date" string
+//         $addFields: {
+//           isoWeek: { $isoWeek: { $toDate: '$date' } },
+//           isoYear: { $isoWeekYear: { $toDate: '$date' } }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: {
+//             userId: '$userId',
+//             clientId: '$clientId',
+//             jobTitle: '$user.jobDetails.jobTitle',
+//             isoWeek: '$isoWeek',
+//             isoYear: '$isoYear'
+//           },
+//           // keep the daily rows for the front-end calendar popover
+//           weeklyData: {
+//             $push: { date: '$date', clockinTime: '$clockinTime' }
+//           },
+//           totalHoursArr: { $push: '$totalHours' },
+//           overTimeArr: { $push: '$overTime' },
+//           user: { $first: '$user' }
+//         }
+//       }
+//     )
+//   }
+
+//   base.push({
+//     $facet: {
+//       timesheet: [{ $skip: skip }, { $limit: limit }],
+//       count: [{ $count: 'count' }]
+//     }
+//   })
+//   return base
+// }
+
+// async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, timesheetFrequency, skip, limit){
+//   try {
+//     /* ----------------------------------------------------------- */
+//     /* Maps & filters                                               */
+//     /* ----------------------------------------------------------- */
+//     const userFilter =
+//       Array.isArray(users) && users.length > 0
+//         ? users.map(id => new mongoose.Types.ObjectId(id))
+//         : null
+
+//     const clientFilter =
+//       Array.isArray(clientIds) && clientIds.length > 0 ? clientIds : null
+
+//     const matchQuery = {
+//       date: {
+//         $gte: moment(fromDate).format('YYYY-MM-DD'),
+//         $lte: moment(toDate).format('YYYY-MM-DD')
+//       }
+//     }
+//     if (clientFilter) matchQuery.clientId = { $in: clientFilter }
+//     if (userFilter) matchQuery.userId = { $in: userFilter }
+
+//     /* ----------------------------------------------------------- */
+//     /* Build & run aggregation                                     */
+//     /* ----------------------------------------------------------- */
+//     const pipeline = buildTimesheetPipeline(matchQuery, timesheetFrequency, skip, limit)
+//     const [agg] = await Timesheet.aggregate(pipeline)
+
+//     /* ----------------------------------------------------------- */
+//     /* Prepare helper maps (clients)                               */
+//     /* ----------------------------------------------------------- */
+//     const clientDocs = await Client.find(
+//       clientFilter ? { _id: { $in: clientFilter } } : {}
+//     ).lean()
+//     const clientMap = new Map(clientDocs.map(c => [c._id.toString(), c]))
+
+//     /* ----------------------------------------------------------- */
+//     /* Transform aggregation → response                            */
+//     /* ----------------------------------------------------------- */
+//     const finalResponse = []
+
+//     // Handy util
+//     const sumSeconds = arr =>
+//       arr.reduce((t, cur) => t + convertToSeconds(cur), 0)
+
+//     if (timesheetFrequency === 'Weekly') {
+//       /***************  WEEKLY – aggregation already grouped **************/
+//       for (const doc of agg.timesheet) {
+//         const {
+//           userId,
+//           clientId,
+//           jobTitle,
+//           isoWeek,
+//           isoYear
+//         } = doc._id
+//         const client = clientMap.get(clientId?.toString())
+//         if (!client) continue
+
+//         const userName = doc.user.personalDetails.lastName
+//           ? `${doc.user.personalDetails.firstName} ${doc.user.personalDetails.lastName}`
+//           : doc.user.personalDetails.firstName
+
+//         const totalSeconds = sumSeconds(doc.totalHoursArr)
+//         const overtimeSeconds = sumSeconds(doc.overTimeArr)
+//         const workingSeconds = totalSeconds - overtimeSeconds
+
+//         finalResponse.push({
+//           userId,
+//           userName,
+//           jobRole: jobTitle,
+//           clientId,
+//           clientName: client.clientName,
+//           week: doc._id.isoWeek,      // in case the UI needs it
+//           year: doc._id.isoYear,
+//           workingHours: formatTimeFromSeconds(workingSeconds),
+//           overTime: formatTimeFromSeconds(overtimeSeconds),
+//           totalHours: formatTimeFromSeconds(totalSeconds),
+//           weeklyDate: doc.weeklyDate   // list of individual days + clockings
+//         })
+//       }
+//     } else {
+//       /***************  DAILY or MONTHLY – identical to your old loop ******/
+//       for (const doc of agg.timesheet) {
+//         const user = doc.user
+//         const client = clientMap.get(doc.clientId?.toString())
+//         if (!client) continue
+
+//         // every user may have several jobDetails → check assignment
+//         for (const job of user.jobDetails) {
+//           const assigned = job.assignClient?.map(c => c?.toString()) ?? []
+//           if (!assigned.includes(doc.clientId?.toString())) continue
+
+//           const convertedTiming = doc.clockinTime.map(entry => ({
+//             isClockin: entry?.isClockin,
+//             clockIn: entry.clockIn
+//               ? convertToEuropeanTimezone(entry.clockIn).format(
+//                   'YYYY-MM-DD HH:mm:ss'
+//                 )
+//               : '',
+//             clockOut: entry.clockOut
+//               ? convertToEuropeanTimezone(entry.clockOut).format(
+//                   'YYYY-MM-DD HH:mm:ss'
+//                 )
+//               : ''
+//           }))
+
+//           const totalSeconds = convertToSeconds(doc.totalHours)
+//           const overtimeSeconds = convertToSeconds(doc.overTime)
+//           const workingSeconds = totalSeconds - overtimeSeconds
+
+//           const userName = user.personalDetails.lastName
+//             ? `${user.personalDetails.firstName} ${user.personalDetails.lastName}`
+//             : user.personalDetails.firstName
+
+//           finalResponse.push({
+//             userId: doc.userId,
+//             userName,
+//             jobRole: job.jobTitle,
+//             clientId: client._id.toString(),
+//             clientName: client.clientName,
+//             date: doc.date,
+//             workingHours: formatTimeFromSeconds(workingSeconds),
+//             overTime: doc.overTime,
+//             totalHours: doc.totalHours,
+//             clockinTime: convertedTiming
+//           })
+//         }
+//       }
+//     }
+
+//     return {
+//       finalResponse,
+//       count: agg.count?.[0]?.count ?? 0
+//     }
+//   } catch (err) {
+//     console.error('Error in getOptimizedTimesheetReport:', err)
+//     throw err
+//   }
+// }
+
+async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, timesheetFrequency, skip, limit, isWorkFromOffice) {
     try {
         const finalResponse = []
         const weeklyMap = {}
@@ -1403,12 +2246,18 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
         const clientMap = new Map(clientDocs.map(client => [client?._id?.toString(), client]))
 
         const matchQuery = {
+            isDeleted: { $ne: true },
             date: {
                 $gte: moment(fromDate).format('YYYY-MM-DD'),
                 $lte: moment(toDate).format('YYYY-MM-DD')
             }
         }
-        if (clientFilter) matchQuery.clientId = { $in: clientFilter }
+
+        if(isWorkFromOffice == "false") {
+            if (clientFilter) matchQuery.clientId = { $in: clientFilter }
+        }
+
+        // if (clientFilter) matchQuery.clientId = { $in: clientFilter }
         if (userFilter) matchQuery.userId = { $in: userFilter }
 
         const [timesheetDocs] = await Timesheet.aggregate([
@@ -1431,6 +2280,7 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
                             $project: {
                                 _id: 1,
                                 userId: 1,
+                                jobId: 1,
                                 clientId: 1,
                                 date: 1,
                                 totalHours: 1,
@@ -1461,14 +2311,23 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
             // }
         ])
 
+        let location
         for (const doc of timesheetDocs?.timesheet) {
             const user = doc?.user
-            const client = clientMap.get(doc?.clientId?.toString())
-            if (!client) continue
-
+            let client
+            if(isWorkFromOffice == 'false'){
+                client = clientMap.get(doc?.clientId?.toString())
+                if (!client) continue
+            }
+           
             for (const job of user?.jobDetails) {
-                const assignedClientIds = job?.assignClient?.map(c => c?.toString())
-                if (!assignedClientIds.includes(doc?.clientId?.toString())) continue
+                if(job?._id.toString() !== doc?.jobId.toString()) continue
+                if(isWorkFromOffice == 'false' && job?.isWorkFromOffice == false){
+                    const assignedClientIds = job?.assignClient?.map(c => c?.toString())
+                    if (!assignedClientIds.includes(doc?.clientId?.toString())) continue
+                } else if(isWorkFromOffice == 'true' && job?.isWorkFromOffice == true) {
+                    location = await Location.findOne({ _id: job?.location?.toString(), isDeleted: { $ne: true } }).lean()
+                }
 
                 const convertedTiming = doc?.clockinTime?.map(entry => ({
                     isClockin: entry?.isClockin,
@@ -1485,17 +2344,23 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
                     : user?.personalDetails?.firstName
 
                 if (timesheetFrequency === 'Weekly') {
-                    const key = `${doc?.userId}_${doc?.clientId}_${job?.jobTitle}`
+                    const weekStart = moment(doc.date).startOf('isoWeek')
+                    const weekEnd   = moment(doc.date).endOf('isoWeek')
+                    const key = [ doc.userId, doc.clientId, job.jobTitle, weekStart.format('YYYY-MM-DD') ].join('_')
+                    // const key = `${doc?.userId}_${doc?.clientId}_${job?.jobTitle}`
                     if (!weeklyMap[key]) {
                         weeklyMap[key] = {
                             userId: doc?.userId,
                             userName,
                             jobRole: job?.jobTitle,
                             clientName: client?.clientName,
-                            clientId: doc?.clientId,
+                            locationName: location?.locationName,
+                            // clientId: doc?.clientId,
                             workingHoursSeconds: 0,
                             overTimeSeconds: 0,
                             totalHoursSeconds: 0,
+                            weekStart: weekStart.format('YYYY-MM-DD'),
+                            weekEnd: weekEnd.format('YYYY-MM-DD'),
                             weeklyDate: []
                         }
                     }
@@ -1513,8 +2378,9 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
                         userId: doc?.userId,
                         userName,
                         jobRole: job?.jobTitle,
-                        clientId: client?._id?.toString(),
+                        // clientId: client?._id?.toString(),
                         clientName: client?.clientName,
+                        locationName: location?.locationName,
                         date: doc?.date,
                         workingHours: formatTimeFromSeconds(workingSeconds),
                         overTime: doc?.overTime,
@@ -1529,11 +2395,14 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
             for (const key in weeklyMap) {
                 const item = weeklyMap[key]
                 finalResponse.push({
+                    weekStart: item.weekStart,
+                    weekEnd: item.weekEnd,
                     userId: item?.userId,
                     userName: item?.userName,
                     jobRole: item?.jobRole,
-                    clientId: item?.clientId,
+                    // clientId: item?.clientId,
                     clientName: item?.clientName,
+                    locationName: location?.locationName,
                     workingHours: formatTimeFromSeconds(item?.workingHoursSeconds),
                     overTime: formatTimeFromSeconds(item?.overTimeSeconds),
                     totalHours: formatTimeFromSeconds(item?.totalHoursSeconds),
@@ -1543,6 +2412,10 @@ async function getOptimizedTimesheetReport(users, clientIds, fromDate, toDate, t
         }
 
         return { finalResponse, count: timesheetDocs?.count[0]?.count }
+
+        // const reports = finalResponse.slice(skip, skip + limit)
+        // const totalCount = finalResponse?.length
+        // return { finalResponse, count: totalCount }
     } catch (error) {
         console.log('Error occured while optimizing timesheet report:', error)
     }
@@ -1558,36 +2431,77 @@ exports.getTimesheetReport = async (req, res) => {
             const skip = (page - 1) * limit
 
             const { userId, clientId } = req.body
-            const { timesheetFrequency, weekDate, startDate, endDate, isWorkFromOffice } = req.query
+            const { timesheetFrequency, weekDate, isWorkFromOffice, companyId } = req.query
+            let { startDate, endDate } = req.query
+
+            const user = await User.findOne({ _id: req.user._id.toString(), isDeleted: { $ne: true } }).lean()
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            if((!startDate || startDate == "") && (!endDate || endDate == "")){
+                startDate = moment(user.createdAt).format('YYYY-MM-DD')
+                endDate = moment().format('YYYY-MM-DD')
+            }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDate({ timesheetFrequency, weekDate, startDate, endDate })
 
             let users, userIds = [], clients, clientIds = []
 
+            const userMatch = { isDeleted: { $ne: true } }
+            if (companyId !== 'allCompany') userMatch.companyId = companyId
+
             if ((userId == 'allUsers' || userId == "" || !userId) && (clientId == 'allClients' || clientId == "" || !clientId)) {
-                users = await User.find({ isDeleted: { $ne: true } })
+                users = await User.find(userMatch)
                 userIds = users.map(user => user._id.toString())
-                clients = await Client.find({ isDeleted: { $ne: true } })
+                clients = await Client.find(userMatch)
                 clientIds = clients.map(client => client._id.toString())
             } else if (userId !== 'allUsers' && (clientId == 'allClients' || clientId == "" || !clientId)) {
-                users = await User.find({ _id: userId, isDeleted: { $ne: true } })
+                users = await User.find({ _id: userId, ...userMatch })
                 userIds = users.map(user => user._id.toString())
-                clients = await Client.find({ isDeleted: { $ne: true } })
+
+                users.forEach(user => {
+                    user.jobDetails?.forEach(job => {
+                        job.assignClient?.forEach(client => {
+                            if (client) {
+                                clientIds.push(client.toString());
+                            }
+                        })
+                    })
+                })
+
+                clients = await Client.find(userMatch)
                 clientIds = clients.map(client => client._id.toString())
             } else if ((userId == 'allUsers' || userId == "" || !userId) && clientId !== 'allClients') {
-                users = await User.find({ isDeleted: { $ne: true } })
-                userIds = users.map(user => user._id.toString())
-                clients = await Client.find({ _id: clientId, isDeleted: { $ne: true } })
+                users = await User.find(userMatch)
+                // userIds = users.map(user => user._id.toString())
+
+                users.forEach(user => {
+                    user.jobDetails?.forEach(job => {
+                        job.assignClient?.forEach(client => {
+                            if(clientId == client){
+                                userIds.push(user._id.toString())
+                            }
+                        })
+                    })
+                })
+
+                clients = await Client.find({ _id: clientId, ...userMatch })
                 clientIds = clients.map(client => client._id.toString())
             } else if (userId !== 'allUsers' && clientId !== 'allClients') {
-                users = await User.find({ _id: userId, isDeleted: { $ne: true } })
+                users = await User.find({ _id: userId, ...userMatch })
                 userIds = users.map(user => user._id.toString())
-                clients = await Client.find({ _id: clientId, isDeleted: { $ne: true } })
+                clients = await Client.find({ _id: clientId, ...userMatch })
                 clientIds = clients.map(client => client._id.toString())
             }
 
-            const finalResponse = await getOptimizedTimesheetReport(userIds, clientIds, fromDate, toDate, timesheetFrequency, skip, limit)
-            const totalReports = finalResponse?.count
+            const finalResponse = await getOptimizedTimesheetReport(userIds, clientIds, fromDate, toDate, timesheetFrequency, skip, limit, isWorkFromOffice)
+
+            let totalHours = 0
+            
+            finalResponse.finalResponse.map(result => {
+                totalHours += convertToSeconds(result?.totalHours)
+            })
 
             // const reports = finalResponse.slice(skip, skip + limit)
             // const totalReports = finalResponse.length
@@ -1595,9 +2509,10 @@ exports.getTimesheetReport = async (req, res) => {
             return res.send({
                 status: 200,
                 message: "Timesheet report fetched successfully",
+                totalHours: formatTimeFromSeconds(totalHours),
                 reports: finalResponse.finalResponse,
-                totalReports,
-                totalPages: Math.ceil(totalReports / limit) || 1,
+                totalReports: finalResponse.count,
+                totalPages: Math.ceil(finalResponse.count / limit) || 1,
                 currentPage: page || 1
             })
         } else return res.send({ status: 403, message: 'Access denied' })
@@ -1934,7 +2849,7 @@ exports.getAbsenceReport = async (req, res) => {
         
 
             // 1. Fetch timesheet entries (Check-ins/outs)
-            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate }, ...query })
+            const timesheets = await Timesheet.find({ userId, jobId, isDeleted: { $ne: true }, date: { $gte: startDate, $lte: endDate }, ...query })
             // console.log('timesheet:', timesheets)
 
             // 2. Fetch leave requests
@@ -2363,7 +3278,7 @@ exports.downloadTimesheetReport = async (req, res) => {
 
             // Fetch timesheet, leave, and holiday data
             // const timesheets = await Timesheet.find({ userId, jobId, createdAt: { $gte: startMoment.toDate(), $lte: endMoment.toDate() } })
-            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate } }).lean()
+            const timesheets = await Timesheet.find({ userId, jobId, date: { $gte: startDate, $lte: endDate }, isDeleted: { $ne: true } }).lean()
 
             for(const timesheet of timesheets){
                 timesheet.clockinTime = timesheet.clockinTime.map(entry => {
@@ -2786,37 +3701,63 @@ exports.getAllClientsOfUser = async (req, res) => {
         }
 
         const { userId, isWorkFromOffice } = req.body
+        const { companyId } = req.query
 
-        const userClients = await User.aggregate([
-            { $match: { _id: new mongoose.Types.ObjectId(String(userId)), isDeleted: { $ne: true } } },
-            { $unwind: "$jobDetails" },
-            { $match: { "jobDetails.isWorkFromOffice": isWorkFromOffice } },
+        let matchConditions = [ { isDeleted: { $ne: true } } ]
+        
+        if (companyId && companyId !== 'allCompany') {
+            matchConditions.push({
+                companyId: new mongoose.Types.ObjectId(String(companyId))
+            })
+        } else if (req.user.role !== 'Superadmin') {
+            matchConditions.push({
+                companyId: new mongoose.Types.ObjectId(String(req.user.companyId))
+            })
+        }
+
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+            matchConditions.push({ _id: new mongoose.Types.ObjectId(String(userId)) })
+        }
+
+        let pipeline = [
+            { $match: { $and: matchConditions } },
+            { $unwind: "$jobDetails" }
+        ]
+
+        if (typeof isWorkFromOffice === 'boolean') {
+            pipeline.push({ $match: { "jobDetails.isWorkFromOffice": isWorkFromOffice } })
+        }
+
+        pipeline.push(
             { $unwind: "$jobDetails.assignClient" },
             { $addFields: {
-                clientObjectId: {
-                    $convert: {
-                        input: "$jobDetails.assignClient",
-                        to: "objectId",
-                        onError: null,
-                        onNull: null
+                    clientObjectId: {
+                        $convert: {
+                            input: "$jobDetails.assignClient",
+                            to: "objectId",
+                            onError: null,
+                            onNull: null
+                        }
                     }
-                }
             } },
             { $match: { clientObjectId: { $ne: null } } },
             { $group: { _id: "$clientObjectId" } },
             { $lookup: {
-                from: "clients",
-                localField: "_id",
-                foreignField: "_id",
-                as: "client"
+                    from: "clients",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "client"
             } },
             { $unwind: "$client" },
             { $match: { "client.isDeleted": { $ne: true } } },
             { $project: {
-                _id: 1,
-                clientName: "$client.clientName"
-            } }
-        ])
+                    _id: 1,
+                    clientName: "$client.clientName"
+            } },
+            { $sort: { clientName: 1 } }
+        )
+
+        const userClients = await User.aggregate(pipeline)
 
         return res.send({ status: 200, clients: userClients })
     } catch (error) {
@@ -2833,39 +3774,82 @@ exports.getAllUsersOfClient = async (req, res) => {
         }
 
         const { clientId, isWorkFromOffice } = req.body
+        const { companyId } = req.query
 
-        const clientUsers = await User.aggregate([
-            { $match: { isDeleted: { $ne: true } } },
-            { $unwind: "$jobDetails" },
-            { $match: { "jobDetails.isWorkFromOffice": isWorkFromOffice } },
-            { $unwind: "$jobDetails.assignClient" },
-            { $addFields: {
-                clientObjectId: {
-                    $convert: {
-                        input: "$jobDetails.assignClient",
-                        to: "objectId",
-                        onError: null,
-                        onNull: null
+        let matchConditions = [ { isDeleted: { $ne: true } } ]
+        
+        if (companyId && companyId !== 'allCompany') {
+            matchConditions.push({
+                companyId: new mongoose.Types.ObjectId(String(companyId))
+            })
+        } else if (req.user.role !== 'Superadmin') {
+            matchConditions.push({
+                companyId: new mongoose.Types.ObjectId(String(req.user.companyId))
+            })
+        }
+
+        let pipeline = [
+            { $match: { $and: matchConditions } },
+            { $unwind: "$jobDetails" }
+        ]
+
+        if (typeof isWorkFromOffice === 'boolean') {
+            pipeline.push({
+                $match: { "jobDetails.isWorkFromOffice": isWorkFromOffice }
+            })
+        }
+
+        if(isWorkFromOffice == 'false'){
+            pipeline.push({ $unwind: "$jobDetails.assignClient" })
+
+            if (mongoose.Types.ObjectId.isValid(clientId)) {
+                pipeline.push({
+                    $addFields: {
+                        clientObjectId: {
+                            $convert: {
+                                input: "$jobDetails.assignClient",
+                                to: "objectId",
+                                onError: null,
+                                onNull: null
+                            }
+                        }
                     }
-                }
-            } },
-            { $match: { clientObjectId: new mongoose.Types.ObjectId(clientId) } },
+                })
+
+                pipeline.push({
+                    $match: { clientObjectId: new mongoose.Types.ObjectId(clientId) }
+                })
+            }
+        } else if(isWorkFromOffice == 'true'){
+            pipeline.push({
+                $match: { "jobDetails.isWorkFromOffice": true }
+            })
+        }
+
+        pipeline.push(
             { $project: {
-                _id: 1,
-                userName: {
-                    $cond: {
-                        if: { $ifNull: ["$personalDetails.lastName", false] },
-                        then: { $concat: ["$personalDetails.firstName", " ", "$personalDetails.lastName"] },
-                        else: "$personalDetails.firstName"
+                    _id: 1,
+                    userName: {
+                        $cond: {
+                            if: { $ifNull: ["$personalDetails.lastName", false] },
+                            then: { $concat: ["$personalDetails.firstName", " ", "$personalDetails.lastName"] },
+                            else: "$personalDetails.firstName"
+                        }
                     }
-                },
-            } }
-        ])
+            } },
+            { $group: {
+                    _id: "$_id",
+                    userName: { $first: "$userName" }
+            } },
+            { $sort: { userName: 1 } }
+        )
+
+        const clientUsers = await User.aggregate(pipeline)
 
         return res.send({ status: 200, users: clientUsers })
     } catch (error) {
         console.error("Error occurred while fetching users by client:", error)
-        return res.send({ status: 500, message: "Internal Server Error" })
+        return res.send({ status: 500, message: "Error occurred while fetching users by client!" })
     }
 }
 

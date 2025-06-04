@@ -1056,7 +1056,7 @@ exports.getReport = async (req, res) => {
 
                 const { fromDate, toDate } = getStartAndEndDate({ joiningDate: emp?.joiningDate, startDate: report?.startDate, endDate: report?.endDate })
 
-                const timesheets = await Timesheet.find({ userId: emp?.userId, jobId: emp?.jobId, clientId: clientIdFromReport, date: { $gte: fromDate, $lte: toDate } }).lean()
+                const timesheets = await Timesheet.find({ userId: emp?.userId, jobId: emp?.jobId, clientId: clientIdFromReport, date: { $gte: fromDate, $lte: toDate }, isDeleted: { $ne: true } }).lean()
 
                 const dateList = [];
                 for (let d = moment(fromDate); d.isSameOrBefore(toDate); d.add(1, 'days')) {
