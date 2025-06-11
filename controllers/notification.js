@@ -2,6 +2,7 @@ const Notification = require("../models/notification");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
 const moment = require("moment");
+const { convertToEuropeanTimezone } = require("../utils/timezone");
 
 // exports.getNotifications = async (req, res) => {
 //     try {
@@ -216,6 +217,12 @@ exports.getNotifications = async (req, res) => {
 
             const notifications = await Notification.aggregate([...pipeline]).skip(skip).limit(limit)
 
+            const formattedNotifications = notifications.map(notif => ({
+                ...notif,
+                createdAt: convertToEuropeanTimezone(notif?.createdAt).format('YYYY-MM-DD HH:mm:ss'),
+                updatedAt: convertToEuropeanTimezone(notif?.updatedAt).format('YYYY-MM-DD HH:mm:ss'),
+            }))
+
             const totalNotificationsResult = await Notification.aggregate([...pipeline, { $count: "total" }])
             const totalNotifications = totalNotificationsResult.length > 0 ? totalNotificationsResult[0].total : 0;
 
@@ -250,7 +257,7 @@ exports.getNotifications = async (req, res) => {
                 status: 200,
                 message: 'Notifications fetched successfully.',
                 unreadNotificationsCount,
-                notifications,
+                notifications: formattedNotifications,
                 totalNotifications,
                 totalPages: Math.ceil(totalNotifications / limit) || 1,
                 currentPage: page || 1

@@ -154,7 +154,7 @@ exports.clockInOutReminder = async (type, today) => {
                             subject: 'Missing Clock-in Reminder',
                             html: `
                                 <h2>Reminder for missing Clock-in</h2>
-                                <p>You haven't clocked in today for ${job?.jobTitle} Role.</p>
+                                <p>You haven't clocked in today for <b>${job?.jobTitle}</b> Role.</p>
                                 <p>Best Regards,<br>City Clean London Team</p>
                             `
                         }
@@ -177,7 +177,7 @@ exports.clockInOutReminder = async (type, today) => {
                             userId: _id,
                             notifiedId: [_id],
                             type: 'Clock-in Reminder',
-                            message: `You haven't clocked in today for <b>${job?.jobTitle}</b> Role.`,
+                            message: `You haven't clocked in today for '${job?.jobTitle}' Role.`,
                             readBy: [{ userId: _id, role: employee?.role }]
                         })
                         await delay(1000);
@@ -190,7 +190,7 @@ exports.clockInOutReminder = async (type, today) => {
                             subject: 'Missing Clock-out Reminder',
                             html: `
                                 <h2>Reminder for missing Clock-out</h2>
-                                <p>You haven't clocked out yet for ${job?.jobTitle} Role.</p>
+                                <p>You haven't clocked out yet for <b>${job?.jobTitle}</b> Role.</p>
                                 <p>Best Regards,<br>City Clean London Team</p>
                             `
                         }
@@ -213,7 +213,7 @@ exports.clockInOutReminder = async (type, today) => {
                             userId: _id,
                             notifiedId: [_id],
                             type: 'Clock-out Reminder',
-                            message: `You haven't clocked out yet for <b>${job?.jobTitle}</b> Role.`,
+                            message: `You haven't clocked out yet for '${job?.jobTitle}' Role.`,
                             readBy: [{ userId: _id, role: employee?.role }]
                         })
                         await delay(1000)

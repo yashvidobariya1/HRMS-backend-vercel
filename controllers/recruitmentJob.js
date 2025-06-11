@@ -414,6 +414,6 @@ exports.getCompanyLocationsForJobPost = async (req, res) => {
         } else return res.send({ status: 403, message: "Access denied" });
     } catch (error) {
         console.error("Error occurred while fetching locations and clients:", error);
-        return res.send({ status: 500, message: "Something went wrong while fetching locations and clients!" });
+        return res.send({ status: 500, message: "Error occurred while fetching locations and clients!" });
     }
 }

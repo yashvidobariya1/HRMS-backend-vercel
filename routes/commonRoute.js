@@ -6,9 +6,8 @@ const { leaveRequest, getAllOwnLeaves, getAllLeaveRequest, updateLeaveRequest, d
 const { getNotifications, getUnreadNotificationsCount, readNotification, getNotification } = require('../controllers/notification')
 const { saveTemplateWithSignature, previewTemplate, readTemplate } = require('../controllers/templates')
 const { dashboard } = require('../controllers/dashboard')
-const { createTask, updateTask, getTask, getAllTasks, canceledTask } = require('../controllers/task')
+const { createTask, updateTask, getTask, getAllTasks, canceledTask, getAllUsersWithJobRoles } = require('../controllers/task')
 const { getAllLoggedInOutUsers } = require('../controllers/loggedInUser')
-const { generateContractForEmployee } = require('../controllers/contract')
 // const { getTimesheetReportForClient } = require('../controllers/client')
 
 const commonRoute = Router()
@@ -23,6 +22,7 @@ commonRoute.post('/forgotPassword', forgotPassword)
 commonRoute.post('/dashboard', auth, dashboard)
 // get user job title
 commonRoute.get('/getUserJobTitles', auth, getUserJobTitles)
+commonRoute.get('/getAllUsersWithJobRoles', auth, getAllUsersWithJobRoles)
 // user
 commonRoute.post('/addUser', auth, addUser)
 commonRoute.get('/getUser/:id', auth, getUser)

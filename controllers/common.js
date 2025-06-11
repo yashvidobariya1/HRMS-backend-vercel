@@ -641,11 +641,13 @@ exports.addUser = async (req, res) => {
             if(jobDetails){
                 for (const JD of jobDetails) {
                     if(JD?.isWorkFromOffice){
-                        const location = await Location.findOne({ _id: JD?.location, companyId, isDeleted: { $ne: true } })
-                        if(!location){
-                            return res.send({ status: 404, message: 'Location not found' })
+                        for(const loc of JD?.location){
+                            const location = await Location.findOne({ _id: loc, companyId, isDeleted: { $ne: true } })
+                            if(!location){
+                                return res.send({ status: 404, message: 'Location not found' })
+                            }
+                            locationIds.push(loc)
                         }
-                        locationIds.push(JD?.location)
                     } else if(JD?.assignClient.length > 0){
                         for (const clientId of JD?.assignClient) {
                             const existingClient = await Client.findOne({ _id: clientId, companyId, isDeleted: { $ne: true } });
@@ -1082,6 +1084,8 @@ exports.getAllUsers = async (req, res) => {
                     Id: user.unique_ID,
                     position: user.role,
                     email: user.personalDetails?.email,
+                    phone: user?.personalDetails?.phone,
+                    jobTitle: user.jobDetails?.map(job => job.jobTitle).join(', '),
                     status: user.isActive,
                     todaysTimesheet,
                     roleWisePoints: user.roleWisePoints,
@@ -1348,11 +1352,13 @@ exports.updateUserDetails = async (req, res) => {
             if(jobDetails){
                 for (const JD of jobDetails) {
                     if(JD?.isWorkFromOffice){
-                        const location = await Location.findOne({ _id: JD?.location, companyId, isDeleted: { $ne: true } })
-                        if(!location){
-                            return res.send({ status: 404, message: 'Location not found' })
+                        for(const loc of JD?.location){
+                            const location = await Location.findOne({ _id: loc, companyId, isDeleted: { $ne: true } })
+                            if(!location){
+                                return res.send({ status: 404, message: 'Location not found' })
+                            }
+                            locationIds.push(loc)
                         }
-                        locationIds.push(JD?.location)
                     } else if(JD?.assignClient.length > 0){
                         for (const clientId of JD?.assignClient) {
                             const existingClient = await Client.findOne({ _id: clientId, companyId, isDeleted: { $ne: true } });
@@ -1676,9 +1682,41 @@ exports.getUserJobTitles = async (req, res) => {
             }
 
             const jobTitles = []
-            user?.jobDetails.map((job) => {
-                jobTitles.push({ jobId: job._id, jobName: job.jobTitle, isWorkFromOffice: job?.isWorkFromOffice })
-            })
+            // user?.jobDetails.map((job) => {
+            //     jobTitles.push({ jobId: job._id, jobName: job.jobTitle, isWorkFromOffice: job?.isWorkFromOffice })
+            // })
+
+            for (const job of user.jobDetails) {
+                const jobId = job._id
+                const jobName = job.jobTitle
+                const isWorkFromOffice = job.isWorkFromOffice
+
+                if (!isWorkFromOffice && job.assignClient?.length > 0) {
+                    const clients = await Client.find({ _id: { $in: job.assignClient }, isDeleted: { $ne: true } }, { _id: 1, clientName: 1, companyId: 1 })
+                    clients.forEach(client => {
+                        jobTitles.push({
+                            jobId,
+                            jobName: `${jobName} - ${client.clientName}`,
+                            clientId: client?._id.toString(),
+                            companyId: client?.companyId,
+                            role: job?.role,
+                            isWorkFromOffice: false
+                        })
+                    })
+                } else if (isWorkFromOffice && job.location?.length > 0) {
+                    const locations = await Location.find({ _id: { $in: job.location }, isDeleted: { $ne: true } }, { _id: 1, locationName: 1, companyId: 1 })
+                    locations.forEach(location => {
+                        jobTitles.push({
+                            jobId,
+                            jobName: `${jobName} - ${location.locationName}`,
+                            locationId: location?._id.toString(),
+                            companyId: location?.companyId,
+                            role: job?.role,
+                            isWorkFromOffice: true
+                        })
+                    })
+                }
+            }
 
             const templates = user?.templates.map(template => ({
                 _id: template._id,
@@ -1687,11 +1725,8 @@ exports.getUserJobTitles = async (req, res) => {
                 isTemplateSigned: template.isTemplateSigned,
             }))
 
-            if(jobTitles.length > 1){
-                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: true, jobTitles, templates })
-            } else {
-                res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: false, jobTitles, templates })
-            }
+
+            return res.send({ status: 200, message: 'User job titles get successfully.', multipleJobTitle: jobTitles.length > 1, jobTitles, templates })
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
         console.error('Error occurred while finding user job type:', error)

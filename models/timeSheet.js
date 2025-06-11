@@ -22,6 +22,14 @@ const TimesheetSchema = new mongoose.Schema(
         },
         clockinTime: [{
             clockIn: Date,
+            isDeleted: {
+                type: Boolean,
+                default: false
+            },
+            comment: {
+                type: String,
+                default: "",
+            },
             clockOut: {
                 type: Date
             },

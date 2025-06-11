@@ -67,7 +67,8 @@ const userSchema = new mongoose.Schema({
       },
       allowedLeavesCounts: Number
     },    
-    location: String,
+    // location: String,
+    location: [{ type: String, ref: 'Location' }],
     assignManager: { type: String, ref: 'User' },
     assignClient: [{ type: String, ref: 'Client' }],
     isWorkFromOffice: Boolean,
