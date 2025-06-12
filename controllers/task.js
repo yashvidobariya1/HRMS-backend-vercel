@@ -275,6 +275,7 @@ exports.createTask = async (req, res) => {
                         existTask = await Task.findOne({ userId, jobId, taskDate: date, clientId, startTime: { $lt: taskEndTime }, endTime: { $gt: taskStartTime }, isDeleted: { $ne: true } })
                     }
 
+                    console.log('existTask:', existTask)
                     if(existTask){
                         existTasks.push(`${userName} (${jobName})`)
                     } else {
@@ -301,7 +302,24 @@ exports.createTask = async (req, res) => {
             }
 
             if(existTasks.length > 0){
-                return res.send({ status: 400, message: 'Already assign the task for user(s)', existTaskUsers: existTasks })
+                const grouped = {}
+
+                existTasks.forEach(str => {
+                    const match = str.match(/^(.+?)\s*\((.+)\)$/)
+                    if (match) {
+                        const name = match[1].trim()
+                        const detail = match[2].trim()
+                        
+                        if (!grouped[name]) {
+                            grouped[name] = []
+                        }
+                        grouped[name].push(detail)
+                    }
+                })
+
+                const message = Object.entries(grouped).map(([name, details]) => `${name} (${details.join(", ")})`).join(", ")
+
+                return res.send({ status: 400, message })
             }
 
             const assignedTasks = await Task.insertMany(tasks, { ordered: false })
@@ -533,8 +551,25 @@ exports.getTask = async (req, res) => {
             if(!task){
                 return res.send({ status: 404, message: 'Task not found' })
             }
+
+            const user = await User.findOne({ _id: task?.userId?.toString(), isDeleted: { $ne: true } })
+            const jobDetail = user?.jobDetails.find(job => job?._id.toString() == task?.jobId.toString())
+            const userName = user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`
+            let location, client, jobName
+            if(task?.locationId){
+                location = await Location.findOne({ _id: task?.locationId.toString(), isDeleted: { $ne: true } })
+                jobName = `${jobDetail?.jobTitle}-${location?.locationName}`
+            }
+
+            if(task?.clientId){
+                client = await Client.findOne({ _id: task?.clientId, isDeleted: { $ne: true } })
+                jobName = `${jobDetail?.jobTitle}-${client?.clientName}`
+            }
+
             const formattedTask = {
                 ...task.toObject(),
+                userName,
+                jobName,
                 createdBy: `${ task?.creatorId?.personalDetails?.lastName ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName}` : `${task?.creatorId?.personalDetails?.firstName}` }`,
                 creatorId: task?.creatorId?._id 
             }
@@ -668,6 +703,8 @@ async function getOptimizedAllTasks (users, clientIds, locationIds, fromDate, to
                 finalResponse.push({
                     _id: doc?._id,
                     userId: doc?.userId,
+                    taskName: doc?.taskName,
+                    taskDescription: doc?.taskDescription,
                     userName,
                     jobRole: job?.jobTitle,
                     clientName: client?.clientName,

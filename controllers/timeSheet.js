@@ -460,7 +460,6 @@ exports.clockOutFunc = async (req, res) => {
                 const [hours, minutes, seconds] = timesheet.totalHours.match(/\d+/g).map(Number)
                 const totalMinutes = hours * 60 + minutes + Math.floor(seconds / 60)
             
-                console.log('user_location?.breakTime:',user_location?.breakTime)
                 if (totalMinutes > user_location?.breakTime) {
                     duration = subtractBreakTimeFromTotalWorkingHours(timesheet.totalHours, user_location?.breakTime)
                     timesheet.totalHours = duration
@@ -476,53 +475,59 @@ exports.clockOutFunc = async (req, res) => {
             // task wise calculate over time
             // const assignedTask = await Task.findOne({ userId, jobId, taskDate: currentDate, isDeleted: { $ne: true } })
 
-            const [startHour, startMinute] = assignedTask?.startTime.split(':').map(Number)
-            const [endHour, endMinute] = assignedTask?.endTime.split(':').map(Number)
+            if(req.user.role == 'Employee'){
+                // count over time task wise for employees
 
-            const today = new Date()
-            const startDate = new Date(today.setHours(startHour, startMinute, 0, 0))
-            const endDate = new Date(today.setHours(endHour, endMinute, 0, 0))
+                const [startHour, startMinute] = assignedTask?.startTime.split(':').map(Number)
+                const [endHour, endMinute] = assignedTask?.endTime.split(':').map(Number)
 
-            const totalSeconds = Math.floor((endDate - startDate) / 1000)
-            const hours = Math.floor(totalSeconds / 3600)
-            const minutes = Math.floor((totalSeconds % 3600) / 60)
-            const seconds = totalSeconds % 60
+                const today = new Date()
+                const startDate = new Date(today.setHours(startHour, startMinute, 0, 0))
+                const endDate = new Date(today.setHours(endHour, endMinute, 0, 0))
 
-            const totalHours = `${hours}h ${minutes}m ${seconds}s`
+                const totalSeconds = Math.floor((endDate - startDate) / 1000)
+                const hours = Math.floor(totalSeconds / 3600)
+                const minutes = Math.floor((totalSeconds % 3600) / 60)
+                const seconds = totalSeconds % 60
 
-            const overTime = subtractDurations(timesheet?.totalHours, totalHours)
+                const totalHours = `${hours}h ${minutes}m ${seconds}s`
 
-            if(overTime !== "0h 0m 0s"){
-                timesheet.isOverTime = true
-                timesheet.overTime = overTime
+                const overTime = subtractDurations(timesheet?.totalHours, totalHours)
+
+                if(overTime !== "0h 0m 0s"){
+                    timesheet.isOverTime = true
+                    timesheet.overTime = overTime
+                }
+            } else if(req.user.role == 'Administrator' || req.user.role == 'Manager'){
+                // count over time weekly for administrator and manager
+
+                // weekly overtime calculate
+                const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
+                const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')
+                // console.log('startOfWeek:', startOfWeek, 'endOfWeek:', endOfWeek)            
+
+                const weeklyTimesheets = await Timesheet.find({
+                    userId,
+                    date: { $gte: startOfWeek, $lte: endOfWeek }
+                })
+                // console.log('weeklyTimesheets:', weeklyTimesheets)
+
+                const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
+                    return addDurations(total, ts.totalHours)
+                }, "0h 0m 0s")
+                // console.log('totalWeeklyHours:', totalWeeklyHours)
+
+                const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
+                // console.log('weeklyWorkingHours:', weeklyWorkingHours)
+
+                const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
+                // console.log('weeklyOvertime:', weeklyOvertime)
+                
+                if(weeklyOvertime !== '0h 0m 0s') {
+                    timesheet.isOverTime = true
+                    timesheet.overTime = weeklyOvertime
+                }
             }
-            
-            // weekly overtime calculate
-            // const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
-            // const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')
-            // console.log('startOfWeek:', startOfWeek, 'endOfWeek:', endOfWeek)            
-
-            // const weeklyTimesheets = await Timesheet.find({
-            //     userId,
-            //     date: { $gte: startOfWeek, $lte: endOfWeek }
-            // })
-            // console.log('weeklyTimesheets:', weeklyTimesheets)
-
-            // const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
-            //     return addDurations(total, ts.totalHours);
-            // }, "0h 0m 0s")
-            // console.log('totalWeeklyHours:', totalWeeklyHours)
-
-            // const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
-            // console.log('weeklyWorkingHours:', weeklyWorkingHours)
-
-            // const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
-            // console.log('weeklyOvertime:', weeklyOvertime)
-            
-            // if(weeklyOvertime !== '0h 0m 0s') {
-            //     timesheet.isOverTime = true
-            //     timesheet.overTime = weeklyOvertime
-            // }
 
             await timesheet.save()
 
@@ -646,6 +651,38 @@ exports.getUsersAssignClients = async (req, res) => {
     } catch (error) {
         console.error("Error occurred while fetching user's clients:", error)
         return res.send({ status: 500, message: "Error occurred while fetching user's clients!" })
+    }
+}
+
+exports.getUsersAssignLocations = async (req, res) => {
+    try {
+        const allowedRoles = ['Superadmin', 'Administrator', 'Manager', 'Employee']
+        if(allowedRoles.includes(req.user.role)){
+            const userId = req.body.userId || req.user._id.toString()
+            const { jobId } = req.body
+
+            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+            if(!existUser){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = existUser?.jobDetails.find(job => job._id.toString() == jobId)
+            if(!jobDetail){
+                return res.send({ status: 403, message: 'Job title not found' })
+            }
+
+            const locations = await Location.find({ _id: { $in: jobDetail?.location }, isDeleted: { $ne: true } }).select('_id locationName')
+
+            const assignLocations = locations.map(loc => ({
+                locationId: loc?._id,
+                locationName: loc?.locationName
+            }))
+
+            return res.send({ status: 200, message: 'Locations fetched successfully', assignLocations })
+        } else return res.send({ status: 403, message: 'Access denied' })
+    } catch (error) {
+        console.error("Error occurred while fetching user's locations:", error)
+        return res.send({ status: 500, message: "Error occurred while fetching user's locations!" })
     }
 }
 
@@ -4377,7 +4414,7 @@ exports.getAllUsersOfClientOrLocation = async (req, res) => {
 
         if (typeof isWorkFromOfficeType === 'boolean') {
             pipeline.push({
-                $match: { "jobDetails.isWorkFromOffice": isWorkFromOffice }
+                $match: { "jobDetails.isWorkFromOffice": isWorkFromOfficeType }
             })
         }
 

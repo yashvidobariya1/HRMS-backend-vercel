@@ -66,11 +66,18 @@ const userSchema = new mongoose.Schema({
         default: 'Day'
       },
       allowedLeavesCounts: Number
-    },    
-    // location: String,
-    location: [{ type: String, ref: 'Location' }],
+    },
+    location: [{
+      type: String,
+      ref: 'Location',
+      default: []
+    }],
     assignManager: { type: String, ref: 'User' },
-    assignClient: [{ type: String, ref: 'Client' }],
+    assignClient: [{
+      type: String,
+      ref: 'Client',
+      default: [],
+    }],
     isWorkFromOffice: Boolean,
     // templateId: { type: String, ref: 'Templates' },
     // isTemplateSigned: {
