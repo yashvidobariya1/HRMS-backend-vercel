@@ -578,7 +578,9 @@ exports.getAllLeaveRequest = async (req, res) => {
                 leaveRequests = leaveRequests.filter(leave => {
                     const firstName = leave?.userId?.personalDetails?.firstName || ''
                     const lastName = leave?.userId?.personalDetails?.lastName || ''
-                    return regex.test(`${firstName} ${lastName}`) || regex.test(firstName) || regex.test(lastName)
+                    const leaveType = leave?.leaveType || ''
+                    const duration = leave?.selectionDuration.toLowerCase() || ''
+                    return regex.test(`${firstName} ${lastName}`) || regex.test(firstName) || regex.test(lastName) || regex.test(leaveType) || regex.test(duration)
                 })
             }
 

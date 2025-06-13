@@ -121,8 +121,17 @@ exports.getAllClient = async (req, res) => {
                 baseQuery.companyId = req.user.companyId
             }
 
+            // if (searchQuery) {
+            //     baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
+            // }
+
             if (searchQuery) {
-                baseQuery["clientName"] = { $regex: searchQuery, $options: "i" }
+                baseQuery["$or"] = [
+                    { "clientName": { $regex: searchQuery, $options: "i" } },
+                    { "email": { $regex: searchQuery, $options: "i" } },
+                    { "city": { $regex: searchQuery, $options: "i" } },
+                    { "contactNumber": { $regex: searchQuery, $options: "i" } },
+                ]
             }
 
             const [result] = await Client.aggregate([

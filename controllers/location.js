@@ -330,6 +330,49 @@ exports.getCompanyLocations = async (req, res) => {
                 })
             )
 
+            let assigneeAdminAndManager = []
+
+            if (req.user.role === 'Superadmin' || req.user.role === 'Administrator' || req.user.role === 'Manager') {
+                const allManagers = await User.find({
+                    companyId,
+                    role: 'Manager',
+                    isDeleted: false,
+                }).then((managers) =>
+                    managers.map((manager) => ({
+                        _id: manager._id,
+                        name: `${manager.personalDetails.firstName} ${manager.personalDetails.lastName} (${manager.role})`,
+                        role: manager.role
+                    }))
+                )
+
+                const administrators = await User.find({
+                    companyId,
+                    role: 'Administrator',
+                    isDeleted: false,
+                }).then((admins) =>
+                    admins.map((admin) => ({
+                        _id: admin._id,
+                        name: `${admin.personalDetails.firstName} ${admin.personalDetails.lastName} (${admin.role})`,
+                        role: admin.role
+                    }))
+                )
+
+                const superadmins = await User.find({
+                    role: 'Superadmin',
+                    isDeleted: false,
+                }).then((superadmins) =>
+                    superadmins.map((superadmin) => ({
+                        _id: superadmin._id,
+                        name: `${superadmin.personalDetails.firstName} ${superadmin.personalDetails.lastName} (${superadmin.role})`,
+                        role: superadmin.role
+                    }))
+                )
+
+                if (allManagers.length > 0) assigneeAdminAndManager.push(...allManagers)
+                if (administrators.length > 0) assigneeAdminAndManager.push(...administrators)
+                if (superadmins.length > 0) assigneeAdminAndManager.push(...superadmins)
+            }
+
             let filteredLocations
 
             if(req.user.role === 'Superadmin'){
@@ -354,6 +397,7 @@ exports.getCompanyLocations = async (req, res) => {
                 status: 200,
                 message: "Company's locations fetched successfully.",
                 companyId,
+                assigneeAdminAndManager,
                 companiesAllLocations: filteredLocations,
                 clients: formattedClients,
                 contracts: formattedContract,

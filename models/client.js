@@ -23,7 +23,7 @@ const clientSchema = new mongoose.Schema({
     isAutoGenerateReport: { type: Boolean },
     reportFrequency: {
         type: String,
-        enum: ['Daily', 'Weekly', 'Monthly'],
+        enum: ['Daily', 'Weekly', 'Monthly', ''],
     },
     reportTime: String,
     weekday: String,

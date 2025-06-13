@@ -11,6 +11,7 @@ exports.createJobPost = async (req, res) => {
     try {
         const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
         if(allowedRoles.includes(req.user.role)){
+            const { companyId } = req.query
             const {
                 jobPhoto,
                 jobTitle,
@@ -19,7 +20,6 @@ exports.createJobPost = async (req, res) => {
                 jobApplyTo,
                 companyWebSite,
                 email,
-                companyId,
                 clientId,
             } = req.body
 
@@ -206,7 +206,13 @@ exports.getAllJobPosts = async (req, res) => {
             }
 
             if (searchQuery) {
-                baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
+                // baseQuery["jobTitle"] = { $regex: searchQuery, $options: "i" }
+                baseQuery["$or"] = [
+                    { "jobTitle": { $regex: searchQuery, $options: "i" } },
+                    { "jobDescription": { $regex: searchQuery, $options: "i" } },
+                    { "jobCategory": { $regex: searchQuery, $options: "i" } },
+                    { "email": { $regex: searchQuery, $options: "i" } },
+                ]
             }
 
             const jobPost = await RecruitmentJob.find(baseQuery).skip(skip).limit(limit)

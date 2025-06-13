@@ -44,6 +44,7 @@ exports.getAllLoggedInOutUsers = async (req, res) => {
 
             if (searchQuery) {
                 baseQuery['$or'] = [
+                    { "role": { $regex: searchQuery, $options: "i" } },
                     { userName: { $regex: searchQuery, $options: 'i' } }
                 ]
             }

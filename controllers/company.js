@@ -1,5 +1,6 @@
 const Company = require("../models/company");
 const Location = require("../models/location");
+const Client = require("../models/client");
 const moment = require('moment')
 const sharp = require('sharp')
 const { uploadToS3, unique_Id } = require('../utils/AWS_S3');
@@ -147,7 +148,11 @@ exports.getAllCompany = async (req, res) => {
             }
 
             if (searchQuery) {
-                baseQuery["companyDetails.businessName"] = { $regex: searchQuery, $options: "i" }
+                baseQuery["$or"] = [
+                    { "companyDetails.businessName": { $regex: searchQuery, $options: "i" } },
+                    { "companyDetails.companyCode": { $regex: searchQuery, $options: "i" } },
+                    { "companyDetails.city": { $regex: searchQuery, $options: "i" } }
+                ]
             }
 
             const [result] = await Company.aggregate([
@@ -326,7 +331,7 @@ exports.deleteCompany = async (req, res) => {
                 { $set: { isDeleted: true } }
             )
 
-            await User.updateMany(
+            await Client.updateMany(
                 { companyId, isDeleted: { $ne: true } },
                 { $set: { isDeleted: true } }
             )

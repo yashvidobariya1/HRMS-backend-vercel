@@ -326,13 +326,18 @@ const subtractDurations = (totalDuration, threshold) => {
 
 // calculate break time
 function subtractBreakTimeFromTotalWorkingHours(durationStr, breakMinutes) {
+    console.log('durationStr:', durationStr, 'breakMinutes:', breakMinutes)
     const [h, m, s] = durationStr.split(/[hms ]/).filter(Boolean).map(Number);
     const totalSeconds = h * 3600 + m * 60 + s;
+    console.log('totalSeconds:', totalSeconds)
     const remainingSeconds = Math.max(0, totalSeconds - breakMinutes * 60);
+    console.log('remainingSeconds:', remainingSeconds)
 
     const newH = Math.floor(remainingSeconds / 3600);
     const newM = Math.floor((remainingSeconds % 3600) / 60);
     const newS = remainingSeconds % 60;
+
+    console.log('newH:', newH, 'newM:', newM, 'newS:', newS)
 
     return `${newH}h ${newM}m ${newS}s`;
 }
@@ -440,7 +445,7 @@ exports.clockOutFunc = async (req, res) => {
             }
 
             // lastClockin.clockOut = moment().subtract(companyLocation?.breakTime, 'minutes').toDate()
-            lastClockin.clockOut = moment().toDate()
+            lastClockin.clockOut = moment.utc().toDate()
             lastClockin.isClockin = false
 
             const clockInTime = moment(lastClockin.clockIn).toDate()
@@ -687,205 +692,205 @@ exports.getUsersAssignLocations = async (req, res) => {
 }
 
 exports.clockInForEmployee = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
-        if(allowedRoles.includes(req.user.role)){
-            const {
-                date,
-                startTime,
-                userId,
-                jobId,
-                clientId
-            } = req.body
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const {
+    //             date,
+    //             startTime,
+    //             userId,
+    //             jobId,
+    //             clientId
+    //         } = req.body
 
-            if(!date || !startTime){
-                return res.send({ status: 400, message: "Date and start time are required" })
-            }
+    //         if(!date || !startTime){
+    //             return res.send({ status: 400, message: "Date and start time are required" })
+    //         }
 
-            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-            if (!existUser) {
-                return res.send({ status: 404, message: "User not found" })
-            }
+    //         const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    //         if (!existUser) {
+    //             return res.send({ status: 404, message: "User not found" })
+    //         }
 
-            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
-            }
+    //         let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+    //         if(!jobDetail){
+    //             return res.send({ status: 404, message: 'JobTitle not found' })
+    //         }
 
-            let user_location
-            if(jobDetail?.isWorkFromOffice){
-                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-                if(!user_location){
-                    return res.send({ status: 404, message: 'Location not found' })
-                }
-            } else {
-                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-                if(!user_location){
-                    return res.send({ status: 404, message: 'Client not found' })
-                }
-            }
+    //         let user_location
+    //         if(jobDetail?.isWorkFromOffice){
+    //             user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+    //             if(!user_location){
+    //                 return res.send({ status: 404, message: 'Location not found' })
+    //             }
+    //         } else {
+    //             user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+    //             if(!user_location){
+    //                 return res.send({ status: 404, message: 'Client not found' })
+    //             }
+    //         }
 
-            let timesheet
-            if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
-            } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
-            }
+    //         let timesheet
+    //         if(jobDetail?.isWorkFromOffice){
+    //             timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
+    //         } else {
+    //             timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
+    //         }
 
-            const assignedTask = await Task.findOne({ userId, clientId, jobId, taskDate: date, isDeleted: { $ne: true } })
-            if(!assignedTask){
-                return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `'${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}'` : `'${existUser?.personalDetails?.firstName}'`} today!` })
-            }
+    //         const assignedTask = await Task.findOne({ userId, clientId, jobId, taskDate: date, isDeleted: { $ne: true } })
+    //         if(!assignedTask){
+    //             return res.send({ status: 404, message: `No tasks were assigned for ${existUser?.personalDetails?.lastName ? `'${existUser?.personalDetails?.firstName} ${existUser?.personalDetails?.lastName}'` : `'${existUser?.personalDetails?.firstName}'`} today!` })
+    //         }
 
-            if (!timesheet) {
-                timesheet = new Timesheet({
-                    userId,
-                    jobId,
-                    date,
-                    locationId: jobDetail?.location || "",
-                    clientId: clientId || "",
-                    clockinTime: [],
-                    totalHours: '0h 0m 0s'
-                })
-                if(assignedTask){
-                    const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
-                    const allowedClockInTime = moment(taskStartTime).add(user_location?.graceTime, 'minutes')
-                    const currentTime = moment().utc()
-                    if (currentTime.isAfter(allowedClockInTime)) {
-                        await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
-                    }
-                }
-            }
+    //         if (!timesheet) {
+    //             timesheet = new Timesheet({
+    //                 userId,
+    //                 jobId,
+    //                 date,
+    //                 locationId: jobDetail?.location || "",
+    //                 clientId: clientId || "",
+    //                 clockinTime: [],
+    //                 totalHours: '0h 0m 0s'
+    //             })
+    //             if(assignedTask){
+    //                 const taskStartTime = moment(assignedTask?.startTime, 'HH:mm')
+    //                 const allowedClockInTime = moment(taskStartTime).add(user_location?.graceTime, 'minutes')
+    //                 const currentTime = moment().utc()
+    //                 if (currentTime.isAfter(allowedClockInTime)) {
+    //                     await Task.findOneAndUpdate({ _id: assignedTask._id }, { $set: { isLate: true } })
+    //                 }
+    //             }
+    //         }
 
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+    //         const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
 
-            if (lastClockin && !lastClockin.clockOut) {
-                return res.send({ status: 400, message: "Please clock out before clockin again." })
-            }
+    //         if (lastClockin && !lastClockin.clockOut) {
+    //             return res.send({ status: 400, message: "Please clock out before clockin again." })
+    //         }
 
-            timesheet.clockinTime.push({
-                clockIn: momentTimeZone.tz(`${date}T${startTime}`, 'Europe/London').utc().toDate(),
-                clockOut: "",
-                isClockin: true
-            })
+    //         timesheet.clockinTime.push({
+    //             clockIn: momentTimeZone.tz(`${date}T${startTime}`, 'Europe/London').utc().toDate(),
+    //             clockOut: "",
+    //             isClockin: true
+    //         })
             
-            timesheet.isTimerOn = true
-            await timesheet.save()
+    //         timesheet.isTimerOn = true
+    //         await timesheet.save()
 
-            return res.send({ status: 200, message: 'Clock IN successfully', timesheet })
+    //         return res.send({ status: 200, message: 'Clock IN successfully', timesheet })
 
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred while clock-IN:', error)
-        return res.send({ status: 500, message: 'Error occurred while clock-IN!' })
-    }
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while clock-IN:', error)
+    //     return res.send({ status: 500, message: 'Error occurred while clock-IN!' })
+    // }
 }
 
 exports.clockOutForEmployee = async (req, res) => {
-    try {
-        const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
-        if(allowedRoles.includes(req.user.role)){
-            const {
-                date,
-                endTime,
-                userId,
-                jobId,
-                clientId
-            } = req.body
+    // try {
+    //     const allowedRoles = ['Superadmin', 'Administrator', 'Manager']
+    //     if(allowedRoles.includes(req.user.role)){
+    //         const {
+    //             date,
+    //             endTime,
+    //             userId,
+    //             jobId,
+    //             clientId
+    //         } = req.body
 
-            if(!date || !endTime){
-                return res.send({ status: 400, message: "Date and end time are required" })
-            }
+    //         if(!date || !endTime){
+    //             return res.send({ status: 400, message: "Date and end time are required" })
+    //         }
 
-            const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
-            if (!existUser) {
-                return res.send({ status: 404, message: "User not found" })
-            }
+    //         const existUser = await User.findOne({ _id: userId, isDeleted: { $ne: true } })
+    //         if (!existUser) {
+    //             return res.send({ status: 404, message: "User not found" })
+    //         }
 
-            let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
-            if(!jobDetail){
-                return res.send({ status: 404, message: 'JobTitle not found' })
-            }
+    //         let jobDetail = existUser?.jobDetails.find((job) => job._id.toString() === jobId)
+    //         if(!jobDetail){
+    //             return res.send({ status: 404, message: 'JobTitle not found' })
+    //         }
 
-            let user_location
-            if(jobDetail?.isWorkFromOffice){
-                user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
-                if(!user_location){
-                    return res.send({ status: 404, message: 'Location not found' })
-                }
-            } else {
-                user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-                if(!user_location){
-                    return res.send({ status: 404, message: 'Client not found' })
-                }
-            }
+    //         let user_location
+    //         if(jobDetail?.isWorkFromOffice){
+    //             user_location = await Location.findOne({ _id: jobDetail?.location, isDeleted: { $ne: true } })
+    //             if(!user_location){
+    //                 return res.send({ status: 404, message: 'Location not found' })
+    //             }
+    //         } else {
+    //             user_location = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
+    //             if(!user_location){
+    //                 return res.send({ status: 404, message: 'Client not found' })
+    //             }
+    //         }
 
-            let timesheet
-            if(jobDetail?.isWorkFromOffice){
-                timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
-            } else {
-                timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
-            }
+    //         let timesheet
+    //         if(jobDetail?.isWorkFromOffice){
+    //             timesheet = await Timesheet.findOne({ userId, locationId: jobDetail?.location, jobId, date, isDeleted: { $ne: true } })
+    //         } else {
+    //             timesheet = await Timesheet.findOne({ userId, clientId, jobId, date, isDeleted: { $ne: true } })
+    //         }
 
-            if (!timesheet) {
-                return res.send({ status: 404, message: "No timesheet found for today." })
-            }
+    //         if (!timesheet) {
+    //             return res.send({ status: 404, message: "No timesheet found for today." })
+    //         }
 
-            const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
-            if (!lastClockin || lastClockin.clockOut) {
-                return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
-            }
+    //         const lastClockin = timesheet.clockinTime[timesheet.clockinTime.length - 1]
+    //         if (!lastClockin || lastClockin.clockOut) {
+    //             return res.send({ status: 400, message: "You can't clock-out without an active clock-in." })
+    //         }
 
-            lastClockin.clockOut = momentTimeZone.tz(`${date}T${endTime}`, 'Europe/London').subtract(user_location?.breakTime, 'minutes').utc().toDate()
-            lastClockin.isClockin = false
+    //         lastClockin.clockOut = momentTimeZone.tz(`${date}T${endTime}`, 'Europe/London').subtract(user_location?.breakTime, 'minutes').utc().toDate()
+    //         lastClockin.isClockin = false
 
-            const clockInTime = moment(lastClockin.clockIn).toDate()
-            const clockOutTime = moment(lastClockin.clockOut).toDate()            
+    //         const clockInTime = moment(lastClockin.clockIn).toDate()
+    //         const clockOutTime = moment(lastClockin.clockOut).toDate()            
 
-            const duration = formatDuration(clockInTime, clockOutTime)
-            lastClockin.totalTiming = duration
+    //         const duration = formatDuration(clockInTime, clockOutTime)
+    //         lastClockin.totalTiming = duration
 
-            if (timesheet.totalHours == '0h 0m 0s') {
-                timesheet.totalHours = duration
-            } else {
-                const result = addDurations(timesheet.totalHours, duration)
-                timesheet.totalHours = result
-            }
+    //         if (timesheet.totalHours == '0h 0m 0s') {
+    //             timesheet.totalHours = duration
+    //         } else {
+    //             const result = addDurations(timesheet.totalHours, duration)
+    //             timesheet.totalHours = result
+    //         }
 
-            timesheet.isTimerOn = false
-            await timesheet.save()
+    //         timesheet.isTimerOn = false
+    //         await timesheet.save()
 
-            const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
-            const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')           
+    //         const startOfWeek = moment().startOf('isoWeek').format('YYYY-MM-DD')
+    //         const endOfWeek = moment().endOf('isoWeek').format('YYYY-MM-DD')           
 
-            const weeklyTimesheets = await Timesheet.find({
-                userId,
-                isDeleted: { $ne: true },
-                date: { $gte: startOfWeek, $lte: endOfWeek }
-            })
+    //         const weeklyTimesheets = await Timesheet.find({
+    //             userId,
+    //             isDeleted: { $ne: true },
+    //             date: { $gte: startOfWeek, $lte: endOfWeek }
+    //         })
 
-            const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
-                return addDurations(total, ts.totalHours);
-            }, "0h 0m 0s")
+    //         const totalWeeklyHours = weeklyTimesheets.reduce((total, ts) => {
+    //             return addDurations(total, ts.totalHours);
+    //         }, "0h 0m 0s")
 
-            const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
+    //         const weeklyWorkingHours = jobDetail?.weeklyWorkingHours
 
-            const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
+    //         const weeklyOvertime = subtractDurations(totalWeeklyHours, `${weeklyWorkingHours}h 0m 0s`)
             
-            if(weeklyOvertime !== '0h 0m 0s') {
-                timesheet.isOverTime = true
-                timesheet.overTime = weeklyOvertime
-            }
+    //         if(weeklyOvertime !== '0h 0m 0s') {
+    //             timesheet.isOverTime = true
+    //             timesheet.overTime = weeklyOvertime
+    //         }
 
-            await timesheet.save()
+    //         await timesheet.save()
 
-            return res.send({ status: 200, message: 'Clock OUT successfully', timesheet })
+    //         return res.send({ status: 200, message: 'Clock OUT successfully', timesheet })
 
-        } else return res.send({ status: 403, message: 'Access denied' })
-    } catch (error) {
-        console.error('Error occurred while clock-OUT:', error)
-        return res.send({ status: 500, message: 'Error occurred while clock-OUT!' })
-    }
+    //     } else return res.send({ status: 403, message: 'Access denied' })
+    // } catch (error) {
+    //     console.error('Error occurred while clock-OUT:', error)
+    //     return res.send({ status: 500, message: 'Error occurred while clock-OUT!' })
+    // }
 }
 
 // for clock in/out frontend page
@@ -1168,6 +1173,17 @@ async function getTimesheetReportForViewHours (users, clientIds, locationIds, fr
             }
         },
         { $unwind: '$user' },
+        {
+            $addFields: {
+                clockinTime: {
+                    $filter: {
+                        input: '$clockinTime',
+                        as: 'entry',
+                        cond: { $eq: ['$$entry.isDeleted', false] }
+                    }
+                }
+            }
+        },
         { $sort: { createdAt: -1 } },
         // {
         //     $facet: {
@@ -1249,6 +1265,7 @@ exports.getAllTimeSheets = async (req, res) => {
         if (allowedRoles.includes(req.user.role)) {
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const search = req.query.search?.toLowerCase() || ""
 
             const skip = (page - 1) * limit
             // const userId = req.body.userId || req.user._id
@@ -1365,14 +1382,22 @@ exports.getAllTimeSheets = async (req, res) => {
             }
 
             const reports = await getTimesheetReportForViewHours(userIds, clientIds, locationIds, fromDate, toDate, isWorkFromOffice)
-            const timesheets = reports.slice(skip, skip + limit)
-            const totalTimesheets = reports?.length
 
-            // let totalHours = 0
-            
-            // timesheets.map(result => {
-            //     totalHours += convertToSeconds(result?.totalTiming)
-            // })
+            let filteredReports = reports
+
+            if (search) {
+                filteredReports = reports.filter(item => {
+                    return (
+                        item?.userName?.toLowerCase().includes(search) ||
+                        item?.jobTitle?.toLowerCase().includes(search) ||
+                        item?.clientName?.toLowerCase().includes(search) ||
+                        item?.locationName?.toLowerCase().includes(search)
+                    )
+                })
+            }
+
+            const timesheets = filteredReports.slice(skip, skip + limit)
+            const totalTimesheets = filteredReports.length
 
             return res.send({
                 status: 200,
@@ -1601,22 +1626,25 @@ exports.addTimesheetEntry = async (req, res) => {
             }
             
             let existTimesheet, location, client, breakTime
-            if(isWorkFromOffice == 'true' && jobDetail?.isWorkFromOffice == true){
+            console.log('isWorkFromOffice:', isWorkFromOffice)
+            console.log('jobDetail?.isWorkFromOffice:', jobDetail)
+            if(isWorkFromOffice == true && jobDetail?.isWorkFromOffice == true){
                 const existAssignLocation = jobDetail?.location.find(loc => loc?.toString() == locationId)
                 if(!existAssignLocation){
                     return res.send({ status: 404, message: 'Location not assigned to this job'})
                 }
                 existTimesheet = await Timesheet.findOne({ userId, jobId, locationId, date: timesheetDate, isDeleted: { $ne: true } })
                 location = await Location.findOne({ _id: locationId, isDeleted: { $ne: true } })
-                breakTime = location?.breakTime
-            } else if(isWorkFromOffice == 'false' && jobDetail?.isWorkFromOffice == false){
+                breakTime = location?.breakTime || 0
+            } else if(isWorkFromOffice == false && jobDetail?.isWorkFromOffice == false){
                 const existAssignClient = jobDetail?.assignClient.find(client => client?.toString() == clientId)
                 if(!existAssignClient){
                     return res.send({ status: 404, message: 'Client not assigned to this job'})
                 }
                 existTimesheet = await Timesheet.findOne({ userId, jobId, clientId, date: timesheetDate, isDeleted: { $ne: true } })
                 client = await Client.findOne({ _id: clientId, isDeleted: { $ne: true } })
-                breakTime = client?.breakTime
+                console.log('client:', client)
+                breakTime = client?.breakTime || 0
             }
 
             if(existTimesheet && existTimesheet?.isTimerOn){
@@ -1674,10 +1702,15 @@ exports.addTimesheetEntry = async (req, res) => {
             } else {
                 const duration = formatDuration(new Date(clockIn), new Date(clockOut))
                 const taskTotalHours = formatDuration(new Date(`${timesheetDate} ${assignedTask?.startTime}`), new Date(`${timesheetDate} ${assignedTask?.endTime}`))
+                // const totalHours = convertToSeconds(duration) - (breakTime * 60)
                 const totalHours = subtractBreakTimeFromTotalWorkingHours(duration, breakTime)
+                console.log('duration:', duration)
+                console.log('taskTotalHours:', taskTotalHours)
+                console.log('totalHours:', totalHours)
 
                 let isOverTime = false
                 let overTime = subtractDurations(duration, taskTotalHours)
+                console.log('overTime:', overTime)
 
                 if(overTime !== "0h 0m 0s"){
                     isOverTime = true
@@ -1697,14 +1730,15 @@ exports.addTimesheetEntry = async (req, res) => {
                         comment,
                     }],
                     breakTimeDeducted: true, // true or false
+                    // totalHoursFormated: formatTimeFromSeconds(totalHours),
                     totalHours,
                     isOverTime, // true or false
                     overTime,
                 }
                 
-                await Timesheet.create(newTimesheet)
+                const timesheet = await Timesheet.create(newTimesheet)
 
-                return res.send({ status: 200, message: 'Timesheet entry created successfully' })
+                return res.send({ status: 200, message: 'Timesheet entry created successfully', timesheet })
             }
         } else return res.send({ status: 403, message: 'Access denied' })
     } catch (error) {
@@ -2734,7 +2768,7 @@ exports.getTimesheetReport = async (req, res) => {
                 message: "Timesheet report fetched successfully",
                 totalHours: formatTimeFromSeconds(totalHours),
                 reports: finalResponse.finalResponse,
-                totalReports: finalResponse.count,
+                totalReports: finalResponse.count || 0,
                 totalPages: Math.ceil(finalResponse.count / limit) || 1,
                 currentPage: page || 1
             })
@@ -3137,9 +3171,10 @@ async function getOptimizedAbsenceReport(users, clientIds, locationIds, fromDate
             }
         }
 
-        finalResponse.sort((a, b) => new Date(a.date) - new Date(b.date))
+        finalResponse.sort((a, b) => new Date(b.date) - new Date(a.date))
 
-        const totalAbsenceReport = finalResponse.slice(skip, skip + limit)
+        const totalAbsenceReport = finalResponse
+        // const totalAbsenceReport = finalResponse.slice(skip, skip + limit)
         return { finalResponse: totalAbsenceReport, count: finalResponse.length }
     } catch (error) {
         console.log('Error occured while optimizing absence report:', error)
@@ -3269,6 +3304,7 @@ exports.getAbsenceReport = async (req, res) => {
         if(allowedRoles.includes(req.user?.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const searchQuery = req.query.search?.trim()?.toLowerCase() || ""
 
             const skip = (page - 1) * limit
 
@@ -3385,12 +3421,32 @@ exports.getAbsenceReport = async (req, res) => {
 
             const finalResponse = await getOptimizedAbsenceReport(userIds, clientIds, locationIds, fromDate, toDate, timesheetFrequency, skip, limit, isWorkFromOffice)
 
+            let filteredReports = finalResponse.finalResponse
+
+            if (searchQuery) {
+                filteredReports = filteredReports.filter(report => {
+                    const userName = report.userName?.toLowerCase() || ""
+                    const jobRole = report.jobRole?.toLowerCase() || ""
+                    const clientOrLocation = isWorkFromOffice === "true"
+                        ? report.locationName?.toLowerCase() || ""
+                        : report.clientName?.toLowerCase() || ""
+
+                    return (
+                        userName.includes(searchQuery) ||
+                        jobRole.includes(searchQuery) ||
+                        clientOrLocation.includes(searchQuery)
+                    )
+                })
+            }
+
+            const paginatedReports = filteredReports.slice(skip, skip + limit)
+
             return res.send({
                 status: 200,
                 message: 'Absence report fetched successfully',
-                reports: finalResponse.finalResponse,
-                totalReports: finalResponse.count,
-                totalPages: Math.ceil(finalResponse.count / limit) || 1,
+                reports: paginatedReports,
+                totalReports: filteredReports.length || 0,
+                totalPages: Math.ceil(filteredReports.length / limit) || 1,
                 currentPage: page || 1
             })
 

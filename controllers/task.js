@@ -235,6 +235,20 @@ exports.createTask = async (req, res) => {
                 return res.send({ status: 400, message: 'Invalid start or end date' })
             }
 
+            const today = moment().startOf('day')
+            if (start.isBefore(today)) {
+                return res.send({ status: 400, message: "Tasks cannot be assigned to past dates. Please choose today or a future date." })
+            }
+
+            if (start.isSame(today, 'day')) {
+                const nowInLondon = momentTimeZone.tz('Europe/London')
+                const selectedStartTime = momentTimeZone.tz(`${startDate}T${startTime}`, 'Europe/London')
+
+                if (selectedStartTime.isBefore(nowInLondon)) {
+                    return res.send({ message: 'Start time must be later than the current time.' })
+                }
+            }
+
             const dateRange = []
             for (let m = moment(start); end ? m.isSameOrBefore(end) : m.isSame(start); m.add(1, 'days')) {
                 dateRange.push(m.format('YYYY-MM-DD'))
@@ -570,6 +584,8 @@ exports.getTask = async (req, res) => {
                 ...task.toObject(),
                 userName,
                 jobName,
+                startTime: convertToEuropeanTimezone(`${task?.taskDate}T${task?.startTime}:00.000Z`).format('HH:mm'),
+                endTime: convertToEuropeanTimezone(`${task?.taskDate}T${task?.endTime}:00.000Z`).format('HH:mm'),
                 createdBy: `${ task?.creatorId?.personalDetails?.lastName ? `${task?.creatorId?.personalDetails?.firstName} ${task?.creatorId?.personalDetails?.lastName}` : `${task?.creatorId?.personalDetails?.firstName}` }`,
                 creatorId: task?.creatorId?._id 
             }
@@ -584,26 +600,40 @@ exports.getTask = async (req, res) => {
 function getStartAndEndDate({ startDate, endDate }) {
     let start, end
 
+    // if(startDate && endDate){
+    //     start = moment(startDate).startOf('day')
+    //     end = moment(endDate).endOf('day')
+    // } else if(startDate && (!endDate || endDate == "")) {
+    //     start = moment(startDate).startOf('day')
+    //     end = moment().endOf('day')
+    // } else {
+    //     start = moment().startOf('day')
+    //     end = moment().endOf('day')
+    // }
+
     if(startDate && endDate){
         start = moment(startDate).startOf('day')
         end = moment(endDate).endOf('day')
     } else if(startDate && (!endDate || endDate == "")) {
         start = moment(startDate).startOf('day')
-        end = moment().endOf('day')
+        end = null
+    } else if((!startDate || startDate == "") && endDate){
+        start = null
+        end = moment(endDate).endOf('day')
     } else {
-        start = moment().startOf('day')
-        end = moment().endOf('day')
+        start = null
+        end = null
     }
 
     return {
-        startDate: start.format('YYYY-MM-DD'),
-        endDate: end.format('YYYY-MM-DD')
+        startDate: start ? start.format('YYYY-MM-DD') : null,
+        endDate: end ? end.format('YYYY-MM-DD') : null
     }
 }
 
-async function getOptimizedAllTasks (users, clientIds, locationIds, fromDate, toDate, skip, limit, isWorkFromOffice) {
+async function getOptimizedAllTasks (users, clientIds, locationIds, fromDate, toDate, skip, limit, isWorkFromOffice, search) {
     try {
-        const finalResponse = []
+        let finalResponse = []
 
         const userFilter = Array.isArray(users) && users.length > 0 ? users.map(id => new mongoose.Types.ObjectId(id)) : null
 
@@ -700,7 +730,11 @@ async function getOptimizedAllTasks (users, clientIds, locationIds, fromDate, to
                     ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`
                     : user?.personalDetails?.firstName
 
-                finalResponse.push({
+                const jobTitle = job?.jobTitle
+                const clientName = client?.clientName
+                const locationName = location?.locationName
+
+                const resultObj = {
                     _id: doc?._id,
                     userId: doc?.userId,
                     taskName: doc?.taskName,
@@ -714,10 +748,39 @@ async function getOptimizedAllTasks (users, clientIds, locationIds, fromDate, to
                     // endTime: doc?.endTime,
                     startTime: convertToEuropeanTimezone(`${doc?.taskDate}T${doc?.startTime}:00.000Z`).format('HH:mm'),
                     endTime: convertToEuropeanTimezone(`${doc?.taskDate}T${doc?.endTime}:00.000Z`).format('HH:mm'),
-                })
+                }
+
+                if (search) {
+                    const searchRegex = new RegExp(search, 'i')
+                    const isMatch = searchRegex.test(userName) ||
+                                    searchRegex.test(jobTitle || '') ||
+                                    searchRegex.test(clientName || '') ||
+                                    searchRegex.test(locationName || '')
+
+                    if (!isMatch) continue
+                }
+
+                // finalResponse.push({
+                //     _id: doc?._id,
+                //     userId: doc?.userId,
+                //     taskName: doc?.taskName,
+                //     taskDescription: doc?.taskDescription,
+                //     userName,
+                //     jobRole: job?.jobTitle,
+                //     clientName: client?.clientName,
+                //     locationName: location?.locationName,
+                //     taskDate: doc?.taskDate,
+                //     // startTime: doc?.startTime,
+                //     // endTime: doc?.endTime,
+                //     startTime: convertToEuropeanTimezone(`${doc?.taskDate}T${doc?.startTime}:00.000Z`).format('HH:mm'),
+                //     endTime: convertToEuropeanTimezone(`${doc?.taskDate}T${doc?.endTime}:00.000Z`).format('HH:mm'),
+                // })
+                finalResponse.push(resultObj)
             }
         }
 
+        // const count = taskDocs?.count?.[0]?.count || 0
+        
         return { finalResponse, count: taskDocs?.count[0]?.count }
     } catch (error) {
         console.error('Error occurred while fetching optimized tasks:', error)
@@ -730,6 +793,7 @@ exports.getAllTasks = async (req, res) => {
         if(allowedRoles.includes(req.user.role)){
             const page = parseInt(req.query.page) || 1
             const limit = parseInt(req.query.limit) || 50
+            const search = req.query.search?.toLowerCase() || ""
 
             const skip = (page - 1) * limit
 
@@ -742,9 +806,8 @@ exports.getAllTasks = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if((!startDate || startDate == "") && (!endDate || endDate == "")){
+            if(!startDate || startDate == ""){
                 startDate = moment(user.createdAt).format('YYYY-MM-DD')
-                endDate = moment().format('YYYY-MM-DD')
             }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDate({ startDate, endDate })
@@ -844,13 +907,13 @@ exports.getAllTasks = async (req, res) => {
                 }
             }
 
-            const finalResponse = await getOptimizedAllTasks(userIds, clientIds, locationIds, fromDate, toDate, skip, limit, isWorkFromOffice)
+            const finalResponse = await getOptimizedAllTasks(userIds, clientIds, locationIds, fromDate, toDate, skip, limit, isWorkFromOffice, search)
 
             return res.send({
                 status: 200,
                 message: 'All tasks fetched successfully',
                 reports: finalResponse.finalResponse,
-                totalReports: finalResponse.count,
+                totalReports: finalResponse.count || 0,
                 totalPages: Math.ceil(finalResponse.count / limit) || 1,
                 currentPage: page || 1
             })

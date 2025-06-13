@@ -1012,9 +1012,18 @@ exports.getAllUsers = async (req, res) => {
 
             if (searchQuery) {
                 baseQuery.$or = [
+                    { "personalDetails.email": { $regex: searchQuery, $options: "i" } },
+                    { "personalDetails.phone": { $regex: searchQuery, $options: "i" } },
+                    { "role": { $regex: searchQuery, $options: "i" } },
                     { "personalDetails.firstName": { $regex: searchQuery, $options: "i" } },
                     { "personalDetails.lastName": { $regex: searchQuery, $options: "i" } }
                 ]
+
+                if (!isNaN(searchQuery)) {
+                    baseQuery.$or = [
+                        { unique_ID: parseInt(searchQuery) }
+                    ]
+                }
             }
 
             const totalUsers = await User.countDocuments(baseQuery)
