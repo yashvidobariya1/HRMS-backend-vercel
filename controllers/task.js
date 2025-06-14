@@ -807,7 +807,7 @@ exports.getAllTasks = async (req, res) => {
             }
 
             if(!startDate || startDate == ""){
-                startDate = moment(user.createdAt).format('YYYY-MM-DD')
+                startDate = moment('2025-01-01T00:00:01.000Z').format('YYYY-MM-DD')
             }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDate({ startDate, endDate })
@@ -1042,7 +1042,7 @@ exports.updateTask = async (req, res) => {
                 isDeleted: { $ne: true },
             })
 
-            if(existingTask){
+            if(existingTask && existingTask._id.toString() !== taskId) {
                 return res.send({ status: 400, message: 'Already assign a task between provided schedule!' })
             }
 
@@ -1052,8 +1052,8 @@ exports.updateTask = async (req, res) => {
                     $set: {
                         taskName,
                         taskDescription,
-                        startTime,
-                        endTime,
+                        startTime: momentTimeZone.tz(`${task?.taskDate}T${startTime}`, 'Europe/London').utc().format('HH:mm'),
+                        endTime: momentTimeZone.tz(`${task?.taskDate}T${endTime}`, 'Europe/London').utc().format('HH:mm'),
                     }
                 }, { new: true }
             )

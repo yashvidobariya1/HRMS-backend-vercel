@@ -1111,19 +1111,22 @@ exports.getOwnTodaysTimeSheet = async (req, res) => {
 function getStartAndEndDateForViewHours ({ startDate, endDate }) {
     let start, end
     if(startDate && endDate){
-        start = moment(startDate).format('YYYY-MM-DD')
-        end = moment(endDate).format('YYYY-MM-DD')
-    } else if(startDate && (!endDate || endDate == "")){
-        start = moment(startDate).format('YYYY-MM-DD')
-        end = moment().format('YYYY-MM-DD')
+        start = moment(startDate).startOf('day')
+        end = moment(endDate).endOf('day')
+    } else if(startDate && (!endDate || endDate == "")) {
+        start = moment(startDate).startOf('day')
+        end = null
+    } else if((!startDate || startDate == "") && endDate){
+        start = null
+        end = moment(endDate).endOf('day')
     } else {
-        start = moment().startOf('day')
-        end = moment().startOf('day')
+        start = null
+        end = null
     }
 
     return {
-        startDate: start,
-        endDate: end
+        startDate: start ? start.format('YYYY-MM-DD') : null,
+        endDate: end ? end.format('YYYY-MM-DD') : null
     }
 }
 
@@ -1279,9 +1282,8 @@ exports.getAllTimeSheets = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if((!startDate || startDate == "") && (!endDate || endDate == "")){
-                startDate = moment(user.createdAt).format('YYYY-MM-DD')
-                endDate = moment().format('YYYY-MM-DD')
+            if(!startDate || startDate == ""){
+                startDate = moment('2025-01-01T00:00:01.000Z').format('YYYY-MM-DD')
             }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDateForViewHours({ startDate, endDate })
@@ -1758,6 +1760,16 @@ exports.getTimesheetEntryData = async (req, res) => {
                 return res.send({ status: 404, message: 'Timesheet not found' })
             }
 
+            const user = await User.findOne({ _id: timesheet?.userId, isDeleted: { $ne: true } })
+            if(!user){
+                return res.send({ status: 404, message: 'User not found' })
+            }
+
+            const jobDetail = user?.jobDetails.find(job => job._id.toString() === timesheet?.jobId.toString())
+            if(!jobDetail){
+                return res.send({ status: 404, message: 'Job title not found' })
+            }
+
             const entry = timesheet?.clockinTime.find(entry => entry?._id.toString() == entryId)
             if(!entry){
                 return res.send({ status: 404, message: 'Timesheet entry not found' })
@@ -1769,6 +1781,19 @@ exports.getTimesheetEntryData = async (req, res) => {
                 isWorkFromOffice = true
             }
 
+            let location, client
+            if(isWorkFromOffice == false){
+                client = await Client.findOne({ _id: timesheet?.clientId, isDeleted: { $ne: true } }).select('_id clientName')
+                if(!client){
+                    return res.send({ status: 404, message: 'Client not found' })
+                }
+            } else if(isWorkFromOffice == true){
+                location = await Location.findOne({ _id: timesheet?.locationId, isDeleted: { $ne: true } }).select('_id locationName')
+                if(!location){
+                    return res.send({ status: 404, message: 'Location not found' })
+                }
+            }
+
             const timesheetData = {
                 isWorkFromOffice,
                 userId: timesheet?.userId,
@@ -1778,6 +1803,10 @@ exports.getTimesheetEntryData = async (req, res) => {
                 comment: timesheet?.comment,
                 clockIn: entry?.clockIn ? convertToEuropeanTimezone(entry?.clockIn).format('YYYY-MM-DD HH:mm:ss') : "",
                 clockOut: entry?.clockOut ? convertToEuropeanTimezone(entry?.clockOut).format('YYYY-MM-DD HH:mm:ss') : "",
+                userName: user?.personalDetails?.lastName ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}` : `${user?.personalDetails?.firstName}`,
+                jobTitle: jobDetail?.jobTitle,
+                clientName: client?.clientName,
+                locationName: location?.locationName,
             }
 
             return res.send({ status: 200, message: 'Timesheet data fetched successfully', timesheetData })
@@ -1984,15 +2013,18 @@ function getStartAndEndDate({ timesheetFrequency, weekDate, startDate, endDate }
         }
     } else if(timesheetFrequency == 'Monthly'){
         if(startDate && endDate){
-            start = moment(startDate).startOf('day')
-            end = moment(endDate).endOf('day')
-        } else {
+            start = moment(startDate).startOf('month')
+            end = moment(endDate).endOf('month')
+        } else if(startDate && (!endDate || endDate == "")) {
+            start = moment(startDate).startOf('month')
+            end = moment().endOf('month')
+        }  else {
             start = moment().startOf('month')
             end = moment().endOf('month')
         }
     } else {
         start = moment().startOf('day')
-        end = moment().startOf('day')
+        end = moment().endOf('day')
     }
 
     // if (startDate && endDate) {
@@ -2622,6 +2654,10 @@ async function getOptimizedTimesheetReport(users, clientIds, locationIds, fromDa
             }
         }
 
+        if(timesheetFrequency !== 'Weekly'){
+            finalResponse.sort((a, b) => new Date(b.date) - new Date(a.date))
+        }
+
         return { finalResponse, count: timesheetDocs?.count[0]?.count }
 
         // const reports = finalResponse.slice(skip, skip + limit)
@@ -2650,9 +2686,12 @@ exports.getTimesheetReport = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if((!startDate || startDate == "") && (!endDate || endDate == "")){
-                startDate = moment(user.createdAt).format('YYYY-MM-DD')
-                endDate = moment().format('YYYY-MM-DD')
+            if((!startDate || startDate == "") && endDate){
+                startDate = moment('2025-01-01T00:00:01.000Z').format('YYYY-MM-DD')
+            }
+
+            if(timesheetFrequency !== 'Monthly' && !startDate){
+                startDate = moment('2025-01-01T00:00:01.000Z').format('YYYY-MM-DD')
             }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDate({ timesheetFrequency, weekDate, startDate, endDate })
@@ -3317,9 +3356,8 @@ exports.getAbsenceReport = async (req, res) => {
                 return res.send({ status: 404, message: 'User not found' })
             }
 
-            if((!startDate || startDate == "") && (!endDate || endDate == "")){
-                startDate = moment(user.createdAt).format('YYYY-MM-DD')
-                endDate = moment().format('YYYY-MM-DD')
+            if((!startDate || startDate == "")){
+                startDate = moment('2025-01-01T00:00:01.000Z').format('YYYY-MM-DD')
             }
 
             const { startDate: fromDate, endDate: toDate } = getStartAndEndDate({ timesheetFrequency, weekDate, startDate, endDate })
