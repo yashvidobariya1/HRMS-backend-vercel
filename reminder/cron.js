@@ -20,9 +20,9 @@ cron.schedule('0 9 * * *', async () => {
 })
 
 // Clock-In Reminder (9:10 AM)
-cron.schedule('* * * * *', async () => {
 // cron.schedule('10 9 * * *', async () => {
-// cron.schedule('*/30 * * * *', async () => {
+// Every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
     try {
         const today = moment().format('YYYY-MM-DD')
         await clockInOutReminder('clock-in', today)
@@ -34,8 +34,8 @@ cron.schedule('* * * * *', async () => {
     timezone: "Europe/London" // Adjust timezone as needed
 })
 
-// Clock-Out Reminder (6:10 PM)
-cron.schedule('10 18 * * *', async () => {
+// Every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
     const today = moment().format('YYYY-MM-DD')
     await clockInOutReminder('clock-out', today)
     console.log("✅ Reminder sent for missing clock-out.")

@@ -289,7 +289,7 @@ exports.createTask = async (req, res) => {
                         existTask = await Task.findOne({ userId, jobId, taskDate: date, clientId, startTime: { $lt: taskEndTime }, endTime: { $gt: taskStartTime }, isDeleted: { $ne: true } })
                     }
 
-                    console.log('existTask:', existTask)
+                    // console.log('existTask:', existTask)
                     if(existTask){
                         existTasks.push(`${userName} (${jobName})`)
                     } else {
@@ -1028,6 +1028,21 @@ exports.updateTask = async (req, res) => {
             const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
             if(!task){
                 return res.send({ status: 404, message: 'Task not found' })
+            }
+
+            const now = momentTimeZone().tz('Europe/London')
+            const taskDate = momentTimeZone.tz(task.taskDate, 'Europe/London').startOf('day')
+            const today = now.clone().startOf('day')
+
+            if (taskDate.isBefore(today)) {
+                return res.send({ status: 400, message: "You can't update past rota schedule." })
+            }
+
+            const taskStartDateTime = momentTimeZone.tz(`${task.taskDate}T${startTime}`, 'Europe/London')
+            const taskEndDateTime = momentTimeZone.tz(`${task.taskDate}T${endTime}`, 'Europe/London')
+
+            if (taskDate.isSame(today) && (taskStartDateTime.isBefore(now) || taskEndDateTime.isBefore(now))) {
+                return res.send({ status: 400, message: "You can't update rota schedule because the time has already passed for today." })
             }
 
             const taskStartTime = momentTimeZone.tz(`${task?.taskDate}T${startTime}`, 'Europe/London').utc().format('HH:mm')

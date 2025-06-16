@@ -2,6 +2,7 @@ require('dotenv').config({path:"config/config.env"})
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const moment = require('moment');
+const LoginAudit = require('../models/loginAudit');
 
 const { JWT_SECRET } = process.env
 
@@ -26,6 +27,13 @@ exports.auth = async (req, res, next) => {
             if (!user) {
                 throw new Error("User not found or token is invalid")
             }
+
+            await LoginAudit.findOneAndUpdate(
+                { userId: user._id, companyId: user.companyId, isLoggedIn: true },
+                { lastTimeAccess: moment().toDate() },
+                { new: true }
+            )
+
             // user.lastTimeAccess = moment().toDate()
             // await user.save()
             req.user = user

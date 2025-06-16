@@ -13,9 +13,9 @@ const userSchema = new mongoose.Schema({
     dateOfBirth: String,
     gender: String,
     maritalStatus: String,
-    phone: { type: String, unique: true },
+    phone: { type: String },
     homeTelephone: String,
-    email: { type: String, unique: true },
+    email: { type: String },
     niNumber: String,
   },
   addressDetails: {
@@ -178,11 +178,11 @@ const userSchema = new mongoose.Schema({
   },
   isFormFilled: { type: Boolean, default: true},
   isLoggedIn: Boolean,
-  usedBrowser: String,
-  userIPAddess: String,
+  // usedBrowser: String,
+  // userIPAddess: String,
   lastTimeAccess: Date,
-  lastTimeLoggedIn: Date,
-  lastTimeLoggedOut: Date,
+  // lastTimeLoggedIn: Date,
+  // lastTimeLoggedOut: Date,
   canceledAt: Date,
 }, { timestamps: true });
 
@@ -191,6 +191,16 @@ userSchema.methods.generateAuthToken = async function() {
   const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
   return token
 }
+
+userSchema.index(
+  { "personalDetails.phone": 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+)
+
+userSchema.index(
+  { "personalDetails.email": 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+)
 
 const User = mongoose.model('User', userSchema);
 

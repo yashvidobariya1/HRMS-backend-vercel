@@ -14,6 +14,7 @@ const Template = require("../models/template");
 const Task = require("../models/task");
 const Timesheet = require("../models/timeSheet");
 const Client = require('../models/client')
+const LoginAudit = require('../models/loginAudit');
 const { unique_Id, uploadToS3, uploadBufferToS3 } = require("../utils/AWS_S3");
 
 // exports.login = async (req, res) => {
@@ -90,6 +91,7 @@ exports.login = async (req, res) => {
             { 
                 password: 1,
                 isActive: 1,
+                companyId: 1,
                 personalDetails: 1,
                 role: 1,
                 createdAt: 1,
@@ -101,7 +103,19 @@ exports.login = async (req, res) => {
             return res.send({ status: 404, message: "User not found" })
         }
 
+        const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress
+        const browser = useragent.parse(req.headers["user-agent"])
+
         if (!isExist.isActive) {
+            await LoginAudit.create({
+                userId: isExist?._id,
+                companyId: isExist?.companyId,
+                reason: 'Inactive user tried to login',
+                attemptTime: moment().toDate(),
+                isLoggedIn: false,
+                ipAddress,
+                browser,
+            })
             return res.send({ status: 403, message: 'You do not have permission to log in!' })
         }
 
@@ -115,16 +129,40 @@ exports.login = async (req, res) => {
         }
 
         if(!passwordValid){
+            await LoginAudit.create({
+                userId: isExist?._id,
+                companyId: isExist?.companyId,
+                reason: 'Login attempt with invalid credentials',
+                attemptTime: moment().toDate(),
+                isLoggedIn: false,
+                ipAddress,
+                browser,
+            })
             return res.send({ status: 401, message: 'Invalid credential' })
         }
 
         const token = await isExist.generateAuthToken()
-        const browser = useragent.parse(req.headers["user-agent"])
         isExist.token = token
-        isExist.lastTimeLoggedIn = moment().toDate()
-        isExist.isLoggedIn = true
-        isExist.usedBrowser = browser
         await isExist.save()
+
+        const loggedInAudit = await LoginAudit.findOne({ userId: isExist?._id, companyId: isExist?.companyId, isLoggedIn: true })
+
+        if(loggedInAudit){
+            loggedInAudit.lastTimeLoggedIn = moment().toDate()
+            loggedInAudit.isLoggedIn = false
+            await loggedInAudit.save()
+        }
+
+        await LoginAudit.create({
+            userId: isExist?._id,
+            companyId: isExist?.companyId,
+            attemptTime: moment().toDate(),
+            isLoggedIn: true,
+            ipAddress,
+            lastTimeAccess: moment().toDate(),
+            lastTimeLoggedIn: moment().toDate(),
+            browser,
+        })        
 
         const personalDetails = isExist?.personalDetails
         const role = isExist?.role
@@ -154,9 +192,17 @@ exports.logOut = async (req, res) => {
         }
 
         existUser.token = ""
-        existUser.lastTimeLoggedOut = moment().toDate()
-        existUser.isLoggedIn = false
         await existUser.save()
+
+        await LoginAudit.findOneAndUpdate(
+            { userId: existUser._id, isLoggedIn: true },
+            { 
+                lastTimeLoggedOut: moment().toDate(),
+                isLoggedIn: false 
+            },
+            { new: true }
+        )
+        
         return res.send({ status: 200, message: 'Logging out successfully.' })
     } catch (error) {
         console.error('Error occurred while logging out:', error)
