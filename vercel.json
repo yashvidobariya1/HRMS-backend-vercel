@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "HRMS-backend",
+  "name": "HRMS-backend-vercel",
   "builds": [
     {
       "src": "server.js",
