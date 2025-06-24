@@ -44,6 +44,7 @@ exports.clockInFunc = async (req, res) => {
       if (!existUser) {
         return res.send({ status: 404, message: "User not found" });
       }
+      console.log("existUser:", existUser);
 
       let jobDetail = existUser?.jobDetails.find(
         (job) => job._id.toString() === jobId
@@ -55,19 +56,20 @@ exports.clockInFunc = async (req, res) => {
       if (isMobile === true) {
         let qrCode;
         let companyId = existUser?.companyId.toString();
+        console.log("jobDetail:", jobDetail);
         if (jobDetail?.isWorkFromOffice) {
           qrCode = await QR.findOne({
-            qrValue,
-            locationId,
-            companyId,
-            isActive: { $ne: false },
+            qrValue: qrValue?.trim(),
+            locationId: new mongoose.Types.ObjectId(locationId),
+            companyId: new mongoose.Types.ObjectId(companyId),
+            isActive: true,
           });
         } else {
           qrCode = await QR.findOne({
-            qrValue,
-            clientId,
-            companyId,
-            isActive: { $ne: false },
+            qrValue: qrValue?.trim(),
+            clientId: new mongoose.Types.ObjectId(clientId),
+            companyId: new mongoose.Types.ObjectId(companyId),
+            isActive: true,
           });
         }
 
