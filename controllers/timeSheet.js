@@ -53,6 +53,23 @@ exports.clockInFunc = async (req, res) => {
         return res.send({ status: 404, message: "JobTitle not found" });
       }
 
+      console.log("Looking for QR code with:", {
+        qrValue: qrValue?.trim(),
+        ...(jobDetail?.isWorkFromOffice
+          ? { locationId: locationId?.toString() }
+          : { clientId: clientId?.toString() }),
+        companyId: existUser?.companyId.toString(),
+        isActive: true,
+      });
+      console.log("Looking for QR code with:", {
+        qrValue: qrValue?.trim(),
+        ...(jobDetail?.isWorkFromOffice
+          ? { locationId: new mongoose.Types.ObjectId(locationId) }
+          : { clientId: new mongoose.Types.ObjectId(clientId) }),
+        companyId: new mongoose.Types.ObjectId(existUser?.companyId.toString()),
+        isActive: true,
+      });
+
       if (isMobile === true) {
         let qrCode;
         let companyId = existUser?.companyId.toString();
