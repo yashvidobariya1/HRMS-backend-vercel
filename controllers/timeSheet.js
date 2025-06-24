@@ -20,7 +20,6 @@ const Company = require("../models/company");
 const jwt = require("jsonwebtoken");
 const { transporter } = require("../utils/nodeMailer");
 const momentTimeZone = require("moment-timezone");
-const JobTitles = require("../models/jobTitle");
 
 exports.clockInFunc = async (req, res) => {
   try {
@@ -647,19 +646,11 @@ exports.clockOutFunc = async (req, res) => {
           .split(":")
           .map(Number);
 
-        const today = moment();
-        const startDate = moment(today).set({
-          hour: startHour,
-          minute: startMinute,
-          second: 0,
-          millisecond: 0,
-        });
-        const endDate = moment(today).set({
-          hour: endHour,
-          minute: endMinute,
-          second: 0,
-          millisecond: 0,
-        });
+        const today = new Date();
+        const startDate = new Date(
+          today.setHours(startHour, startMinute, 0, 0)
+        );
+        const endDate = new Date(today.setHours(endHour, endMinute, 0, 0));
 
         const totalSeconds = Math.floor((endDate - startDate) / 1000);
         const hours = Math.floor(totalSeconds / 3600);
@@ -1490,7 +1481,6 @@ async function getTimesheetReportForViewHours(
       if (!location) continue;
     }
     for (const job of user?.jobDetails) {
-      const jobTitleDoc = await JobTitles.findOne({ _id: job?.jobTitle });
       if (job?._id?.toString() == TS?.jobId?.toString()) {
         for (const CI of TS?.clockinTime) {
           finalResponse.push({
@@ -1499,7 +1489,7 @@ async function getTimesheetReportForViewHours(
             userName: user?.personalDetails?.lastName
               ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`
               : `${user?.personalDetails?.firstName}`,
-            jobTitle: jobTitleDoc?.name,
+            jobTitle: job?.jobTitle,
             clientName: client?.clientName,
             locationName: location?.locationName,
             clockIn: CI?.clockIn
@@ -1561,18 +1551,6 @@ exports.getAllTimeSheets = async (req, res) => {
         locationIds = [];
 
       const userMatch = { isDeleted: { $ne: true } };
-
-      if (req.user.role == "Administrator") {
-        if (userId !== req.user._id.toString()) {
-          userMatch.role = { $in: ["Manager", "Employee"] };
-        }
-      } else if (req.user.role == "Manager") {
-        if (userId !== req.user._id.toString()) {
-          userMatch["jobDetails.assignManager"] = req.user._id;
-          userMatch.role = { $in: ["Employee"] };
-        }
-      }
-
       if (companyId !== "allCompany") userMatch.companyId = companyId;
 
       if (isWorkFromOffice == "true") {
@@ -2043,10 +2021,7 @@ exports.addTimesheetEntry = async (req, res) => {
       } else if (existTimesheet && !existTimesheet?.isTimerOn) {
         const timesheetId = existTimesheet?._id.toString();
 
-        const duration = formatDuration(
-          moment(clockIn).toDate(),
-          moment(clockOut).toDate()
-        );
+        const duration = formatDuration(new Date(clockIn), new Date(clockOut));
 
         const newEntry = {
           clockIn: momentTimeZone
@@ -2083,8 +2058,8 @@ exports.addTimesheetEntry = async (req, res) => {
           0
         );
         const taskTotalHours = formatDuration(
-          moment(`${timesheetDate} ${assignedTask?.startTime}`).toDate(),
-          moment(`${timesheetDate} ${assignedTask?.endTime}`).toDate()
+          new Date(`${timesheetDate} ${assignedTask?.startTime}`),
+          new Date(`${timesheetDate} ${assignedTask?.endTime}`)
         );
 
         if (
@@ -2118,13 +2093,10 @@ exports.addTimesheetEntry = async (req, res) => {
           message: "Timesheet entry created successfully",
         });
       } else {
-        const duration = formatDuration(
-          moment(clockIn).toDate(),
-          moment(clockOut).toDate()
-        );
+        const duration = formatDuration(new Date(clockIn), new Date(clockOut));
         const taskTotalHours = formatDuration(
-          moment(`${timesheetDate} ${assignedTask?.startTime}`).toDate(),
-          moment(`${timesheetDate} ${assignedTask?.endTime}`).toDate()
+          new Date(`${timesheetDate} ${assignedTask?.startTime}`),
+          new Date(`${timesheetDate} ${assignedTask?.endTime}`)
         );
         // const totalHours = convertToSeconds(duration) - (breakTime * 60)
         const totalHours = subtractBreakTimeFromTotalWorkingHours(
@@ -2218,8 +2190,6 @@ exports.getTimesheetEntryData = async (req, res) => {
         return res.send({ status: 404, message: "Job title not found" });
       }
 
-      const jobTitleDoc = await JobTitles.findOne({ _id: jobDetail?.jobTitle });
-
       const entry = timesheet?.clockinTime.find(
         (entry) => entry?._id.toString() == entryId
       );
@@ -2272,7 +2242,7 @@ exports.getTimesheetEntryData = async (req, res) => {
         userName: user?.personalDetails?.lastName
           ? `${user?.personalDetails?.firstName} ${user?.personalDetails?.lastName}`
           : `${user?.personalDetails?.firstName}`,
-        jobTitle: jobTitleDoc?.name,
+        jobTitle: jobDetail?.jobTitle,
         clientName: client?.clientName,
         locationName: location?.locationName,
       };
@@ -2372,10 +2342,7 @@ exports.updateTimesheetEntry = async (req, res) => {
         }
       }
 
-      const duration = formatDuration(
-        moment(clockIn).toDate(),
-        moment(clockOut).toDate()
-      );
+      const duration = formatDuration(new Date(clockIn), new Date(clockOut));
       const timesheetDate = moment(clockIn).format("YYYY-MM-DD");
 
       const assignedTask = await Task.findOne({
@@ -2446,8 +2413,8 @@ exports.updateTimesheetEntry = async (req, res) => {
         0
       );
       const taskTotalHours = formatDuration(
-        moment(`${timesheetDate} ${assignedTask?.startTime}`).toDate(),
-        moment(`${timesheetDate} ${assignedTask?.endTime}`).toDate()
+        new Date(`${timesheetDate} ${assignedTask?.startTime}`),
+        new Date(`${timesheetDate} ${assignedTask?.endTime}`)
       );
 
       if (!timesheet?.breakTimeDeducted && totalSeconds > breakTime * 60) {
@@ -3167,9 +3134,6 @@ async function getOptimizedTimesheetReport(
 
       for (const job of user?.jobDetails) {
         if (job?._id.toString() !== doc?.jobId.toString()) continue;
-
-        const jobTitleDoc = await JobTitles.findOne({ _id: job?.jobTitle });
-
         if (isWorkFromOffice == "false" && job?.isWorkFromOffice == false) {
           const assignedClientIds = job?.assignClient?.map((c) =>
             c?.toString()
@@ -3209,12 +3173,11 @@ async function getOptimizedTimesheetReport(
         if (timesheetFrequency === "Weekly") {
           const weekStart = moment(doc.date).startOf("isoWeek");
           const weekEnd = moment(doc.date).endOf("isoWeek");
-
           const key = [
             doc.userId,
             doc.clientId,
             doc.locationId,
-            jobTitleDoc.name,
+            job.jobTitle,
             weekStart.format("YYYY-MM-DD"),
           ].join("_");
           // const key = `${doc?.userId}_${doc?.clientId}_${job?.jobTitle}`
@@ -3222,7 +3185,7 @@ async function getOptimizedTimesheetReport(
             weeklyMap[key] = {
               userId: doc?.userId,
               userName,
-              jobRole: jobTitleDoc?.name,
+              jobRole: job?.jobTitle,
               clientName: client?.clientName,
               locationName: location?.locationName,
               // clientId: doc?.clientId,
@@ -3247,7 +3210,7 @@ async function getOptimizedTimesheetReport(
           finalResponse.push({
             userId: doc?.userId,
             userName,
-            jobRole: jobTitleDoc?.name,
+            jobRole: job?.jobTitle,
             // clientId: client?._id?.toString(),
             clientName: client?.clientName,
             locationName: location?.locationName,
@@ -3282,9 +3245,7 @@ async function getOptimizedTimesheetReport(
     }
 
     if (timesheetFrequency !== "Weekly") {
-      finalResponse.sort(
-        (a, b) => moment(b.date).valueOf() - moment(a.date).valueOf()
-      );
+      finalResponse.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
     return { finalResponse, count: timesheetDocs?.count[0]?.count };
@@ -3857,20 +3818,6 @@ async function getOptimizedAbsenceReport(
     for (const user of usersData) {
       const jobList = user?.jobDetails || [];
       for (const job of jobList) {
-        const jobTitleDoc = await JobTitles.findOne({ _id: job?.jobTitle });
-        const jobJoiningDate = moment(job?.joiningDate).format("YYYY-MM-DD");
-        const adjustedFromDate = moment
-          .max(moment(jobJoiningDate), moment(fromDate))
-          .format("YYYY-MM-DD");
-
-        if (moment(jobJoiningDate).isAfter(moment(toDate))) continue;
-
-        const jobDates = allDates.filter(
-          (date) =>
-            moment(date).isSameOrAfter(adjustedFromDate) &&
-            moment(date).isSameOrBefore(moment(toDate))
-        );
-
         const userName = `${user.personalDetails?.firstName} ${
           user.personalDetails?.lastName || ""
         }`;
@@ -3887,7 +3834,7 @@ async function getOptimizedAbsenceReport(
             const client = clientMap.get(clientId);
             if (!client) continue;
 
-            for (const date of jobDates) {
+            for (const date of allDates) {
               const key = `${user._id}_${clientId}_${date}`;
               if (timesheetSet.has(key)) continue;
               if (holidaySet.has(date)) continue;
@@ -3896,7 +3843,7 @@ async function getOptimizedAbsenceReport(
               finalResponse.push({
                 userId: user._id,
                 userName,
-                jobRole: jobTitleDoc?.name,
+                jobRole: job?.jobTitle,
                 date,
                 status: "Absent",
                 clientName: client?.clientName,
@@ -3916,7 +3863,7 @@ async function getOptimizedAbsenceReport(
             const location = locationMap.get(locationId);
             if (!location) continue;
 
-            for (const date of jobDates) {
+            for (const date of allDates) {
               const key = `${user._id}_${locationId}_${date}`;
               if (timesheetSet.has(key)) continue;
               if (holidaySet.has(date)) continue;
@@ -3925,7 +3872,7 @@ async function getOptimizedAbsenceReport(
               finalResponse.push({
                 userId: user._id,
                 userName,
-                jobRole: jobTitleDoc?.name,
+                jobRole: job?.jobTitle,
                 date,
                 status: "Absent",
                 locationName: location?.locationName,
@@ -3936,9 +3883,7 @@ async function getOptimizedAbsenceReport(
       }
     }
 
-    finalResponse.sort(
-      (a, b) => moment(b.date).valueOf() - moment(a.date).valueOf()
-    );
+    finalResponse.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     const totalAbsenceReport = finalResponse;
     // const totalAbsenceReport = finalResponse.slice(skip, skip + limit)
@@ -4076,7 +4021,7 @@ exports.getAbsenceReport = async (req, res) => {
       const skip = (page - 1) * limit;
 
       const { userId, clientId, locationId } = req.body;
-      let {
+      const {
         timesheetFrequency = "Daily",
         weekDate,
         isWorkFromOffice,
@@ -4111,18 +4056,6 @@ exports.getAbsenceReport = async (req, res) => {
         locationIds = [];
 
       const userMatch = { isDeleted: { $ne: true } };
-
-      if (req.user.role == "Administrator") {
-        if (userId !== req.user._id.toString()) {
-          userMatch.role = { $in: ["Manager", "Employee"] };
-        }
-      } else if (req.user.role == "Manager") {
-        if (userId !== req.user._id.toString()) {
-          userMatch["jobDetails.assignManager"] = req.user._id;
-          userMatch.role = { $in: ["Employee"] };
-        }
-      }
-
       if (companyId !== "allCompany") userMatch.companyId = companyId;
 
       if (isWorkFromOffice == "true") {
@@ -4756,8 +4689,6 @@ exports.downloadTimesheetReport = async (req, res) => {
         return res.send({ status: 404, message: "JobTitle not found" });
       }
 
-      const jobTitleDoc = await JobTitles.findOne({ _id: jobDetail?.jobTitle });
-
       const joiningDate = moment(jobDetail?.joiningDate, "YYYY-MM-DD");
       let startMoment = moment(startDate, "YYYY-MM-DD");
       let endMoment = moment(endDate, "YYYY-MM-DD");
@@ -4947,7 +4878,7 @@ exports.downloadTimesheetReport = async (req, res) => {
         userName: `${user?.personalDetails.firstName} ${user?.personalDetails.lastName}`,
         userEmail: user?.personalDetails?.email,
         userContactNumber: user?.personalDetails?.phone,
-        userJobTitle: jobTitleDoc?.name,
+        userJobTitle: jobDetail?.jobTitle,
         userRole: jobDetail?.role,
       };
 
