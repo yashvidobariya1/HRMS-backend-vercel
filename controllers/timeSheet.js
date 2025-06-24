@@ -22,6 +22,7 @@ const { transporter } = require("../utils/nodeMailer");
 const momentTimeZone = require("moment-timezone");
 
 exports.clockInFunc = async (req, res) => {
+  console.log("req.body:", req.body);
   try {
     const allowedRoles = ["Administrator", "Manager", "Employee"];
     if (allowedRoles.includes(req.user.role)) {
@@ -70,6 +71,7 @@ exports.clockInFunc = async (req, res) => {
           });
         }
 
+        console.log("qrCode:", qrCode);
         if (!qrCode) {
           return res.send({ status: 400, message: "Invalid QR code" });
         }
@@ -441,6 +443,7 @@ function subtractBreakTimeFromTotalWorkingHours(durationStr, breakMinutes) {
 }
 
 exports.clockOutFunc = async (req, res) => {
+  console.log("req.body:", req.body);
   try {
     const allowedRoles = ["Administrator", "Manager", "Employee"];
     if (allowedRoles.includes(req.user.role)) {
@@ -489,6 +492,7 @@ exports.clockOutFunc = async (req, res) => {
           });
         }
 
+        console.log("qrCode:", qrCode);
         if (!qrCode) {
           return res.send({ status: 400, message: "Invalid QR code" });
         }
