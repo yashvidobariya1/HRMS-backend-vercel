@@ -57,6 +57,9 @@ const {
   saveTemplateWithSignature,
   previewTemplate,
   readTemplate,
+  getAllUsersTemplates,
+  uploadSignedTemplate,
+  deleteSignedTemplateOfUser,
 } = require("../controllers/templates");
 const { dashboard, getTodaysAbsentUsers } = require("../controllers/dashboard");
 const {
@@ -150,5 +153,12 @@ commonRoute.get("/getTask/:id", auth, getTask);
 commonRoute.post("/getAllTasks", auth, getAllTasks);
 commonRoute.post("/updateTask/:id", auth, updateTask);
 commonRoute.post("/cancelTask/:id", auth, canceledTask);
+commonRoute.post("/getAllUsersTemplates", auth, getAllUsersTemplates);
+commonRoute.post("/uploadSignedTemplate", auth, uploadSignedTemplate);
+commonRoute.post(
+  "/deleteSignedTemplateOfUser",
+  auth,
+  deleteSignedTemplateOfUser
+);
 
 module.exports = commonRoute;
